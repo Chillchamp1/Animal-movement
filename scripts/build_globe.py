@@ -93,6 +93,33 @@ SPECIES = {
                 "of the record Alaska-New Zealand flight is not open data; "
                 "this is the same journey in a species that is.",
     },
+    "stork": {
+        "label": "White stork",
+        "scientific": "Ciconia ciconia",
+        "raw": "data/raw/storks",
+        "glob": "*-gps.csv",
+        "source": "Flack et al. 2016, doi:10.5441/001/1.78152p3q (CC0)",
+        "study": "Costs of migratory decisions: a comparison across eight "
+                 "white stork populations",
+        "vmax_kmh": 100.0,
+        "max_gap_h": 12.0,
+        "min_fixes": 60,
+        "companion_step_min": 90,
+        "focal_step_min": 30,
+        # The deposit runs to July 2014, and scored on distance flown the
+        # winner is a bird that loitered for a year: 78,932 fixes at 4.4 km/h.
+        # Autumn is what the map is about, and displacement is what a migration
+        # actually is, so both are said explicitly.
+        "from_date": "2013-08-01",
+        "to_date": "2013-12-15",
+        "score": "displacement",
+        # Nine tagging sites, and which one a bird came from is the whole point
+        # of this deposit, so the globe colours them by it.
+        "colour_by": "population",
+        "exclude_pop": ("Uzbekistan",),
+        "note": "One first-autumn migration, with the rest of the deposit "
+                "flying the same weeks. Colour is where each bird hatched.",
+    },
     "albatross": {
         "label": "Grey-headed albatross",
         "scientific": "Thalassarche chrysostoma",
@@ -157,6 +184,18 @@ def find_fix_file(raw: Path, pattern: str) -> Path:
                      "  see the fetch commands in this script's docstring")
 
 
+def read_reference(raw: Path) -> pd.DataFrame | None:
+    """The deposit's per-animal table, for the tagging site."""
+    ref = next(raw.glob("*-reference-data.csv"), None)
+    if ref is None:
+        return None
+    r = pd.read_csv(ref)
+    if "animal-id" not in r or "study-site" not in r:
+        return None
+    return (r.rename(columns={"animal-id": "id", "study-site": "population"})
+             [["id", "population"]].drop_duplicates(subset=["id"]))
+
+
 def read_fixes(cfg: dict) -> pd.DataFrame:
     path = find_fix_file(Path(cfg["raw"]), cfg["glob"])
     df = pd.read_csv(path, low_memory=False)
@@ -174,14 +213,38 @@ def read_fixes(cfg: dict) -> pd.DataFrame:
     if "manually-marked-outlier" in df:
         df = df[df["manually-marked-outlier"] != True]  # noqa: E712
 
+    if cfg.get("from_date"):
+        df = df[df.timestamp >= pd.Timestamp(cfg["from_date"])]
+    if cfg.get("to_date"):
+        df = df[df.timestamp < pd.Timestamp(cfg["to_date"])]
+
+    if cfg.get("colour_by") == "population":
+        ref = read_reference(Path(cfg["raw"]))
+        df = (df.merge(ref, on="id", how="left") if ref is not None
+              else df.assign(population="unknown"))
+        df["population"] = df.population.fillna("unknown")
+        drop = set(cfg.get("exclude_pop", ()))
+        if drop:
+            df = df[~df.population.isin(drop)]
+
     print(f"  {path.name}")
     print(f"    {n0:,} rows -> {len(df):,} usable"
-          + (f"; {n_bad} had impossible coordinates" if n_bad else ""))
+          + (f"; {n_bad} had impossible coordinates" if n_bad else "")
+          + (f"; window {cfg.get('from_date','')}..{cfg.get('to_date','')}"
+             if cfg.get("from_date") else ""))
     return df.sort_values(["id", "timestamp"])
 
 
 def best_journey(df: pd.DataFrame, cfg: dict) -> dict:
-    """The longest run of fixes with no silence longer than max_gap_h."""
+    """The best run of fixes with no silence longer than max_gap_h.
+
+    "Best" is not one thing. An albatross foraging trip is a loop that ends
+    where it began, so what makes it the good one is the distance flown. A
+    migration is the opposite: scored on distance flown, the stork deposit's
+    winner is a bird that pottered about for a year -- 78,932 fixes at
+    4.4 km/h -- so there the score is displacement, how far it actually got.
+    """
+    use_disp = cfg.get("score") == "displacement"
     best = None
     dropped = 0
     for bird, g in df.groupby("id"):
@@ -199,8 +262,12 @@ def best_journey(df: pd.DataFrame, cfg: dict) -> dict:
                 continue
             a, o, ts = lat[part], lon[part], t[part]
             km = float(haversine(a[:-1], o[:-1], a[1:], o[1:]).sum())
-            if best is None or km > best["km"]:
-                best = {"id": str(bird), "lat": a, "lon": o, "t": ts, "km": km}
+            score = float(haversine(a[0], o[0], a[-1], o[-1])) if use_disp else km
+            if best is None or score > best["score"]:
+                best = {"id": str(bird), "lat": a, "lon": o, "t": ts,
+                        "km": km, "score": score,
+                        "pop": str(g.population.iloc[0])
+                               if "population" in g else None}
     if best is None:
         raise SystemExit("no segment met the minimum length")
     print(f"    speed filter dropped {dropped:,} fixes above "
@@ -245,12 +312,15 @@ def companions(df: pd.DataFrame, cfg: dict, seg: dict) -> list[dict]:
         lat, lon, t = lat[pick], lon[pick], t[pick]
         minutes = ((t - t0) / np.timedelta64(1, "m")).astype(float)
         lon_u = np.degrees(np.unwrap(np.radians(lon)))
-        out.append({
+        rec = {
             "id": str(bird),
             "lat": [round(float(v), 4) for v in lat],
             "lon": [round(float(v), 4) for v in lon_u],
             "min": [round(float(v), 1) for v in minutes],
-        })
+        }
+        if "population" in g:
+            rec["pop"] = str(g.population.iloc[0])
+        out.append(rec)
     out.sort(key=lambda d: -len(d["min"]))
     return out
 
@@ -272,6 +342,32 @@ def companion_tolerance(others: list[dict], cfg: dict) -> float:
     return float(round(max(2.5 * np.median(gaps), cfg["companion_step_min"] * 2), 1))
 
 
+def thin_by_time(seg: dict, minutes: float) -> dict:
+    """Drop the focal track to one fix per `minutes`.
+
+    The stork's autumn is 136 days at a five-minute cadence -- 29,395 fixes,
+    which is most of a megabyte for detail that is far below one screen pixel
+    at any altitude this globe uses. Thinned by time rather than by index so a
+    burst near the nest does not buy resolution a quiet stretch cannot.
+    """
+    t = seg["t"]
+    step = np.timedelta64(int(minutes), "m")
+    pick = [0]
+    for i in range(1, len(t)):
+        if t[i] - t[pick[-1]] >= step:
+            pick.append(i)
+    if pick[-1] != len(t) - 1:
+        pick.append(len(t) - 1)
+    idx = np.array(pick)
+    out = dict(seg)
+    out["lat"], out["lon"], out["t"] = seg["lat"][idx], seg["lon"][idx], t[idx]
+    # Distance is recomputed on the thinned track, so the read-out never claims
+    # kilometres the drawn line does not contain.
+    out["km"] = float(haversine(out["lat"][:-1], out["lon"][:-1],
+                                out["lat"][1:], out["lon"][1:]).sum())
+    return out
+
+
 def payload(key: str, cfg: dict, seg: dict, others: list[dict]) -> dict:
     lat, lon, t = seg["lat"], seg["lon"], seg["t"]
     minutes = ((t - t[0]) / np.timedelta64(1, "m")).astype(float)
@@ -288,6 +384,8 @@ def payload(key: str, cfg: dict, seg: dict, others: list[dict]) -> dict:
         "label": cfg["label"],
         "scientific": cfg["scientific"],
         "individual": seg["id"],
+        "population": seg.get("pop"),
+        "colourBy": cfg.get("colour_by", "species"),
         "source": cfg["source"],
         "study": cfg["study"],
         "note": cfg["note"],
@@ -322,6 +420,11 @@ def main() -> int:
         print(f"{cfg['label']} ({cfg['scientific']})")
         df = read_fixes(cfg)
         seg = best_journey(df, cfg)
+        if cfg.get("focal_step_min"):
+            n0 = len(seg["lat"])
+            seg = thin_by_time(seg, cfg["focal_step_min"])
+            print(f"    thinned the focal track {n0:,} -> {len(seg['lat']):,} "
+                  f"fixes at {cfg['focal_step_min']} min")
         others = companions(df, cfg, seg)
         p = payload(key, cfg, seg, others)
         tracks[key] = p
