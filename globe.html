@@ -68,6 +68,7 @@
     font:inherit;font-size:.72rem;color:var(--ink-2);background:transparent;
     border:1px solid var(--rule);border-radius:7px;padding:6px 11px;cursor:pointer;
     transition:color .15s,border-color .15s;
+    flex:0 0 auto;white-space:nowrap;
   }
   #controls button:hover{color:var(--ink)}
   #play{min-width:66px;font-weight:500}
@@ -147,6 +148,14 @@
     #speeds button[data-v="1"]{display:none}
     #replay{display:none}
     #readout dl{grid-template-columns:auto auto}
+    /* Below this the row of controls is wider than the phone and the last
+       button -- Flock -- was pushed clean off the panel and could not be
+       tapped at all. The row wraps instead, and the scrubber takes the second
+       line where it has room to be dragged. */
+    #controls{flex-wrap:wrap;row-gap:7px}
+    #scrub{flex:1 1 100%;order:2;min-width:0}
+    #play,#speeds,#others{order:1}
+    #speeds{flex:1 1 auto;justify-content:center}
   }
   @media (prefers-reduced-motion:reduce){
     #birdRow button{transition:none}
