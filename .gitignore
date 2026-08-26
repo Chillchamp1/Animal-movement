@@ -1,4 +1,9 @@
 # Extracted from the committed Dryad zips; regenerate with:
 #   unzip -o '*.zip' -d data/raw/
 data/raw/
+
+# Single-file build; regenerate with:
+#   python3 scripts/build_standalone.py
+dist/
+
 __pycache__/

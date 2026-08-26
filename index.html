@@ -43,7 +43,7 @@
   /* Impala were only collared in the dry season; the pill says so rather than
      sitting lit with nothing behind it. */
   .row button[data-unavailable="true"]{opacity:0.3;cursor:not-allowed}
-  .row button[data-unavailable="true"]::after{content:" —";letter-spacing:0.1em}
+  .row button[data-unavailable="true"]::after{content:" \2014";letter-spacing:0.1em}
   .row .lab{
     font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;
     color:var(--ink-3);align-self:center;padding-right:4px;min-width:52px;
@@ -187,7 +187,7 @@
   </div>
 </div>
 
-<div id="loading">loading tracks…</div>
+<div id="loading">loading tracks&hellip;</div>
 
 <script>
 "use strict";
@@ -226,12 +226,22 @@ const CACHE = new Map();
 
 /* ------------------------------------------------------------------ load */
 
+/* Served from a directory the page can fetch, or inlined ahead of this script
+   by scripts/build_standalone.py for a single-file build. */
+const INLINE = (typeof window !== "undefined" && window.__DELTA_DATA__) || null;
+
+async function loadJSON(name){
+  if (INLINE) return INLINE[name] ?? null;
+  const res = await fetch(`data/processed/${name}.json`);
+  if (!res.ok) throw new Error(`cannot load ${name}: ${res.status}`);
+  return res.json();
+}
+
 async function loadSpeciesSeason(sp, season){
   const key = sp + "-" + season;
   if (CACHE.has(key)) return CACHE.get(key);
-  const res = await fetch(`data/processed/${key}.json`);
-  if (!res.ok) throw new Error(`cannot load ${key}: ${res.status}`);
-  const raw = await res.json();
+  const raw = await loadJSON(key);
+  if (!raw) throw new Error(`no data for ${key}`);
 
   /* Build one continuous hourly timeline per individual. Inside a segment the
      step is one hour. Across a gap the deposit cannot say how many hours were
@@ -549,12 +559,12 @@ function buildLegend(){
     el.className = "lg";
     el.innerHTML = `<span class="sw" style="background:${pick(SPECIES[sp].role)}"></span>`
       + `<span class="nm">${SPECIES[sp].label}</span>`
-      + `<span class="ct">${c.inds} collars · ${c.fixes.toLocaleString()} fixes</span>`;
+      + `<span class="ct">${c.inds} collars \u00b7 ${c.fixes.toLocaleString()} fixes</span>`;
     rows.appendChild(el);
   }
   const days = Math.ceil(SPAN/24);
   document.getElementById("legendFoot").textContent = TRACKS.length
-    ? `${sel.season === "dry" ? "Dry" : "Rainy"} season · ${days} days of hourly fixes · `
+    ? `${sel.season === "dry" ? "Dry" : "Rainy"} season \u00b7 ${days} days of hourly fixes \u00b7 `
       + `rings mark an animal in the top decile of a predator's range while that predator is active.`
     : "No collars for this combination.";
 }
@@ -697,7 +707,7 @@ function wireControls(){
   const spd = document.getElementById("spd");
   for (const v of [3, 6, 12, 24]){
     const b = document.createElement("button");
-    b.textContent = (v/6) + "×";
+    b.textContent = (v/6) + "\u00d7";
     b.setAttribute("aria-pressed", String(v === hoursPerSecond));
     b.addEventListener("click", () => {
       hoursPerSecond = v;
@@ -773,14 +783,14 @@ function buildNotes(){
   try {
     buildNotes();
     wireControls();
-    RISK = await fetch("data/processed/predator-risk.json").then(r => r.ok ? r.json() : null);
+    RISK = await loadJSON("predator-risk").catch(() => null);
     await rebuild();
     document.getElementById("loading").hidden = true;
     lastFrame = performance.now();
     requestAnimationFrame(frame);
   } catch (err){
     document.getElementById("loading").textContent =
-      "could not load tracks — this page needs http(s), not file://";
+      "could not load tracks \u2014 this page needs http(s), not file://";
     console.error(err);
   }
 })();
