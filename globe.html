@@ -154,7 +154,7 @@
            bottom:calc(64px + env(safe-area-inset-bottom,0px));max-height:56vh}
   }
   @media (max-width:520px){
-    #speeds button[data-v="1"]{display:none}
+    #speeds button[data-v="0.5"]{display:none}
     #replay{display:none}
     #readout dl{grid-template-columns:auto auto}
     /* Below this the row of controls is wider than the phone and the last
@@ -186,6 +186,7 @@
     <dt>lat</dt><dd id="lat">&mdash;</dd>
     <dt>lon</dt><dd id="lon">&mdash;</dd>
     <dt>others</dt><dd id="nother">&mdash;</dd>
+    <dt>day</dt><dd id="day">&mdash;</dd>
     <dt>following</dt><dd id="follow">&mdash;</dd>
   </dl>
 </div>
@@ -306,7 +307,19 @@ let key = "stork";
 let globe = null;
 let playing = true;
 let simMin = 0;             /* minutes since the journey's first fix */
-let speed = 8;              /* animation speed: journey-hours per real second */
+/* How long a full pass should take, in real seconds, whatever the journey.
+
+   A fixed rate cannot serve these three. Eight journey-hours per second was
+   fine when the longest trip was three weeks, but the stork's autumn is 136
+   days: at that rate it ran for six and three-quarter minutes, and the first
+   twenty-one of those days are a bird standing near its nest. Thirty seconds
+   of watching bought twenty-two kilometres of movement, sub-pixel at this
+   altitude -- so the view looked broken when it was merely glacial. The rate
+   now comes from the journey's own length, and the buttons are multiples of
+   it rather than absolute speeds. */
+const RUN_SECONDS = 75;
+let speedMult = 1;
+const baseSpeed = () => (T.min[T.min.length - 1] / 60) / RUN_SECONDS;
 
 /* Camera state, eased toward the bird rather than snapped to it. Longitude is
    carried unwrapped -- the albatross crosses the antimeridian, and easing
@@ -592,6 +605,9 @@ function updateReadout(p){
   $("nother").textContent = showOthers
     ? `${seen} of ${T.others ? T.others.length : 0}` : "off";
   $("follow").textContent = followLabel();
+  /* Without this the stork's four months read as a stalled animation rather
+     than a long one. */
+  $("day").textContent = `${day} of ${Math.ceil(T.hours / 24)}`;
   const s = $("scrub");
   if (document.activeElement !== s) s.value = String(Math.round(simMin / T.min[T.min.length-1] * 1000));
   $("when").title = `day ${day} of ${Math.ceil(T.hours/24)}`;
@@ -609,7 +625,7 @@ function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   if (playing){
-    simMin += dt * speed * 60;
+    simMin += dt * baseSpeed() * speedMult * 60;
     const end = T.min[T.min.length - 1];
     if (simMin >= end){ simMin = end; playing = false; syncPlay(); }
   }
@@ -618,6 +634,17 @@ function frame(now){
 }
 
 /* ------------------------------------------------------------------ chrome */
+
+/* The buttons are relative, so say what each one means in seconds for the
+   journey currently loaded. */
+function syncSpeedTitles(){
+  const total = T ? T.min[T.min.length - 1] : 0;
+  for (const b of document.querySelectorAll("#speeds button")){
+    const secs = Math.round(RUN_SECONDS / Number(b.dataset.v));
+    b.title = `the whole ${(total / 1440).toFixed(0)}-day journey in about `
+            + `${secs} seconds`;
+  }
+}
 
 function syncPlay(){
   const b = $("play");
@@ -652,6 +679,7 @@ function setSpecies(k, initial){
     + `<br>${T.source}</span>`;
 
   syncPlay();
+  syncSpeedTitles();
   buildNotes();
 
   /* On a switch the camera flies to the new bird's start rather than cutting,
@@ -705,6 +733,16 @@ function buildNotes(){
     about six times its body; the stork flies neck out and legs trailing past
     the tail on broad wings with slotted tips; the godwit is a wader, swept
     wings and a long straight bill.</p>
+
+    <h3>How fast it runs</h3>
+    <p class="sub">The speed buttons are multiples of a full pass in about
+    seventy-five seconds, not fixed rates &mdash; these journeys are six days,
+    three weeks and four and a half months, and one rate cannot serve all
+    three. At a fixed eight hours per second the stork ran for nearly seven
+    minutes, of which the first twenty-one days are a bird standing near its
+    nest: half a minute of watching bought twenty-two kilometres, too little to
+    see at this altitude. The read-out counts the days so a long journey reads
+    as long rather than as stuck.</p>
 
     <h3>Turning it, and following</h3>
     <p>The globe starts holding the bird named under <strong>following</strong>.
@@ -830,18 +868,20 @@ function wire(){
   }
 
   const sp = $("speeds");
-  for (const v of [1, 4, 8, 24]){
+  for (const v of [0.5, 1, 2, 6]){
     const b = document.createElement("button");
-    b.textContent = v + "×";
+    b.textContent = (v === 0.5 ? "\u00bd" : String(v)) + "\u00d7";
     b.dataset.v = String(v);
-    b.setAttribute("aria-pressed", String(v === speed));
+    b.setAttribute("aria-pressed", String(v === speedMult));
     b.addEventListener("click", () => {
-      speed = v;
+      speedMult = v;
       for (const o of sp.querySelectorAll("button"))
-        o.setAttribute("aria-pressed", String(Number(o.dataset.v) === speed));
+        o.setAttribute("aria-pressed", String(Number(o.dataset.v) === speedMult));
+      syncSpeedTitles();
     });
     sp.appendChild(b);
   }
+  syncSpeedTitles();
 
   $("play").addEventListener("click", () => {
     const end = T.min[T.min.length - 1];
