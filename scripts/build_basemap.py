@@ -130,8 +130,14 @@ def mosaic(zoom: int, region: dict, cache: Path):
             if done % 20 == 0 or done == total:
                 print(f"  {done}/{total} tiles")
     # The exact edges of the stitched raster, which is what the page draws into.
-    return out, {"lon0": (x0 / n) * 360 - 180, "lon1": ((x1 + 1) / n) * 360 - 180,
-                 "lat1": lat_of_tile_y(y0, n), "lat0": lat_of_tile_y(y1 + 1, n)}
+    # The tile indices come back too: recovering y0 from the latitude is a
+    # round trip through log and atan, and tile_y(lat_of_tile_y(9)) comes out
+    # as 8.999999999999996, which int() then floors to 8. That is a whole tile
+    # -- nearly six degrees at this zoom -- and it silently slid the land-cover
+    # overlay north of the relief it is meant to sit on.
+    bounds = {"lon0": (x0 / n) * 360 - 180, "lon1": ((x1 + 1) / n) * 360 - 180,
+              "lat1": lat_of_tile_y(y0, n), "lat0": lat_of_tile_y(y1 + 1, n)}
+    return out, bounds, {"x0": x0, "x1": x1, "y0": y0, "y1": y1}
 
 
 def hillshade(elev: np.ndarray, cell_m: np.ndarray) -> np.ndarray:
@@ -161,10 +167,22 @@ def load_landcover(path: Path):
 
 def sample(arr: np.ndarray, lc_bounds, cell: float,
            lats: np.ndarray, lons: np.ndarray) -> np.ndarray:
-    """Nearest-cell lookup from a lon/lat grid onto the Mercator raster."""
-    col = np.clip(((lons - lc_bounds[0]) / cell).astype(int), 0, arr.shape[1] - 1)
-    row = np.clip(((lc_bounds[3] - lats) / cell).astype(int), 0, arr.shape[0] - 1)
-    return arr[row[:, None], col[None, :]]
+    """Nearest-cell lookup from a lon/lat grid onto the Mercator raster.
+
+    The elevation frame is wider than the land-cover grid -- it is sized to the
+    window the page fills, which reaches well past the tiles WorldCover was
+    fetched for. Clamping to the edge cell would smear that last column across
+    tens of degrees of ocean as phantom coastline, so outside the grid this
+    returns zero: no vegetation and no lake, leaving bare relief, which is what
+    is actually known there.
+    """
+    ci = np.floor((lons - lc_bounds[0]) / cell).astype(int)
+    ri = np.floor((lc_bounds[3] - lats) / cell).astype(int)
+    inside = ((ci >= 0) & (ci < arr.shape[1]))[None, :] & \
+             ((ri >= 0) & (ri < arr.shape[0]))[:, None]
+    col = np.clip(ci, 0, arr.shape[1] - 1)
+    row = np.clip(ri, 0, arr.shape[0] - 1)
+    return np.where(inside, arr[row[:, None], col[None, :]], 0.0)
 
 
 def hypsometric(elev: np.ndarray) -> np.ndarray:
@@ -211,7 +229,7 @@ def main() -> int:
     print(f"frame lon {region['lon0']:.1f}..{region['lon1']:.1f}  "
           f"lat {region['lat0']:.1f}..{region['lat1']:.1f}, zoom {args.zoom}")
 
-    elev, bounds = mosaic(args.zoom, region, args.cache)
+    elev, bounds, tiles = mosaic(args.zoom, region, args.cache)
     print(f"  raster {elev.shape[1]} x {elev.shape[0]}, "
           f"{elev.min():.0f} m to {elev.max():.0f} m")
 
@@ -219,9 +237,14 @@ def main() -> int:
     # the shading cell size is per row rather than a single number.
     n = 2**args.zoom
     rows = np.arange(elev.shape[0])
-    y_tiles = int(tile_y(bounds["lat1"], n)) + rows / 256
+    y_tiles = tiles["y0"] + rows / 256
     lats = np.array([lat_of_tile_y(y, n) for y in y_tiles])
     cell_m = (156543.03392 * np.cos(np.radians(lats)) / n)[:, None]
+    # The row latitudes and the exported bounds have to describe the same
+    # raster, or every layer keyed off lats lands somewhere the page does not
+    # draw it. Cheap to check, and it is the failure that hid here before.
+    assert abs(lats[0] - bounds["lat1"]) < 1e-6, (
+        f"row 0 is at {lats[0]:.5f} but bounds say {bounds['lat1']:.5f}")
 
     lons = np.linspace(bounds["lon0"], bounds["lon1"], elev.shape[1])
     lc = load_landcover(args.landcover / "landcover.npz")

@@ -554,9 +554,8 @@ function renderBase(){
 
    The only real picture of this landscape available anywhere is imagery, and
    it has to come from a tile server at view time -- nothing is bundled. Tiles
-   are Web Mercator while this map is equirectangular, so rather than reproject
-   the whole page each tile is drawn into the rectangle its own corners project
-   to. Within one tile the difference is far below a pixel.
+   are Web Mercator and so is this map, so each one is drawn into the rectangle
+   its own corners project to and lands exactly.
 
    A host that forbids outbound requests (the standalone build runs under one)
    simply gets no tiles: the loads fail, the dark ground stays, and the page
