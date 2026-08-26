@@ -23,6 +23,12 @@
     /* Landscape layer: two muted, desaturated washes, so the animals stay the
        brightest thing on the map even with a layer switched on. */
     --y2019:#b08d57; --y2020:#4a8f9e;
+    /* Fully lit ground in the hillshade. The relief ships as a greyscale ramp
+       and is multiplied by this, so shadow lands on black and slopes facing the
+       light reach this colour. Kept close to the background: bright enough to
+       read the mountain front, dark enough that a collared animal is still the
+       brightest thing on the map, which is the whole premise of the page. */
+    --terrain-lit:#2a323e;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -259,11 +265,15 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
+/* imagery: "off" | "terrain" | "sat". Terrain leads because it is baked into
+   the page -- it is the only backdrop that survives an offline host or a strict
+   content policy, and without one the map opens as an unreadable black field. */
 let sel = {species:new Set(["muledeer","elk","cougar"]), season:"2019",
-           layer:"none", imagery:false};
+           layer:"none", imagery:"terrain"};
 let SEASON = null;        /* the loaded season payload */
 let TRACKS = [];          /* flattened, currently displayed */
 let USE = null;           /* cougar-use.json */
+let TERRAIN = null;       /* terrain.json, with the hillshade as a data URI */
 let SHIFT = null;         /* year-shift.json */
 let SPAN = 1;             /* slots on the clock */
 let BOUNDS = null;        /* {lon0,lat0,lon1,lat1} of the season */
@@ -521,7 +531,8 @@ function renderBase(){
   b.fillRect(0,0,W,H);
   if (!BOUNDS){ baseReady = true; return; }
 
-  if (sel.imagery) drawTiles(b);
+  if (sel.imagery === "terrain") drawTerrain(b);
+  else if (sel.imagery === "sat") drawTiles(b);
   if (sel.layer === "cougar") drawCougarUse(b);
   else if (sel.layer === "shift") drawYearShift(b);
 
@@ -592,11 +603,46 @@ function drawTiles(b){
 function updateAttrib(){
   const el = document.getElementById("attrib");
   if (!el) return;
-  if (!sel.imagery){ el.hidden = true; return; }
+  if (sel.imagery === "off"){ el.hidden = true; return; }
   el.hidden = false;
+  if (sel.imagery === "terrain"){
+    /* The hillshade is carried inside the page, so it has no failure state. */
+    el.textContent = TERRAIN ? TERRAIN.attribution : "elevation layer unavailable";
+    return;
+  }
   el.textContent = (tileLoads === 0 && tileFails > 0)
     ? "satellite imagery unavailable on this host"
     : TILES.attribution;
+}
+
+/* Relief, computed once by scripts/build_terrain.py and carried in the page as
+   a greyscale PNG. It arrives already reprojected out of Mercator into this
+   map's frame, so drawing it is one drawImage into the region rectangle -- no
+   per-tile projection, and no requests at view time. */
+let terrainCv = null;
+function tintTerrain(img){
+  const cv = document.createElement("canvas");
+  cv.width = TERRAIN.width; cv.height = TERRAIN.height;
+  const c = cv.getContext("2d");
+  /* lit colour x shade, which is the ramp from black to lit. Done here once
+     rather than per pixel in the draw loop. */
+  c.fillStyle = pick("terrain-lit");
+  c.fillRect(0, 0, cv.width, cv.height);
+  c.globalCompositeOperation = "multiply";
+  c.drawImage(img, 0, 0, cv.width, cv.height);
+  terrainCv = cv;
+  baseReady = false;
+}
+
+function drawTerrain(b){
+  if (!terrainCv || !TERRAIN) return;
+  const R = TERRAIN.bounds;
+  b.save();
+  b.imageSmoothingEnabled = true;
+  b.globalAlpha = 0.92;
+  b.drawImage(terrainCv, px(R.lon0), py(R.lat1),
+              px(R.lon1) - px(R.lon0), py(R.lat0) - py(R.lat1));
+  b.restore();
 }
 
 const shiftCv = document.createElement("canvas");
@@ -1045,9 +1091,9 @@ function wireControls(){
     async k => { sel.layer = k; baseReady = false; buildLegend(); });
 
   pillRow("imRow",
-    [{key:"off",label:"Off"},{key:"sat",label:"Satellite"}],
-    k => sel.imagery === (k === "sat"),
-    async k => { sel.imagery = (k === "sat"); baseReady = false; updateAttrib(); });
+    [{key:"off",label:"Off"},{key:"terrain",label:"Terrain"},{key:"sat",label:"Satellite"}],
+    k => sel.imagery === k,
+    async k => { sel.imagery = k; baseReady = false; updateAttrib(); });
 
   const play = document.getElementById("play");
   play.addEventListener("click", () => {
@@ -1206,13 +1252,25 @@ function buildNotes(){
     is what makes it a comparison of behaviour rather than of who happened to
     be wearing a collar. It is a map of where these animals went, not of snow
     or forage.</p>
+    <p><strong>Terrain</strong> is the relief of the block, and it is the
+    backdrop this map is built around: in the Wasatch the mountain front is
+    most of the reason the animals are where they are. Elevation comes from
+    USGS 3DEP, by way of the Terrain Tiles set on AWS Open Data, and runs from
+    1,279 m on the valley floor to 3,028 m on the ridge. The hillshade is
+    computed once when the data is built &mdash; lit from the north-west, 42&deg;
+    above the horizon &mdash; reprojected out of Web Mercator into this map's
+    frame, and carried inside the page. That is why it is the one backdrop that
+    still works with no connection at all, and the only one in the
+    self-contained build.</p>
     <p><strong>Satellite</strong> is Esri World Imagery, fetched as tiles when
-    you switch it on. Nothing is bundled with the page, so it needs a working
-    connection; where outbound requests are blocked the tiles do not arrive,
-    the dark ground stays, and the attribution line says so. Tiles are Web
-    Mercator while this map is equirectangular, so each is drawn into the
-    rectangle its own corners project to. The imagery is a mosaic of mixed
-    dates and is not 2019&ndash;2020.</p>
+    you switch it on. Nothing is bundled with the page, so it needs a host that
+    permits outbound requests; where they are blocked the tiles do not arrive,
+    the dark ground stays, and the attribution line says so. It is absent from
+    the self-contained build for the same reason. Tiles are Web Mercator while
+    this map is equirectangular, so each is drawn into the rectangle its own
+    corners project to. The imagery is a mosaic of mixed dates and is not
+    2019&ndash;2020 &mdash; unlike relief, which does not change between
+    winters.</p>
 
     <h3>What the lamp means</h3>
     <p>Cougars are in this data as positions, so their activity did not have to
@@ -1251,8 +1309,15 @@ function buildNotes(){
   try {
     buildNotes();
     wireControls();
-    USE   = await loadJSON("cougar-use").catch(() => null);
-    SHIFT = await loadJSON("year-shift").catch(() => null);
+    USE     = await loadJSON("cougar-use").catch(() => null);
+    SHIFT   = await loadJSON("year-shift").catch(() => null);
+    TERRAIN = await loadJSON("terrain").catch(() => null);
+    if (TERRAIN){
+      const img = new Image();
+      img.onload = () => tintTerrain(img);
+      img.src = TERRAIN.png;
+    }
+    updateAttrib();
     await rebuild();
     document.getElementById("loading").hidden = true;
     lastFrame = performance.now();

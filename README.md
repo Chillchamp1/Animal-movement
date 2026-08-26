@@ -42,10 +42,20 @@ its heading.
 
 ### Landscape layers
 
+- **Terrain** — the relief of the block, and the backdrop the map is built
+  around: in the Wasatch the mountain front is most of the reason the animals
+  are where they are. USGS 3DEP elevation by way of the Terrain Tiles set on
+  AWS Open Data, 1,279 m on the valley floor to 3,028 m on the ridge. The
+  hillshade is computed once at build time, reprojected out of Web Mercator
+  into the map's own frame, and carried inside the page — so it is the one
+  backdrop that works with no connection, and the only one in the
+  self-contained build.
 - **Satellite** — Esri World Imagery, fetched as tiles at view time. Nothing is
-  bundled, so it needs a connection; where outbound requests are blocked the
-  tiles do not arrive, the dark ground stays and the attribution line says so.
-  The imagery is a mosaic of mixed dates, not 2019–2020.
+  bundled, so it needs a host that permits outbound requests; where they are
+  blocked the tiles do not arrive, the dark ground stays and the attribution
+  line says so, and it is absent from the self-contained build. The imagery is
+  a mosaic of mixed dates, not 2019–2020 — unlike relief, which does not change
+  between winters.
 - **Cougar range** — where the collared cougars actually were that season,
   smoothed. An observation, not a model, so it has no active and inactive
   state: there is only one place a cougar was.
@@ -120,6 +130,7 @@ python3 scripts/fetch_movebank.py --doi 10.5441/001/1.712   # cougars
 python3 scripts/fetch_movebank.py --doi 10.5441/001/1.711   # ungulates, 63 MB
 python3 scripts/build_utah.py                # -> data/processed/tracks-<year>.json
 python3 scripts/build_utah_layers.py         # -> cougar-use.json, year-shift.json
+python3 scripts/build_terrain.py             # -> terrain.json, the baked hillshade
 python3 scripts/build_standalone.py          # -> dist/, one self-contained file
 ```
 

@@ -21,7 +21,7 @@ from pathlib import Path
 # The tracks are already delta-encoded integers by scripts/build_utah.py, so
 # there is nothing left to rescale here -- the files go in as they are.
 DATASETS = ["tracks-2019", "tracks-2020"]
-LAYERS = ["cougar-use", "year-shift"]
+LAYERS = ["cougar-use", "year-shift", "terrain"]
 
 
 def main() -> int:
