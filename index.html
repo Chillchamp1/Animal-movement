@@ -152,6 +152,16 @@
   #notes h3{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;
             color:var(--ink-3);font-weight:500;margin:13px 0 6px}
 
+  /* Imagery attribution, required whenever a tile layer is on. */
+  #attrib{
+    position:fixed;z-index:4;right:20px;bottom:96px;
+    font-size:0.6rem;letter-spacing:0.02em;color:var(--ink-3);
+    background:rgba(5,8,14,.66);padding:3px 7px;border-radius:5px;
+    pointer-events:none;
+  }
+  #attrib[hidden]{display:none}
+  @media (max-width:820px){ #attrib{bottom:auto;top:14px;right:14px} }
+
   #loading{position:fixed;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;
            background:var(--bg-bot);font-family:"IBM Plex Mono",monospace;font-size:0.8rem;
            color:var(--ink-3);letter-spacing:0.08em}
@@ -174,6 +184,7 @@
     <div class="row" id="spRow"><span class="lab">Species</span></div>
     <div class="row" id="seRow"><span class="lab">Season</span></div>
     <div class="row" id="prRow"><span class="lab">Layer</span></div>
+    <div class="row" id="imRow"><span class="lab">Imagery</span></div>
   </div>
 
   <header>
@@ -215,6 +226,7 @@
   </div>
 </div>
 
+<div id="attrib" hidden></div>
 <div id="loading">loading tracks&hellip;</div>
 
 <script>
@@ -245,7 +257,7 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-let sel = {species:new Set(["zebra"]), season:"dry", layer:"none"};
+let sel = {species:new Set(["zebra"]), season:"dry", layer:"none", imagery:false};
 let TRACKS = [];          /* flattened, currently displayed */
 let RISK = null;          /* predator-risk.json */
 let SEASONAL = null;      /* seasonal-shift.json */
@@ -519,11 +531,82 @@ function renderBase(){
   b.fillRect(0,0,W,H);
   if (!BOUNDS){ baseReady = true; return; }
 
+  if (sel.imagery) drawTiles(b);
   if (sel.layer === "dog" || sel.layer === "lion") drawRisk(b);
   else if (sel.layer === "seasonal") drawSeasonal(b);
 
   drawScale(b);
   baseReady = true;
+}
+
+/* ---------------------------------------------------------- satellite tiles
+
+   The only real picture of this landscape available anywhere is imagery, and
+   it has to come from a tile server at view time -- nothing is bundled. Tiles
+   are Web Mercator while this map is equirectangular, so rather than reproject
+   the whole page each tile is drawn into the rectangle its own corners project
+   to. Within one tile the difference is far below a pixel.
+
+   A host that forbids outbound requests (the standalone build runs under one)
+   simply gets no tiles: the loads fail, the dark ground stays, and the page
+   says so rather than looking broken. */
+const TILES = {
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
+  maxZ: 18,
+  cap: 500,                       /* tiles held before the oldest are dropped */
+};
+const tileCache = new Map();
+let tileFails = 0, tileLoads = 0;
+
+const lonToX = (lon, n) => (lon + 180) / 360 * n;
+const latToY = (lat, n) => {
+  const r = lat * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1/Math.cos(r)) / Math.PI) / 2 * n;
+};
+const xToLon = (x, n) => x / n * 360 - 180;
+const yToLat = (y, n) => Math.atan(Math.sinh(Math.PI * (1 - 2*y/n))) * 180 / Math.PI;
+
+function drawTiles(b){
+  /* Choose the zoom whose tiles land nearest 256 screen pixels. */
+  const worldPx = W * 360 / (BOX.lon1 - BOX.lon0);
+  const z = Math.max(0, Math.min(TILES.maxZ, Math.round(Math.log2(worldPx / 256))));
+  const n = 2 ** z;
+  const x0 = Math.floor(lonToX(BOX.lon0, n)), x1 = Math.ceil(lonToX(BOX.lon1, n));
+  const y0 = Math.floor(latToY(BOX.lat1, n)), y1 = Math.ceil(latToY(BOX.lat0, n));
+
+  for (let ty = Math.max(0, y0); ty < Math.min(n, y1); ty++){
+    for (let tx = Math.max(0, x0); tx < Math.min(n, x1); tx++){
+      const key = `${z}/${tx}/${ty}`;
+      let img = tileCache.get(key);
+      if (img === undefined){
+        img = new Image();
+        /* No crossOrigin: the canvas is never read back, and requesting CORS
+           would fail the load outright on servers that do not send it. */
+        img.onload  = () => { tileLoads++; baseReady = false; };
+        img.onerror = () => { tileFails++; tileCache.set(key, null); updateAttrib(); };
+        img.src = TILES.url.replace("{z}", z).replace("{x}", tx).replace("{y}", ty);
+        tileCache.set(key, img);
+        if (tileCache.size > TILES.cap){
+          tileCache.delete(tileCache.keys().next().value);
+        }
+      }
+      if (!img || !img.complete || !img.naturalWidth) continue;
+      const dx = px(xToLon(tx, n)), dy = py(yToLat(ty, n));
+      b.drawImage(img, dx, dy,
+                  px(xToLon(tx+1, n)) - dx, py(yToLat(ty+1, n)) - dy);
+    }
+  }
+}
+
+function updateAttrib(){
+  const el = document.getElementById("attrib");
+  if (!el) return;
+  if (!sel.imagery){ el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = (tileLoads === 0 && tileFails > 0)
+    ? "satellite imagery unavailable on this host"
+    : TILES.attribution;
 }
 
 /* Dry-versus-rainy occupancy for the animals collared in both seasons. In the
@@ -877,6 +960,11 @@ function wireControls(){
     k => sel.layer === k,
     async k => { sel.layer = k; baseReady = false; buildLegend(); });
 
+  pillRow("imRow",
+    [{key:"off",label:"Off"},{key:"sat",label:"Satellite"}],
+    k => sel.imagery === (k === "sat"),
+    async k => { sel.imagery = (k === "sat"); baseReady = false; updateAttrib(); });
+
   const play = document.getElementById("play");
   play.addEventListener("click", () => {
     playing = !playing;
@@ -1007,6 +1095,16 @@ function buildNotes(){
     disagree about a fix are left out rather than shown unverified.</p>
 
     <h3>The landscape layers</h3>
+    <p><strong>Satellite</strong> is the only real picture of this landscape
+    available: Esri World Imagery, fetched as tiles when you switch it on.
+    Nothing is bundled with the page, so it needs a working connection &mdash;
+    on a host that forbids outbound requests the tiles simply do not arrive, the
+    dark ground stays, and the attribution line says so. Tiles are Web Mercator
+    while this map is equirectangular, so each is drawn into the rectangle its
+    own corners project to; within one tile the difference is far below a pixel.
+    The imagery is a mosaic of different dates and does not correspond to
+    2014&ndash;2016, and in a delta that floods annually the water you see is not
+    the water these animals walked around.</p>
     <p><strong>No vegetation or water map.</strong> The deposit gives vegetation
     only as aggregate proportions per animal &mdash; floodplain, grassland,
     mixed, mopane &mdash; never mapped, and the 25 m habitat raster behind the

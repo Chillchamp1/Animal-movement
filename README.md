@@ -44,6 +44,12 @@ heading.
 
 ### Landscape layers
 
+- **Satellite** — Esri World Imagery, fetched as tiles at view time. Nothing is
+  bundled, so it needs a connection; where outbound requests are blocked the
+  tiles do not arrive, the dark ground stays and the attribution line says so.
+  The imagery is a mosaic of mixed dates, not 2014–2016 — in a delta that floods
+  every year, the water in the picture is not the water these animals walked
+  around.
 - **Wild dog range** / **Lion range** — that predator's utilisation surface,
   switching between its active and inactive state as the clock crosses its
   hunting window, so the landscape lights up when the hunters do.
@@ -103,7 +109,9 @@ drawn. Gap length is taken as the shortest span consistent with the hours either
 side, so long absences are understated, and nothing is ever interpolated across
 a gap.
 
-**No vegetation or water map, and no basemap.** The deposit gives vegetation
+**No vegetation or water map from the data itself.** Satellite imagery is
+available as a backdrop (above), but it is a mixed-date mosaic, not a measured
+layer for this study period. The deposit gives vegetation
 only as aggregate proportions per animal — floodplain, grassland, mixed,
 mopane — never mapped, and the 25 m habitat raster behind the original analysis
 was not deposited. Public vector data does not fill the gap: at 1:10m scale
