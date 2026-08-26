@@ -1,134 +1,199 @@
-# Data from: Predator-prey space-use and landscape features influence movement behaviors in a large-mammal community
+# Where the storks went
 
-[https://doi.org/10.5061/dryad.kh1893292](https://doi.org/10.5061/dryad.kh1893292)
+Fifty-nine white storks, ringed as chicks in seven places between Spain and
+Armenia, tracked hourly from the start of their first autumn migration to the
+following July. Every dot is a real bird at a real date and hour, and the routes
+are drawn by the birds as they fly them. Storks soar, and thermals do not form
+over open water — so the thing to watch is where they cross the Mediterranean,
+and where they refuse to.
 
-**Recommended citation for this dataset:**
+## Run it
 
-Bassing, S. B., L. Satterfield, T. R. Ganz, M. DeVivo, B. N. Kertson, T. Roussin, A. J. Wirsing, and B. Gardner. 2024. Data for: Predator-prey interactions and landscape features influence movement behaviors in a large-mammal community. Dryad, Dataset. [https://doi.org/10.5061/dryad.kh1893292](https://doi.org/10.5061/dryad.kh1893292)
+- **Self-contained page** — <https://claude.ai/code/artifact/f84a4d5e-c726-4d82-a258-d838297828c4>
+  Everything is inside the file: tracks, backdrop, code. No data fetch, no tile
+  server, works offline. It is private until shared from the page's own menu.
+- **GitHub Pages** — <https://chillchamp1.github.io/Animal-movement/>
+  The same map, fetching its data at load. It serves whatever is on the default
+  branch, so it follows this work once the branch is merged.
+- **Locally** — the page fetches its data, so it needs http(s):
 
-## Description of the data and file structure
+  ```sh
+  python3 -m http.server 8000    # then open http://localhost:8000
+  ```
 
-This repository contains movement data from collected from GPS-collared elk, mule deer, white-tailed deer, cougars, and wolves in eastern Washington, USA, from 2017 - 2021. The provided data are formatted for conducting resource selection function (RSF) analyses and hidden Markov models (HMM) for movement analysis. Formatted data are provided for several stages of the analysis.
+Built from Flack et al. (2016), *Costs of migratory decisions: a comparison
+across eight white stork populations*, Science Advances 2:e1500931 —
+[`doi:10.5441/001/1.78152p3q`](https://doi.org/10.5441/001/1.78152p3q) in the
+Movebank Data Repository, CC0.
 
-**Date of data collection:** 2017-01-01 to 2021-03-31
+## What is on screen
 
-**Geographic location of data collection:** Northeast study area centered around Chewelah, Washington, USA (117.7193° W, 48.28302° N); Okanogan study area centered around Winthrop, Washington, USA (120.1096° W, 48.42966° N)
+| Origin | Birds | Fixes |
+|---|---|---|
+| **Germany** | 12 | 34,532 |
+| **Russia** | 10 | 31,754 |
+| **Armenia** | 8 | 14,560 |
+| **Poland** | 4 | 14,434 |
+| **Tunisia** | 8 | 11,572 |
+| **Greece** | 10 | 11,504 |
+| **Spain** | 7 | 9,250 |
 
-**Information about funding sources that supported the collection of the data:** Funding was provided by the Washington Department of Fish and Wildlife, the Washington State Legislature, Federal Aid in Wildlife Restoration Grant no. F16AF00910, WDFW Aquatic Lands Enhancement Accounts, Seattle City Light Wildlife Research Grant no. 2015-04, NASA FINESST grant 80NSSC19K1334, and National Geographic grant EC-51129R-19.
+127,606 hourly fixes over 350 days, from 55°N in the Baltic to 27°S in southern
+Africa and from Senegal east to Kazakhstan. The tags recorded every five
+minutes; this is thinned to hourly.
 
-## Data & File Overview
+The **clock** is a real calendar date and hour. Under it, two counts taken from
+the data at that hour: how many birds are covering ground, and how many tags are
+reporting at all. The strip behind the scrubber is kilometres per bird per day
+across the whole deposit — migration is not something you have to look for in
+it, it is the spikes.
 
-**Use-Available Data:** Contains species and season-specific "used" and "available" data included in resource selection function (RSF) analyses. GPS-collar relocation data from each collared animal were classified as "used" locations and used to define the region within a study area that was "available" to it (i.e., its seasonal home-range). A ratio of 1:20 used:available locations were randomly sampled within this spatial extent. "Used" locations were labeled (1) and "available" locations were labeled (0). Covariate data were extracted at each used and available location and included here with its used or available classification. The coordinates of each observation are excluded due to sensitivity of the information. Contact information for complete data provided below. Files are RData files that can be read into R with the load() function. Start of file names relate to each species (coug = cougar, elk = elk, md = mule deer, wtd = white-tailed deer, wolf = wolf).
+Colours run west to east, warm to cool, so when the tracks fan out around the
+Mediterranean their colour already says which end of Europe each bird came from.
 
-*Files included:*
+Drag to pan, scroll or pinch to zoom (up to 2000×), `0` or the **fit** button to
+reset.
 
-1. coug_dat_all_for_pub.RData
-2. elk_dat_all_for_pub.RData
-3. md_dat_all_for_pub.RData
-4. wtd_dat_all_for_pub.RData
-5. wolf_dat_all_for_pub.RData
+## The two crossings
 
-*Data description:*
+Storks climb in thermals and glide between them, which costs a fraction of what
+flapping costs — and thermals form over warm land, not over water. So the sea is
+crossed where it is narrow: at Gibraltar in the west, or round the eastern end
+through the Levant.
 
-* ID: Individual animal identification number
-* Season: Indicates season and year when each observation was made (Summer18 = summer 2018; Winter1819 = winter 2018-2019; 			Summer19 = summer 2019; Winter1920 = winter 2019-2020, Summer20 = summer 2020; Winter2021 = winter 2020-2021)
-* Year (Year1, Year2, Year3): Year of study each observation was made (Year1 = 2018-2019; Year2 = 2019-2020; Year3 = 2020-2021).
-* Elev: Elevation (m) of observation location
-* Slope: Slope (degrees) of terrain at observation location
-* RoadDen: Total road length/1 km-sq at observation location
-* Dist2Water: Distance (m) to nearest water
-* HumanMod: Percentage of human modification to the landscape
-* CanopyCover: Percentage of tree cover
-* Dist2Edge: Distance (m) to nearest forested to non-forested habitat edge
-* PercForestMix: Percentage of forested habitat within 250 m of observation location
-* PercXGrass: Percentage of xeric grassland habitat within 250 m of observation location
-* PercXShrub: Percentage of xeric shrubland habitat within 250 m of observation location
-* Landcover: Numerical value representing landcover classification from Cascadia Partner Forum TerrAdapt:Cascadia tool (30m 			resolution)
-* Landcover_type: Landcover classification label
-* obs: Unique value for each observation
-* Area (NE, OK): Indicates which study area (Northeast or Okanogan) each observation was associated with
-* Used: Indicates whether observation was "used" (1) or "available" (0) to an individual
-* w: The weight of each observation ("available" = 5000, "used" = 1)
+The **Crossing** filter is derived from the data rather than assumed: for each
+bird, the longitude at which it first got south of 36°N. Of the 59, **12 crossed
+at Gibraltar, 9 through the central Mediterranean, 24 by the Levant, and 14
+never went south of 36°N at all.**
 
-**Movement Data:** Contains movement data used in hidden Markov model analyses, derived from telemetry relocations for each species. The coordinates of each observation are excluded due to sensitivity of the information. Contact information for complete data provided above. File is an RData file that can be read into R containing a list of 14 data frames, one per species, season, and study area. Start of each named list indicates the species (e.g., md = Mule Deer, wtd = White-tailed Deer); season is indicated by smr = Summer or wtr = Winter; study area is indicated by NE = Northeast or OK = Okanogan. Mule deer data were only collected in the OK, elk and white-tailed deer data were only collected in the NE study area.
+That last group is not a gap in the data. Some are Spanish birds that no longer
+migrate — they winter on rubbish tips within a few hundred kilometres of the
+nest — and some are birds that died before their first autumn.
 
-*Files  included:*
+## What was left out, and why
 
-1. crwOut_ALL_wCovs_for_pub.RData
+The deposit holds 72 birds and runs from November 2012. Two parts of it were not
+worth drawing, and both absences are findings rather than omissions.
 
-*Data description:*
+**The first six months are one bird.** Every tag but one goes on in June or July
+2013, when that year's chicks were ringed at the nest. Before that there is a
+single South African stork and nothing else — 226 days, 38% of the original
+timeline, one dot. The map starts on **1 August 2013**, which drops that bird
+along with the empty stretch, and also the two months the new birds spent
+standing around the nest before autumn migration began.
 
-* ID: Unique animal ID and burst number
-* step: Step length
-* angle: Turning angle
-* FullID: Unique animal ID and year of observation
-* time: Date and time of telemetry relocation, time floored to nearest hour
-* burst: Numerical indicator for which burst of sequential locations each observation belongs to.
-* AnimalID: Unique animal ID
-* speed: Movement speed calculated based on time step and step length
-* obs: Observation number
-* Date: Date of observation
-* month: Month of observation
-* Dist2Road: Distance (m) to nearest road based on Cascadia Partner Forum TerrAdapt:Cascadia tool roads layer
-* PercOpen: Percentage of open habitat within 250m of observation
-* SnowCover: Binary indicator of whether snow cover was present at the animal location on day of observation
-* TRI: Measure of landscape variability (Terrain ruggedness index) 30m resolution, values have been centered and scaled
-* \[species code]_RSF: Predicted relative probability of selection by each species of interest [ELK = elk, MD = mule deer, WTD = white-tailed deer, COUG = cougar, WOLF = wolf] based on species, season, and year specific resource selection functions (RSF), values have been centered and scaled
-* hour: Hour of each observation
-* hour_fix: Hour of each observation
-* hour3: Hour of each observation transformed to categorical variable representing the number of relocations in a day
-* daytime: Binary variable indicating whether observation occurred during daylight (0) or nighttime (1)
-* Sex: Sex of collared animal
-* StudyArea (NE, OK): Indicates which study area (Northeast or Okanogan) each observation was associated with
-* Season: Indicates season and year when each observation was made (Summer18 = summer 2018; Winter1819 = winter 2018-2019; Summer19 		= summer 2019; Winter1920 = winter 2019-2020, Summer20 = summer 2020; Winter2021 = winter 2020-2021)
+**The Uzbek birds do not migrate.** Six storks of the Ferghana Valley, ranging a
+median of 148 km and never going south of 40°N in up to 365 days each. That is a
+real thing about *Ciconia ciconia asiatica*, not a gap in the data — but on a
+map about movement they were six dots that never moved.
 
-**Covariate Data:** CSV files containing covariate values extracted at every 30-sq-m or 1-sq-km pixel across the Northeast and Okanogan study areas and their corresponding TIF files, each containing a single raster that matches the spatial location and resolution of the covariate data. Raster pixels can be converted to points, representing the location of each pixel centroid, and paired with each row of the covariate data. The covariates and rasters were used to predict and map the relative probability of selection for each RSF analysis.  CSV file columns and units of measurement for each variable are described below. Waterways were masked in the raster data so no predictions can be made to pixels that overlap waterbodies or rivers.
+## The crosses
 
-*Files included:*
+Twenty-two of the 59 tags stopped because the bird died, which the deposit records.
+Where that happens the track does not simply vanish: a cross stays at the last
+position. A juvenile's first migration is the most dangerous journey of its
+life, and a track that disappeared silently would read as a coverage gap
+instead of what it was.
 
-1. NE_covariates_30m.csv
-2. OK_covariates_30m.csv
-3. NE_covariates_1km.csv
-4. OK_covariates_1km.csv
-5. NE_30m_grid_mask.tif
-6. OK_30m_grid_mask.tif
-7. NE_1km_grid_mask.tif
-8. OK_1km_grid_mask.tif
+## Why this deposit
 
-*Data description:*
+The map began on an Okavango Delta deposit with no predator positions in it,
+moved to Utah cougars and their prey, and ended here. The reason is in the
+numbers: across all 2,013 deposits in the Movebank Data Repository, large
+carnivores account for **1.1% of deposits and 0.5% of the fixes**. Open tracking
+data is overwhelmingly birds, and predator–prey interaction is close to the
+hardest thing to find in it. Migration is the opposite — it is what the archive
+is full of, and it is a story a map can actually tell.
 
-* ID: unique identifier for covariate data extracted at each location, corresponding with the raster's grid index number 
-* Elev: Elevation (m) of camera site
-* Slope: Slope (degrees) of terrain at camera site
-* RoadDen: Total road length/km-sq at observation location
-* Dist2Water: Distance (m) to nearest water
-* HumanMod: Percentage (%) of human modification to the landscape (1 km resolution)
-* CanopyCover: Percentage (%) of tree cover per year of study
-* Dist2Edge: Distance (m) to nearest forested to non-forested habitat edge per year of study
+The audit that got here, including four Dryad deposits that all failed and the
+profilers that established it, is in
+**[docs/dataset-audit.md](docs/dataset-audit.md)**.
 
-- Landcover_type: Landcover classification from Cascadia Partner Forum TerrAdapt:Cascadia tool (30m resolution) per year of study
+## What is missing
 
-## Sharing/Access information
+**Gaps.** These are solar tags: they report through the day and fall silent
+overnight — at 21:00 UTC not one of them reports — and coverage thins badly on
+the long crossings. What decides whether a gap may be drawn across is how far
+wrong a straight line could be, and that is a question about the gap's length
+rather than the bird's speed. Up to a day the line is a fair approximation: a
+stork covers a few hundred kilometres at most, a short step at this scale.
+Longer gaps are bridged only where the bird plainly did not move, which is the
+case on wintering grounds where a tag can go quiet for a week between reports
+from the same field. Where a gap is too long even for that, the bird waits as a
+hollow ring at the last place its tag reported — Pelopidas goes quiet for
+twenty-eight days in the middle of Africa — because an empty patch of map would
+say it was gone, which is a stronger claim than the data makes.
 
-The coordinates of telemetry re-locations from GPS-collared animals analyzed during the current study are not publicly available due to sensitive location information but are available to qualified researchers from the Wildlife Chief Scientist of the Washington Department of Fish and Wildlife by contacting (306) 902-2515.
+**These are 72 birds, not the population.** Roughly half a million white storks
+migrate along these flyways. Empty sky is where no tag was.
 
-Query details: Data collected Jan 2017 – Mar 2021 in Game Management Units 117, 121, 203, 218, 224, 231, 233, and 239, including animal ID, date, time, and coordinates of telemetry relocations for all cougars, elk, mule deer, white-tailed deer, and wolves GPS-collared as part of the Washington Predator-Prey Project. Anonymized data are available here. Detailed data collection, processing, and formatting methods described in manuscript.
+**The map is Web Mercator**, so area inflates towards the poles: the Baltic is
+drawn larger than the Sahel for the same ground. Judge distance along the tracks
+rather than across the frame.
 
-The code used to analyze the datasets during the current study are available in the GitHub repository, [https://github.com/SarahBassing/Bassing_et_al_Predator-Prey_Movement](https://github.com/SarahBassing/Bassing_et_al_Predator-Prey_Movement) and is permanently archived with Zenodo to ensure permanency and versioning, [https://zenodo.org/records/13381998](https://zenodo.org/records/13381998) (DOI: 10.5281/zenodo.13381998).
+**Positions are rounded** to 10⁻⁵ degrees, about a metre, well under the tags'
+own error.
 
-#### **Author Information**
+## A video of it
 
-* Name: Sarah B. Bassing
-* ORCID: 0000-0001-6295-6372
-* Institution: University of Washington
-* Address: 107 Anderson Hall, University of Washington, Seattle WA
-* Email: [sarah.bassing@gmail.com](mailto:sarah.bassing@gmail.com)
+`scripts/render_video.py` drives a headless browser through the whole timeline,
+captures a frame per step and hands them to ffmpeg. Playback is stopped and each
+frame is seeked exactly, so the output does not depend on how fast the machine
+rendered. Portrait 1080×1920 by default, because these birds span 82 degrees of
+latitude against 66 of longitude and a vertical frame wastes less of that than a
+landscape one; the interactive controls are hidden, leaving the date, the key
+and the attribution.
 
-#### **Author/Principal Investigator Information**
+```sh
+python3 scripts/build_standalone.py       # the video reads the self-contained build
+python3 scripts/render_video.py           # -> dist/where-the-storks-went.mp4
+python3 scripts/render_video.py --size 1080x1080 --seconds 25
+```
 
-* Name: Beth Gardner
-* ORCID: 0000-0002-9624-2981
-* Institution: University of Washington
-* Address: 107 Anderson Hall, University of Washington, Seattle WA
-* Email: [bg43@uw.edu](mailto:bg43@uw.edu)
+## Rebuilding the data
 
+The data is **not kept in this repository**. The Pages workflow rebuilds it on
+every deploy; to do the same locally:
+
+```sh
+python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
+    --match gps reference-data README --out data/raw/storks
+python3 scripts/build_storks.py         # -> data/processed/storks.json
+python3 scripts/build_landcover.py      # -> water and greenness, ~15 min, cached
+python3 scripts/build_basemap.py        # -> basemap.json, the whole backdrop baked in
+python3 scripts/build_standalone.py     # -> dist/, one self-contained file
+```
+
+`--match` matters: the deposit ships 341 MB of accelerometer data that nothing
+here reads.
+
+`scripts/profile_rdata.R` and `scripts/profile_tables.py` are the audit's two
+profilers: point either at a candidate deposit and it reports columns, row
+counts, individuals per species, coordinate and time ranges, and median fix
+interval — enough to decide whether a deposit can carry a map at all.
+
+The two earlier pipelines are still here and still run: `build_utah.py` and
+`build_utah_layers.py` against the Utah cougar and ungulate deposits, and
+`fetch_dryad.py` with `build_tracks.py`, `build_risk.py` and `build_seasonal.py`
+against `doi:10.5061/dryad.w0vt4b8zr`, the Okavango reconstruction.
+
+## Source
+
+Flack, A., Fiedler, W., Blas, J., et al. (2016). *Costs of migratory decisions:
+a comparison across eight white stork populations.* Science Advances 2:e1500931.
+Data: `doi:10.5441/001/1.78152p3q`, Movebank Data Repository, CC0.
+
+Backdrop, from two measured sources:
+
+- Elevation and bathymetry — Terrain Tiles on AWS Open Data (Mapzen/Nextzen
+  terrarium), SRTM and GMTED on land, ETOPO1 and other surveys at sea. Height
+  sets the colour and slope sets how it is lit, because height is what a soaring
+  bird lives on: thermals form over warm broken ground, so the Atlas, the
+  Iberian meseta, the Anatolian plateau and the Ethiopian highlands are the
+  corridors.
+- Water and vegetation — ESA WorldCover 2021 v200 (CC BY 4.0), 10 m global land
+  cover on AWS Open Data, read at its coarsest internal overview and reduced to
+  about 5 km. Lakes, the Nile, the Niger and the Sudd are drawn as water; the
+  green is a faint wash keyed to tree, shrub, grass and crop cover. Its job is
+  one edge: the Sahara is bare and the Sahel below it is not, and that line is
+  where the desert crossing ends.

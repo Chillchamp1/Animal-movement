@@ -2,18 +2,13 @@
 """Fold index.html and its data into one self-contained page.
 
 The served page fetches data/processed/*.json at runtime, which needs a web
-server. This build inlines the same JSON as `window.__DELTA_DATA__` so the
+server. This build inlines the same JSON as `window.__STORK_DATA__` so the
 result is a single file that runs anywhere, including hosts that permit no
 outbound requests at all.
 
-The utilisation indices are rescaled to small integers on the way in. The page
-only ever compares them against a percentile drawn from the same values, so a
-monotonic rescale leaves its behaviour identical while removing the twelve
-decimal places from every fix.
-
 Usage
 -----
-    python3 scripts/build_standalone.py [--out dist/a-day-in-the-delta.html]
+    python3 scripts/build_standalone.py [--out dist/cougars-and-their-prey.html]
 """
 
 from __future__ import annotations
@@ -23,32 +18,10 @@ import json
 import re
 from pathlib import Path
 
-DATASETS = [
-    "impala-dry", "tsessebe-dry", "tsessebe-rainy",
-    "wildebeest-dry", "wildebeest-rainy", "zebra-dry", "zebra-rainy",
-]
-UI_STEPS = 1000
-
-
-def rescale(payload: dict) -> dict:
-    """Map both utilisation columns onto 0..UI_STEPS."""
-    peak_dog = peak_lion = 0.0
-    for ind in payload["individuals"]:
-        for seg in ind["segments"]:
-            for c in seg["coords"]:
-                peak_dog = max(peak_dog, c[2])
-                peak_lion = max(peak_lion, c[3])
-    for ind in payload["individuals"]:
-        for seg in ind["segments"]:
-            seg["coords"] = [
-                [c[0], c[1],
-                 round(UI_STEPS * c[2] / peak_dog) if peak_dog else 0,
-                 round(UI_STEPS * c[3] / peak_lion) if peak_lion else 0]
-                for c in seg["coords"]
-            ]
-    payload["uiScale"] = {"dogPeak": peak_dog, "lionPeak": peak_lion,
-                          "steps": UI_STEPS}
-    return payload
+# The tracks are already delta-encoded integers by scripts/build_utah.py, so
+# there is nothing left to rescale here -- the files go in as they are.
+DATASETS = ["storks"]
+LAYERS = ["basemap"]
 
 
 def main() -> int:
@@ -56,7 +29,7 @@ def main() -> int:
     ap.add_argument("--page", type=Path, default=Path("index.html"))
     ap.add_argument("--data", type=Path, default=Path("data/processed"))
     ap.add_argument("--out", type=Path,
-                    default=Path("dist/a-day-in-the-delta.html"))
+                    default=Path("dist/where-the-storks-went.html"))
     args = ap.parse_args()
 
     src = args.page.read_text()
@@ -76,10 +49,11 @@ def main() -> int:
         if not path.exists():
             print(f"  missing {path}, skipped")
             continue
-        payload = rescale(json.loads(path.read_text()))
-        total_fixes += sum(i["fixes"] for i in payload["individuals"])
+        payload = json.loads(path.read_text())
+        total_fixes += sum(len(seg["x"]) for ind in payload["individuals"]
+                           for seg in ind["segments"])
         bundle[name] = payload
-    for name in ("predator-risk", "seasonal-shift"):
+    for name in LAYERS:
         path = args.data / f"{name}.json"
         if path.exists():
             bundle[name] = json.loads(path.read_text())
@@ -93,7 +67,7 @@ def main() -> int:
     # the meta is a second line of defence, not the primary one.
     args.out.write_text(
         f'<meta charset="utf-8">\n<title>{title}</title>\n{fonts}\n{styles}\n{body}\n'
-        f"<script>window.__DELTA_DATA__={data_js};</script>\n"
+        f"<script>window.__STORK_DATA__={data_js};</script>\n"
         f"<script>\n{app}</script>\n"
     )
 
