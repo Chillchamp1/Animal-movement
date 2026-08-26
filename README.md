@@ -1,163 +1,134 @@
-# A day in the Delta
+# Data from: Predator-prey space-use and landscape features influence movement behaviors in a large-mammal community
 
-Hourly GPS tracks of four herbivores in the Okavango Delta, Botswana, animated
-against the hours when lions and wild dogs hunt. Every dot is a collared animal
-and every position is a real fix. The map is dark at every hour, so the animals
-are the only bright thing on it.
+[https://doi.org/10.5061/dryad.kh1893292](https://doi.org/10.5061/dryad.kh1893292)
 
-**Live: https://chillchamp1.github.io/Okavango-Delta-predator-prey-dataset-Botswana-/**
+**Recommended citation for this dataset:**
 
-Built from Bennitt et al. (2024), `doi:10.5061/dryad.w0vt4b8zr` — impala,
-tsessebe, wildebeest and zebra collared in 2014–2016, alongside the lions and
-wild dogs whose ranges they had to share.
+Bassing, S. B., L. Satterfield, T. R. Ganz, M. DeVivo, B. N. Kertson, T. Roussin, A. J. Wirsing, and B. Gardner. 2024. Data for: Predator-prey interactions and landscape features influence movement behaviors in a large-mammal community. Dryad, Dataset. [https://doi.org/10.5061/dryad.kh1893292](https://doi.org/10.5061/dryad.kh1893292)
 
-## What is on screen
+## Description of the data and file structure
 
-| Species | Collars (dry / rainy) | Fixes |
-|---|---|---|
-| **Zebra** | 7 / 7 | 42,400 |
-| **Tsessebe** | 5 / 6 | 44,602 |
-| **Wildebeest** | 4 / 4 | 15,651 |
-| **Impala** | 5 / — | 14,315 |
+This repository contains movement data from collected from GPS-collared elk, mule deer, white-tailed deer, cougars, and wolves in eastern Washington, USA, from 2017 - 2021. The provided data are formatted for conducting resource selection function (RSF) analyses and hidden Markov models (HMM) for movement analysis. Formatted data are provided for several stages of the analysis.
 
-116,968 verified hourly fixes over 38 individual-seasons. Impala were only
-collared in the dry season.
+**Date of data collection:** 2017-01-01 to 2021-03-31
 
-Only the animals move. Nothing else is drawn on the map except the landscape
-layer you choose, so a dot on screen is an animal at that hour rather than a
-smear of everywhere it has ever stood.
+**Geographic location of data collection:** Northeast study area centered around Chewelah, Washington, USA (117.7193° W, 48.28302° N); Okanogan study area centered around Winthrop, Washington, USA (120.1096° W, 48.42966° N)
 
-Three things move at once. The **clock** is real hour-of-day. The two **lamps**
-under it show which predator is in its active window — wild dogs at dawn and
-dusk (04–08, 17–19), lions through the night (18–07). A **ring** round an animal
-means it is sitting in the top decile of that predator's range while that
-predator is active.
+**Information about funding sources that supported the collection of the data:** Funding was provided by the Washington Department of Fish and Wildlife, the Washington State Legislature, Federal Aid in Wildlife Restoration Grant no. F16AF00910, WDFW Aquatic Lands Enhancement Accounts, Seattle City Light Wildlife Research Grant no. 2015-04, NASA FINESST grant 80NSSC19K1334, and National Geographic grant EC-51129R-19.
 
-The histogram behind the scrubber is the finding the source paper is about: how
-far these animals actually move in each hour of the day, with the dog and lion
-windows coloured underneath.
+## Data & File Overview
 
-Drag to pan, scroll or pinch to zoom (up to 400×), `0` or the **fit** button to
-reset. Zooming redraws at the new scale rather than magnifying, and the scale
-bar re-steps from 50 km down to 100 m. The legend folds away with a click on its
-heading.
+**Use-Available Data:** Contains species and season-specific "used" and "available" data included in resource selection function (RSF) analyses. GPS-collar relocation data from each collared animal were classified as "used" locations and used to define the region within a study area that was "available" to it (i.e., its seasonal home-range). A ratio of 1:20 used:available locations were randomly sampled within this spatial extent. "Used" locations were labeled (1) and "available" locations were labeled (0). Covariate data were extracted at each used and available location and included here with its used or available classification. The coordinates of each observation are excluded due to sensitivity of the information. Contact information for complete data provided below. Files are RData files that can be read into R with the load() function. Start of file names relate to each species (coug = cougar, elk = elk, md = mule deer, wtd = white-tailed deer, wolf = wolf).
 
-### Landscape layers
+*Files included:*
 
-- **Satellite** — Esri World Imagery, fetched as tiles at view time. Nothing is
-  bundled, so it needs a connection; where outbound requests are blocked the
-  tiles do not arrive, the dark ground stays and the attribution line says so.
-  The imagery is a mosaic of mixed dates, not 2014–2016 — in a delta that floods
-  every year, the water in the picture is not the water these animals walked
-  around.
-- **Wild dog range** / **Lion range** — that predator's utilisation surface,
-  switching between its active and inactive state as the clock crosses its
-  hunting window, so the landscape lights up when the hunters do.
-- **Flood shift** — dry-versus-rainy occupancy for the ten animals collared in
-  *both* seasons (four tsessebe, four zebra, two wildebeest; 68,926 fixes).
-  Restricting it to animals present in both seasons is what makes it a seasonal
-  comparison rather than a comparison of who happened to be wearing a collar.
+1. coug_dat_all_for_pub.RData
+2. elk_dat_all_for_pub.RData
+3. md_dat_all_for_pub.RData
+4. wtd_dat_all_for_pub.RData
+5. wolf_dat_all_for_pub.RData
 
-## How the tracks were recovered
+*Data description:*
 
-The Dryad deposit ships analysis-ready tables, not raw collar downloads, and at
-first glance the trajectories look unrecoverable — nothing in it carries a
-timestamp. They survive across two of the tables:
+* ID: Individual animal identification number
+* Season: Indicates season and year when each observation was made (Summer18 = summer 2018; Winter1819 = winter 2018-2019; 			Summer19 = summer 2019; Winter1920 = winter 2019-2020, Summer20 = summer 2020; Winter2021 = winter 2020-2021)
+* Year (Year1, Year2, Year3): Year of study each observation was made (Year1 = 2018-2019; Year2 = 2019-2020; Year3 = 2020-2021).
+* Elev: Elevation (m) of observation location
+* Slope: Slope (degrees) of terrain at observation location
+* RoadDen: Total road length/1 km-sq at observation location
+* Dist2Water: Distance (m) to nearest water
+* HumanMod: Percentage of human modification to the landscape
+* CanopyCover: Percentage of tree cover
+* Dist2Edge: Distance (m) to nearest forested to non-forested habitat edge
+* PercForestMix: Percentage of forested habitat within 250 m of observation location
+* PercXGrass: Percentage of xeric grassland habitat within 250 m of observation location
+* PercXShrub: Percentage of xeric shrubland habitat within 250 m of observation location
+* Landcover: Numerical value representing landcover classification from Cascadia Partner Forum TerrAdapt:Cascadia tool (30m 			resolution)
+* Landcover_type: Landcover classification label
+* obs: Unique value for each observation
+* Area (NE, OK): Indicates which study area (Northeast or Okanogan) each observation was associated with
+* Used: Indicates whether observation was "used" (1) or "available" (0) to an individual
+* w: The weight of each observation ("available" = 5000, "used" = 1)
 
-- `RSF/*.csv` holds real coordinates (UTM 34S, snapped to the 25 m habitat
-  raster) but is **stably sorted by predator activity state** — every "High"
-  row, then every "Low" row — which destroys chronological order.
-- `Distances/*.csv` holds the same fixes in **true chronological order** with
-  hour-of-day and step length, but no coordinates.
+**Movement Data:** Contains movement data used in hidden Markov model analyses, derived from telemetry relocations for each species. The coordinates of each observation are excluded due to sensitivity of the information. Contact information for complete data provided above. File is an RData file that can be read into R containing a list of 14 data frames, one per species, season, and study area. Start of each named list indicates the species (e.g., md = Mule Deer, wtd = White-tailed Deer); season is indicated by smr = Summer or wtr = Winter; study area is indicated by NE = Northeast or OK = Okanogan. Mule deer data were only collected in the OK, elk and white-tailed deer data were only collected in the NE study area.
 
-Predator activity turns out to be a deterministic function of hour-of-day, so
-that sort is invertible: walk the chronological hour sequence and, for each
-hour, take the next unused point from whichever activity block that hour belongs
-to. The two tables use slightly different activity windows, so the window is
-solved per file and each reconstruction is scored against the authors' own
-step-length column.
+*Files  included:*
 
-All seven species-seasons independently resolve to the same window
-`{4,5,6,7,8,17,18,19}` and reproduce the published step lengths at **98.8–100%
-within 40 m**, median error 5–7 m — the residual expected from 25 m grid
-quantisation. As a further check, the lion-context rows, sorted by an unrelated
-nocturnal rule, reconstruct to identical geometry. Individuals where the two
-tables disagree about a fix are dropped rather than shown unverified.
+1. crwOut_ALL_wCovs_for_pub.RData
 
-## What is missing
+*Data description:*
 
-**No calendar dates.** The deposit records hour-of-day but never a date. The
-clock is real; the day counter is only elapsed time from each collar's first
-fix. Animals are aligned by time of day, not by date — two dots side by side
-were not necessarily there in the same week.
+* ID: Unique animal ID and burst number
+* step: Step length
+* angle: Turning angle
+* FullID: Unique animal ID and year of observation
+* time: Date and time of telemetry relocation, time floored to nearest hour
+* burst: Numerical indicator for which burst of sequential locations each observation belongs to.
+* AnimalID: Unique animal ID
+* speed: Movement speed calculated based on time step and step length
+* obs: Observation number
+* Date: Date of observation
+* month: Month of observation
+* Dist2Road: Distance (m) to nearest road based on Cascadia Partner Forum TerrAdapt:Cascadia tool roads layer
+* PercOpen: Percentage of open habitat within 250m of observation
+* SnowCover: Binary indicator of whether snow cover was present at the animal location on day of observation
+* TRI: Measure of landscape variability (Terrain ruggedness index) 30m resolution, values have been centered and scaled
+* \[species code]_RSF: Predicted relative probability of selection by each species of interest [ELK = elk, MD = mule deer, WTD = white-tailed deer, COUG = cougar, WOLF = wolf] based on species, season, and year specific resource selection functions (RSF), values have been centered and scaled
+* hour: Hour of each observation
+* hour_fix: Hour of each observation
+* hour3: Hour of each observation transformed to categorical variable representing the number of relocations in a day
+* daytime: Binary variable indicating whether observation occurred during daylight (0) or nighttime (1)
+* Sex: Sex of collared animal
+* StudyArea (NE, OK): Indicates which study area (Northeast or Okanogan) each observation was associated with
+* Season: Indicates season and year when each observation was made (Summer18 = summer 2018; Winter1819 = winter 2018-2019; Summer19 		= summer 2019; Winter1920 = winter 2019-2020, Summer20 = summer 2020; Winter2021 = winter 2020-2021)
 
-**The predators are in the data, but not as positions.** Ten were collared
-alongside the herbivores — six lions (Buzz, Chloe, F3, F8, Hector, Pride) and
-four wild dogs (Adiga, Bali, Bongwe, Xerxes), each with habitat selection
-measured in both seasons. What the deposit carries of them is their utilisation
-surface, evaluated at every prey location (the `UI` column of the RSF tables),
-together with their diel activity windows — the range layers and the lamps are
-both built from it. What it does not carry is a single predator coordinate or
-timestamp, so they cannot be drawn moving, and a ring is a measure of exposure
-rather than an observed encounter.
+**Covariate Data:** CSV files containing covariate values extracted at every 30-sq-m or 1-sq-km pixel across the Northeast and Okanogan study areas and their corresponding TIF files, each containing a single raster that matches the spatial location and resolution of the covariate data. Raster pixels can be converted to points, representing the location of each pixel centroid, and paired with each row of the covariate data. The covariates and rasters were used to predict and map the relative probability of selection for each RSF analysis.  CSV file columns and units of measurement for each variable are described below. Waterways were masked in the raster data so no predictions can be made to pixels that overlap waterbodies or rivers.
 
-**Positions are quantised** to the 25 m analysis raster, so fine detail is not
-real detail.
+*Files included:*
 
-**Gaps are drawn as absence.** Where a collar missed hours the animal is not
-drawn. Gap length is taken as the shortest span consistent with the hours either
-side, so long absences are understated, and nothing is ever interpolated across
-a gap.
+1. NE_covariates_30m.csv
+2. OK_covariates_30m.csv
+3. NE_covariates_1km.csv
+4. OK_covariates_1km.csv
+5. NE_30m_grid_mask.tif
+6. OK_30m_grid_mask.tif
+7. NE_1km_grid_mask.tif
+8. OK_1km_grid_mask.tif
 
-**No vegetation or water map from the data itself.** Satellite imagery is
-available as a backdrop (above), but it is a mixed-date mosaic, not a measured
-layer for this study period. The deposit gives vegetation
-only as aggregate proportions per animal — floodplain, grassland, mixed,
-mopane — never mapped, and the 25 m habitat raster behind the original analysis
-was not deposited. Public vector data does not fill the gap: at 1:10m scale
-Natural Earth resolves the entire Okavango as a single river centreline, which
-says nothing across 70 km. So nothing here fetches coastlines or rivers, and
-none of the landscape layers is a basemap. **Flood shift** in particular is a
-map of where animals went, not of where water is — in the Okavango the flood
-arrives during the dry season, so the contrast traces the flood-driven structure
-of the range, but it is inference from behaviour, not observation of water.
+*Data description:*
 
-**Each collar repeats its own record.** The collars ran for very different
-lengths, 35 days to 200, and played once through they drop away one by one until
-a couple of animals are moving alone. Each therefore loops, on a period rounded
-up to whole days so every animal's hour-of-day still matches the clock exactly.
-The cost is that elapsed days are no longer comparable between animals once the
-shorter records come round again.
+* ID: unique identifier for covariate data extracted at each location, corresponding with the raster's grid index number 
+* Elev: Elevation (m) of camera site
+* Slope: Slope (degrees) of terrain at camera site
+* RoadDen: Total road length/km-sq at observation location
+* Dist2Water: Distance (m) to nearest water
+* HumanMod: Percentage (%) of human modification to the landscape (1 km resolution)
+* CanopyCover: Percentage (%) of tree cover per year of study
+* Dist2Edge: Distance (m) to nearest forested to non-forested habitat edge per year of study
 
-## Running it
+- Landcover_type: Landcover classification from Cascadia Partner Forum TerrAdapt:Cascadia tool (30m resolution) per year of study
 
-The page fetches its data, so it needs http(s) — GitHub Pages, or locally:
+## Sharing/Access information
 
-```sh
-python3 -m http.server 8000    # then open http://localhost:8000
-```
+The coordinates of telemetry re-locations from GPS-collared animals analyzed during the current study are not publicly available due to sensitive location information but are available to qualified researchers from the Wildlife Chief Scientist of the Washington Department of Fish and Wildlife by contacting (306) 902-2515.
 
-## Rebuilding the data
+Query details: Data collected Jan 2017 – Mar 2021 in Game Management Units 117, 121, 203, 218, 224, 231, 233, and 239, including animal ID, date, time, and coordinates of telemetry relocations for all cougars, elk, mule deer, white-tailed deer, and wolves GPS-collared as part of the Washington Predator-Prey Project. Anonymized data are available here. Detailed data collection, processing, and formatting methods described in manuscript.
 
-The data is **not kept in this repository** — neither the Dryad deposit nor
-anything derived from it. The live site and the local page both need
-`data/processed/` to exist, so run these first:
+The code used to analyze the datasets during the current study are available in the GitHub repository, [https://github.com/SarahBassing/Bassing_et_al_Predator-Prey_Movement](https://github.com/SarahBassing/Bassing_et_al_Predator-Prey_Movement) and is permanently archived with Zenodo to ensure permanency and versioning, [https://zenodo.org/records/13381998](https://zenodo.org/records/13381998) (DOI: 10.5281/zenodo.13381998).
 
-```sh
-python3 scripts/fetch_dryad.py                 # needs access to datadryad.org
-unzip -o 'data/raw/*.zip' -d data/raw/
-python3 scripts/build_tracks.py                # -> data/processed/<species>-<season>.json
-python3 scripts/build_risk.py                  # -> data/processed/predator-risk.json
-python3 scripts/build_seasonal.py              # -> data/processed/seasonal-shift.json
-python3 scripts/build_standalone.py            # -> dist/, one self-contained file
-```
+#### **Author Information**
 
-`build_tracks.py` prints the agreement score for every species-season; treat a
-drop below the 95% floor as a reason to distrust the output, not to lower the
-floor.
+* Name: Sarah B. Bassing
+* ORCID: 0000-0001-6295-6372
+* Institution: University of Washington
+* Address: 107 Anderson Hall, University of Washington, Seattle WA
+* Email: [sarah.bassing@gmail.com](mailto:sarah.bassing@gmail.com)
 
-## Source
+#### **Author/Principal Investigator Information**
 
-Bennitt, E. et al. (2024). *Proactive cursorial and ambush predation risk
-avoidance in four African herbivore species.* Ecology and Evolution.
-Data: <https://doi.org/10.5061/dryad.w0vt4b8zr>
+* Name: Beth Gardner
+* ORCID: 0000-0002-9624-2981
+* Institution: University of Washington
+* Address: 107 Anderson Hall, University of Washington, Seattle WA
+* Email: [bg43@uw.edu](mailto:bg43@uw.edu)
+
