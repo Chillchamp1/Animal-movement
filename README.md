@@ -141,6 +141,27 @@ Two journeys, both real, both CC0, chosen by `scripts/build_globe.py`:
 | **Hudsonian godwit** (*Limosa haemastica*) | KHE | Off the Chilean coast to the Texas Gulf coast — **7,931 km in 5.9 days**, averaging 56 km/h the whole way. 77 GPS fixes, one every ~1.8 h. |
 | **Grey-headed albatross** (*Thalassarche chrysostoma*) | 89518 | One foraging trip from Campbell Island out across the antimeridian and back — **12,285 km over 21.9 days**, ending **2 km from where it began**. 5,959 GPS fixes, one every 5 min. |
 
+### The rest of the deposit
+
+**Flock** adds every other bird that was reporting while the followed one was in
+the air — on the **same clock**, not a shared start. Lining them up at minute
+zero would invent a formation that never existed, so instead they appear and
+vanish as their tags reported, and the read-out counts how many are audible at
+that instant.
+
+| | Others in the deposit | Aloft in the focal window | Typical number heard at once |
+|---|---:|---:|---:|
+| Hudsonian godwit | 11 | 3 | 1 of 3, and all three for stretches |
+| Grey-headed albatross | 23 | 19 | 6, up to 10 |
+
+They are short tails rather than full tracks, sampled coarser than the followed
+bird. A companion is dropped whenever its last fix is further back than that
+deposit's own cadence allows, so no line is ever drawn through a silence — and
+that threshold is measured from the tags, not guessed. It has to be: the godwit
+tags report roughly every two hours and the albatross tags every five minutes,
+and one guessed threshold for both had 91% of ordinary godwit sampling looking
+like silence, leaving those companions invisible for almost the entire flight.
+
 ### Two birds this is not
 
 The page was asked for the bar-tailed godwit `4BBRW` of the record

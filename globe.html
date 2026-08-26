@@ -74,6 +74,7 @@
   #speeds{display:flex;gap:4px}
   #speeds button{padding:6px 9px;border-color:transparent}
   #speeds button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
+  #others[aria-pressed="false"]{color:var(--ink-3);border-color:transparent}
   #scrub{
     flex:1 1 auto;min-width:60px;height:26px;-webkit-appearance:none;appearance:none;
     background:transparent;cursor:pointer;outline:none;
@@ -144,6 +145,7 @@
   }
   @media (max-width:520px){
     #speeds button[data-v="1"]{display:none}
+    #replay{display:none}
     #readout dl{grid-template-columns:auto auto}
   }
   @media (prefers-reduced-motion:reduce){
@@ -165,6 +167,7 @@
     <dt>speed</dt><dd id="speed">0 km/h</dd>
     <dt>lat</dt><dd id="lat">&mdash;</dd>
     <dt>lon</dt><dd id="lon">&mdash;</dd>
+    <dt>others</dt><dd id="nother">&mdash;</dd>
   </dl>
 </div>
 
@@ -172,6 +175,7 @@
   <button id="play" aria-pressed="true">Pause</button>
   <div id="speeds"></div>
   <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek along the journey">
+  <button id="others" aria-pressed="true" title="Show the rest of the deposit on the same clock">Flock</button>
   <button id="replay" title="Back to the start">Restart</button>
 </div>
 
@@ -198,6 +202,14 @@ const SPECIES_COLOUR = {godwit: "#ffb03a", albatross: "#46d8ff"};
 /* The trail is drawn as a gradient from cold at the start to the species
    colour at the bird, so how far along the journey is has a colour. */
 const TRAIL_COLD = "#1b3a6b";
+
+/* The rest of the deposit, on the same clock. They are dimmed and given short
+   tails rather than full histories: the point is company and context, and
+   nineteen complete tracks would bury the bird the camera is following. */
+const OTHERS_TAIL_MIN = 10 * 60;   /* how much of a companion's past to show */
+const OTHERS_DIM = "rgba(196,220,252,0.52)";
+const OTHERS_DOT = "rgba(226,240,255,0.9)";
+let showOthers = true;
 
 let TRACKS = null;          /* key -> payload from globe-tracks.json */
 let T = null;               /* the active track */
@@ -257,6 +269,46 @@ function speedAt(t, m){
 
 const wrapLng = d => ((d + 180) % 360 + 360) % 360 - 180;
 
+/* Where a companion was at minute `m`, or null if its tag was not reporting
+   near then. The deposit is sampled every othersStepMin, so anything much
+   beyond that is real silence and the bird is simply not drawn -- better than
+   sliding it along a straight line through a gap it never flew. */
+function otherAt(o, m){
+  const mins = o.min, n = mins.length;
+  const tol = T.othersTolMin || (T.othersStepMin || 20) * 3;
+  if (m < mins[0] - tol || m > mins[n-1] + tol) return null;
+  let lo = 0, hi = n - 1;
+  while (lo < hi){
+    const mid = (lo + hi + 1) >> 1;
+    if (mins[mid] <= m) lo = mid; else hi = mid - 1;
+  }
+  if (lo === n - 1) return Math.abs(m - mins[lo]) <= tol
+    ? {lat:o.lat[lo], lng:o.lon[lo], i:lo} : null;
+  const gap = mins[lo+1] - mins[lo];
+  if (gap > tol) return null;                     /* a silence, not a flight */
+  const f = gap > 0 ? (m - mins[lo]) / gap : 0;
+  return {
+    lat: o.lat[lo] + (o.lat[lo+1] - o.lat[lo]) * f,
+    lng: o.lon[lo] + (o.lon[lo+1] - o.lon[lo]) * f,
+    i: lo,
+  };
+}
+
+/* A companion's recent past, cut at the same silences. */
+function otherTail(o, m, here){
+  const pts = [];
+  const from = m - OTHERS_TAIL_MIN;
+  const tol = T.othersTolMin || (T.othersStepMin || 20) * 3;
+  for (let j = here.i; j >= 0; j--){
+    if (o.min[j] < from) break;
+    if (j < here.i && o.min[j+1] - o.min[j] > tol) break;
+    pts.push([o.lat[j], o.lon[j]]);
+  }
+  pts.reverse();
+  pts.push([here.lat, here.lng]);
+  return pts;
+}
+
 /* ------------------------------------------------------------ trail points
 
    Rebuilding a 6,000-point line every frame is what would make this stutter,
@@ -275,6 +327,23 @@ function trailUpTo(t, m){
   for (let j = 0; j <= p.i; j += stride) pts.push([t.lat[j], t.lon[j]]);
   pts.push([p.lat, p.lng]);              /* always end exactly at the bird */
   return pts;
+}
+
+/* One layer carries both, so the followed bird is always drawn last and sits
+   over the company rather than under it. */
+function pathsAt(m){
+  const col = SPECIES_COLOUR[key];
+  const paths = [];
+  if (showOthers && T.others){
+    for (const o of T.others){
+      const here = otherAt(o, m);
+      if (!here) continue;
+      const pts = otherTail(o, m, here);
+      if (pts.length > 1) paths.push({pts, cols:[OTHERS_DIM, OTHERS_DIM], w:1.3});
+    }
+  }
+  paths.push({pts: trailUpTo(T, m), cols:[TRAIL_COLD, col], w:2.2});
+  return paths;
 }
 
 /* --------------------------------------------------------------- rendering */
@@ -309,10 +378,10 @@ function paint(force, dt){
   globe.pointOfView({lat: camLat, lng: wrapLng(camLng), altitude: camAlt}, 0);
 
   const now = performance.now();
-  const stamp = key + "|" + (T.min.length);
+  const stamp = key + "|" + T.min.length + "|" + showOthers;
   if (force || stamp !== trailKey || now - lastTrail > TRAIL_MS){
     lastTrail = now; trailKey = stamp;
-    globe.pathsData([trailUpTo(T, simMin)]);
+    globe.pathsData(pathsAt(simMin));
   }
 
   /* The albatross ends two kilometres from where it started, so a separate
@@ -323,6 +392,13 @@ function paint(force, dt){
     ? [{lat:T.lat[0], lng:T.lon[0], c:"#7ee08a", r:0.5, alt:0.012}]
     : [{lat:T.lat[0], lng:T.lon[0], c:"#7ee08a", r:0.45, alt:0.012},
        {lat:T.lat[n], lng:T.lon[n], c:"#ff6b6b", r:0.45, alt:0.012}];
+  if (showOthers && T.others){
+    for (const o of T.others){
+      const here = otherAt(o, simMin);
+      if (here) marks.push({lat:here.lat, lng:here.lng, c:OTHERS_DOT,
+                            r:0.22, alt:0.015, id:o.id});
+    }
+  }
   marks.push({lat:p.lat, lng:p.lng, c:"#ffffff", r:0.30, alt:0.02});
   globe.pointsData(marks);
   globe.ringsData([{lat:p.lat, lng:p.lng}]);
@@ -343,6 +419,12 @@ function updateReadout(p){
   $("speed").textContent = `${Math.round(speedAt(T, simMin))} km/h`;
   $("lat").textContent = fmtDeg(p.lat, "NS");
   $("lon").textContent = fmtDeg(wrapLng(p.lng), "EW");
+  /* How many of the deposit's other birds were reporting at this instant --
+     it drops to nothing for stretches, and that absence is the data. */
+  const seen = (showOthers && T.others)
+    ? T.others.reduce((n, o) => n + (otherAt(o, simMin) ? 1 : 0), 0) : 0;
+  $("nother").textContent = showOthers
+    ? `${seen} of ${T.others ? T.others.length : 0}` : "off";
   const s = $("scrub");
   if (document.activeElement !== s) s.value = String(Math.round(simMin / T.min[T.min.length-1] * 1000));
   $("when").title = `day ${day} of ${Math.ceil(T.hours/24)}`;
@@ -384,7 +466,7 @@ function setSpecies(k, initial){
   playing = true;
 
   const col = SPECIES_COLOUR[k];
-  globe.pathColor(() => [TRAIL_COLD, col])
+  globe.pathColor(d => d.cols)
        .ringColor(() => (t => `rgba(255,255,255,${1 - t})`));
 
   for (const b of document.querySelectorAll("#birdRow button"))
@@ -396,7 +478,10 @@ function setSpecies(k, initial){
     + `${Math.round(T.km).toLocaleString("en-GB")} km &middot; `
     + `${(T.hours/24).toFixed(1)} days &middot; one fix every `
     + `${T.medianGapMin < 60 ? T.medianGapMin + " min"
-        : (T.medianGapMin/60).toFixed(1) + " h"}<br>${T.source}</span>`;
+        : (T.medianGapMin/60).toFixed(1) + " h"}`
+    + `<br>${T.others ? T.others.length : 0} more birds of the same study were `
+    + `aloft in the same days, shown faint on the same clock`
+    + `<br>${T.source}</span>`;
 
   syncPlay();
   buildNotes();
@@ -469,6 +554,26 @@ function buildNotes(){
     tears that journey in half at the date line; a globe does not, which is the
     argument for this page existing.</p>
 
+    <h3>The faint ones</h3>
+    <p><strong>Flock</strong> adds the rest of the deposit &mdash; every other
+    bird that was reporting while the followed one was in the air. They run on
+    the <em>same clock</em>, not a shared start: these birds did not set off
+    together, and lining them up at minute zero would invent a formation that
+    never existed. So they appear and vanish as their tags reported, and the
+    read-out counts how many are being heard at that instant.</p>
+    <p>The godwit deposit has three others aloft in those six days, and you can
+    watch all four work up the Pacific in the same week. The albatross deposit
+    has nineteen, six of them audible at a typical moment.</p>
+    <p class="sub">They are drawn as short tails rather than full tracks, and
+    sampled coarser than the followed bird &mdash; nineteen complete histories
+    would bury the animal the camera is holding. A companion is dropped from
+    the view whenever its last fix is further back than that deposit's own
+    sampling allows, so a straight line is never drawn through a silence. That
+    threshold is measured from the tags rather than guessed: the godwit tags
+    report roughly every two hours and the albatross tags every five minutes,
+    and a single guess for both had left the godwits invisible for almost the
+    whole flight.</p>
+
     <h3>What was thrown away</h3>
     <p>173 of the 3,548 godwit GPS rows &mdash; 4.9% &mdash; carry impossible
     coordinates, latitude &minus;213 among them. They are almost all
@@ -533,6 +638,11 @@ function wire(){
     if (!playing && simMin >= end) simMin = 0;
     playing = !playing; syncPlay();
   });
+  $("others").addEventListener("click", e => {
+    showOthers = !showOthers;
+    e.currentTarget.setAttribute("aria-pressed", String(showOthers));
+    paint(true, 1e3);
+  });
   $("replay").addEventListener("click", () => {
     simMin = 0; camReady = false; playing = true; syncPlay(); paint(true, 1e3);
   });
@@ -552,6 +662,7 @@ function wire(){
   addEventListener("keydown", e => {
     if (e.target.tagName === "INPUT") return;
     if (e.key === " "){ e.preventDefault(); $("play").click(); }
+    if (e.key === "f" || e.key === "F") $("others").click();
     if (e.key === "1") setSpecies("godwit", false);
     if (e.key === "2") setSpecies("albatross", false);
   });
@@ -578,10 +689,11 @@ function wire(){
       .atmosphereAltitude(0.17)
       .width(innerWidth)
       .height(innerHeight)
+      .pathPoints(d => d.pts)
       .pathPointLat(p => p[0])
       .pathPointLng(p => p[1])
       .pathPointAlt(0.006)
-      .pathStroke(2.2)
+      .pathStroke(d => d.w)
       .pathTransitionDuration(0)      /* it is redrawn constantly; do not tween */
       .pathResolution(2)
       .pointLat(d => d.lat).pointLng(d => d.lng)
