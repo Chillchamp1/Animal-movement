@@ -1,0 +1,623 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Two ocean crossings, on a turning globe</title>
+<meta name="description" content="A Hudsonian godwit crossing from Chile to Texas, and a grey-headed albatross looping the Southern Ocean, on a globe that turns to keep the bird in the middle.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#04070d; --ink:#eef3fb; --ink-2:#a9b6cc; --ink-3:#6b7a93;
+    --panel:rgba(9,14,24,.76); --rule:rgba(150,175,215,.22);
+    --godwit:#ffb03a; --albatross:#46d8ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #globe{position:fixed;inset:0;z-index:0}
+  #globe canvas{display:block;outline:none}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--rule);border-radius:11px;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+
+  /* ---------------------------------------------------------- bird picker */
+  #birds{position:fixed;z-index:3;left:16px;top:calc(16px + env(safe-area-inset-top,0px));
+         display:flex;flex-direction:column;gap:7px;max-width:min(340px,calc(100vw - 32px))}
+  #birdRow{display:flex;gap:6px;padding:5px;align-items:stretch}
+  #birdRow button{
+    flex:1 1 0;min-width:0;font:inherit;font-size:.76rem;font-weight:500;
+    padding:7px 11px;border:1px solid transparent;border-radius:7px;cursor:pointer;
+    background:transparent;color:var(--ink-3);transition:color .15s,border-color .15s;
+    display:flex;flex-direction:column;gap:2px;text-align:left;line-height:1.25;
+  }
+  #birdRow button .sci{font-size:.62rem;font-style:italic;opacity:.72;font-weight:400}
+  #birdRow button:hover{color:var(--ink-2)}
+  #birdRow button[aria-pressed="true"]{color:var(--ink);border-color:currentColor}
+  #birdRow button[data-key="godwit"][aria-pressed="true"]{color:var(--godwit)}
+  #birdRow button[data-key="albatross"][aria-pressed="true"]{color:var(--albatross)}
+
+  #blurb{padding:11px 13px;font-size:.72rem;line-height:1.5;color:var(--ink-2)}
+  #blurb strong{color:var(--ink);font-weight:600;display:block;margin-bottom:3px;font-size:.76rem}
+  #blurb .src{display:block;margin-top:7px;color:var(--ink-3);font-size:.64rem;line-height:1.45}
+
+  /* ------------------------------------------------------------ read-out */
+  #readout{
+    position:fixed;z-index:3;right:16px;top:calc(16px + env(safe-area-inset-top,0px));
+    padding:11px 13px;min-width:186px;
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  #readout .when{font-size:1.02rem;letter-spacing:.01em;margin-bottom:8px;color:var(--ink)}
+  #readout dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.7rem}
+  #readout dt{color:var(--ink-3)}
+  #readout dd{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+
+  /* ------------------------------------------------------------ controls */
+  #controls{
+    position:fixed;z-index:3;left:50%;transform:translateX(-50%);
+    bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    display:flex;align-items:center;gap:9px;padding:8px 11px;
+    width:min(660px,calc(100vw - 32px));
+  }
+  #controls button{
+    font:inherit;font-size:.72rem;color:var(--ink-2);background:transparent;
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;cursor:pointer;
+    transition:color .15s,border-color .15s;
+  }
+  #controls button:hover{color:var(--ink)}
+  #play{min-width:66px;font-weight:500}
+  #speeds{display:flex;gap:4px}
+  #speeds button{padding:6px 9px;border-color:transparent}
+  #speeds button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
+  #scrub{
+    flex:1 1 auto;min-width:60px;height:26px;-webkit-appearance:none;appearance:none;
+    background:transparent;cursor:pointer;outline:none;
+  }
+  #scrub::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--rule)}
+  #scrub::-moz-range-track{height:3px;border-radius:2px;background:var(--rule)}
+  #scrub::-webkit-slider-thumb{
+    -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--ink);margin-top:-4.5px;border:0;
+  }
+  #scrub::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:0}
+  #scrub:focus-visible{outline:1px solid var(--ink-3);outline-offset:3px}
+
+  /* ------------------------------------------------------------ chrome */
+  #notesbtn{
+    position:fixed;z-index:3;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    font:inherit;font-size:.68rem;color:var(--ink-3);background:var(--panel);
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;cursor:pointer;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+  #notesbtn:hover{color:var(--ink-2)}
+  #notes{
+    position:fixed;z-index:5;right:16px;bottom:calc(54px + env(safe-area-inset-bottom,0px));
+    width:min(430px,calc(100vw - 32px));max-height:min(66vh,560px);overflow-y:auto;
+    padding:16px 18px;font-size:.74rem;line-height:1.62;color:var(--ink-2);display:none;
+  }
+  #notes[data-open="true"]{display:block}
+  #notes h2{font-size:.86rem;color:var(--ink);margin-bottom:9px;font-weight:600}
+  #notes h3{font-size:.74rem;color:var(--ink);margin:14px 0 5px;font-weight:600}
+  #notes p{margin-bottom:8px}
+  #notes code{font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--ink)}
+  #notes .sub{color:var(--ink-3);font-size:.7rem}
+  #notes a{color:var(--ink-2)}
+
+  #maplink{
+    position:fixed;z-index:3;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    font-size:.68rem;color:var(--ink-3);text-decoration:none;background:var(--panel);
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+  #maplink:hover{color:var(--ink-2)}
+
+  #loading{
+    position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--ink-3);
+    text-align:center;padding:24px;
+  }
+  #loading[hidden]{display:none}
+
+  /* On a phone the globe is the scarce thing: the blurb folds away, the
+     read-out keeps only what changes, and the controls span the width. */
+  @media (max-width:820px){
+    #birds{left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));max-width:none}
+    #birdRow button{font-size:.72rem;padding:6px 9px}
+    #blurb{display:none}
+    #readout{right:10px;top:auto;left:10px;
+             bottom:calc(64px + env(safe-area-inset-bottom,0px));min-width:0;
+             display:flex;align-items:baseline;gap:12px;padding:8px 11px;flex-wrap:wrap}
+    #readout .when{margin-bottom:0;font-size:.84rem}
+    #readout dl{grid-template-columns:auto auto auto auto;gap:2px 8px;font-size:.64rem}
+    #readout dd{text-align:left}
+    #controls{left:10px;right:10px;transform:none;width:auto;
+              bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+    #notesbtn{right:10px;bottom:auto;top:calc(74px + env(safe-area-inset-top,0px))}
+    #maplink{left:10px;bottom:auto;top:calc(74px + env(safe-area-inset-top,0px))}
+    #notes{right:10px;left:10px;width:auto;top:auto;
+           bottom:calc(64px + env(safe-area-inset-bottom,0px));max-height:56vh}
+  }
+  @media (max-width:520px){
+    #speeds button[data-v="1"]{display:none}
+    #readout dl{grid-template-columns:auto auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #birdRow button{transition:none}
+  }
+</style>
+
+<div id="globe"></div>
+
+<div id="birds">
+  <div id="birdRow" class="panel"></div>
+  <div id="blurb" class="panel"></div>
+</div>
+
+<div id="readout" class="panel">
+  <div class="when" id="when">&mdash;</div>
+  <dl>
+    <dt>flown</dt><dd id="dist">0 km</dd>
+    <dt>speed</dt><dd id="speed">0 km/h</dd>
+    <dt>lat</dt><dd id="lat">&mdash;</dd>
+    <dt>lon</dt><dd id="lon">&mdash;</dd>
+  </dl>
+</div>
+
+<div id="controls" class="panel">
+  <button id="play" aria-pressed="true">Pause</button>
+  <div id="speeds"></div>
+  <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek along the journey">
+  <button id="replay" title="Back to the start">Restart</button>
+</div>
+
+<a id="maplink" href="index.html">&larr; Stork map</a>
+<button id="notesbtn" aria-expanded="false">Data notes</button>
+<div id="notes" class="panel"></div>
+
+<div id="loading">loading tracks&hellip;</div>
+
+<script src="vendor/globe.gl.min.js"></script>
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ model
+
+   Two real journeys, one per species, chosen by scripts/build_globe.py from
+   two CC0 Movebank deposits. Every position here is a GPS fix with a
+   timestamp; nothing is invented and nothing is smoothed. The only thing the
+   page adds is interpolation between consecutive fixes, so the marker slides
+   rather than jumping -- which is why the read-out reports the fix interval.  */
+
+const SPECIES_COLOUR = {godwit: "#ffb03a", albatross: "#46d8ff"};
+
+/* The trail is drawn as a gradient from cold at the start to the species
+   colour at the bird, so how far along the journey is has a colour. */
+const TRAIL_COLD = "#1b3a6b";
+
+let TRACKS = null;          /* key -> payload from globe-tracks.json */
+let T = null;               /* the active track */
+let key = "godwit";
+
+let globe = null;
+let playing = true;
+let simMin = 0;             /* minutes since the journey's first fix */
+let speed = 8;              /* animation speed: journey-hours per real second */
+
+/* Camera state, eased toward the bird rather than snapped to it. Longitude is
+   carried unwrapped -- the albatross crosses the antimeridian, and easing
+   through 180 in wrapped degrees would spin the globe the long way round. */
+let camLat = 0, camLng = 0, camAlt = 1.5, camReady = false;
+let targetAlt = 1.5, lastSetAlt = -1;
+
+const $ = id => document.getElementById(id);
+
+/* ------------------------------------------------------------------- data */
+
+async function loadTracks(){
+  const res = await fetch("data/processed/globe-tracks.json");
+  if (!res.ok) throw new Error(`globe-tracks.json: ${res.status}`);
+  return (await res.json()).tracks;
+}
+
+/* Where the bird was at minute `m`. Between two fixes this interpolates
+   linearly in lat and in unwrapped lon, which over a two-hour godwit step is
+   a few kilometres from the great circle and invisible at globe scale. */
+function at(t, m){
+  const mins = t.min, n = mins.length;
+  if (m <= mins[0]) return {lat:t.lat[0], lng:t.lon[0], km:t.cum[0], i:0, f:0};
+  if (m >= mins[n-1]) return {lat:t.lat[n-1], lng:t.lon[n-1], km:t.cum[n-1], i:n-1, f:0};
+  let lo = 0, hi = n - 1;
+  while (lo < hi){
+    const mid = (lo + hi + 1) >> 1;
+    if (mins[mid] <= m) lo = mid; else hi = mid - 1;
+  }
+  const span = mins[lo+1] - mins[lo];
+  const f = span > 0 ? (m - mins[lo]) / span : 0;
+  return {
+    lat: t.lat[lo] + (t.lat[lo+1] - t.lat[lo]) * f,
+    lng: t.lon[lo] + (t.lon[lo+1] - t.lon[lo]) * f,
+    km:  t.cum[lo] + (t.cum[lo+1] - t.cum[lo]) * f,
+    i: lo, f,
+  };
+}
+
+/* Ground speed over the fix interval the bird is currently inside: the honest
+   number, since between two fixes nothing is known. */
+function speedAt(t, m){
+  const p = at(t, m), i = p.i;
+  if (i >= t.min.length - 1) return 0;
+  const dt = (t.min[i+1] - t.min[i]) / 60;
+  return dt > 0 ? (t.cum[i+1] - t.cum[i]) / dt : 0;
+}
+
+const wrapLng = d => ((d + 180) % 360 + 360) % 360 - 180;
+
+/* ------------------------------------------------------------ trail points
+
+   Rebuilding a 6,000-point line every frame is what would make this stutter,
+   so the trail is decimated to at most TRAIL_MAX points and rebuilt on a
+   timer rather than per frame. The marker still moves every frame at full
+   resolution, which is the part the eye actually tracks. */
+const TRAIL_MAX = 900;
+const TRAIL_MS = 90;
+let lastTrail = -1e9, trailKey = "";
+
+function trailUpTo(t, m){
+  const p = at(t, m);
+  const n = p.i + 1;
+  const stride = Math.max(1, Math.ceil(n / TRAIL_MAX));
+  const pts = [];
+  for (let j = 0; j <= p.i; j += stride) pts.push([t.lat[j], t.lon[j]]);
+  pts.push([p.lat, p.lng]);              /* always end exactly at the bird */
+  return pts;
+}
+
+/* --------------------------------------------------------------- rendering */
+
+/* Seconds for the camera to close most of the gap to the bird. Easing by a
+   fixed fraction per frame instead would make the lag depend on the frame
+   rate: the same page would hold the bird centred on a fast machine and let it
+   trail by hundreds of kilometres on a slow one. */
+const CAM_TAU = 0.22;
+
+function paint(force, dt){
+  const p = at(T, simMin);
+
+  /* Camera: ease toward the bird so a jumpy fix does not jolt the globe.
+
+     Altitude is eased here too rather than handed to globe.gl's own tween,
+     because this runs every frame with a zero-length transition and would
+     cancel that tween on its first step. Which leaves one thing to be careful
+     about: if the viewer pinches or scrolls, the altitude coming back is
+     theirs, not ours, so it becomes the new target instead of being fought. */
+  const pov = globe.pointOfView();
+  if (lastSetAlt >= 0 && Math.abs(pov.altitude - lastSetAlt) > 1e-4){
+    targetAlt = pov.altitude;
+    camAlt = pov.altitude;
+  }
+  const k = camReady ? 1 - Math.exp(-Math.max(0, dt || 0) / CAM_TAU) : 1;
+  camLat += (p.lat - camLat) * k;
+  camLng += (p.lng - camLng) * k;
+  camAlt += (targetAlt - camAlt) * k;
+  camReady = true;
+  lastSetAlt = camAlt;
+  globe.pointOfView({lat: camLat, lng: wrapLng(camLng), altitude: camAlt}, 0);
+
+  const now = performance.now();
+  const stamp = key + "|" + (T.min.length);
+  if (force || stamp !== trailKey || now - lastTrail > TRAIL_MS){
+    lastTrail = now; trailKey = stamp;
+    globe.pathsData([trailUpTo(T, simMin)]);
+  }
+
+  /* The albatross ends two kilometres from where it started, so a separate
+     start and end pin would be one muddled blob on top of the colony. When
+     the journey is a round trip, say so with a single marker. */
+  const n = T.lat.length - 1;
+  const marks = T.returnKm < 50
+    ? [{lat:T.lat[0], lng:T.lon[0], c:"#7ee08a", r:0.5, alt:0.012}]
+    : [{lat:T.lat[0], lng:T.lon[0], c:"#7ee08a", r:0.45, alt:0.012},
+       {lat:T.lat[n], lng:T.lon[n], c:"#ff6b6b", r:0.45, alt:0.012}];
+  marks.push({lat:p.lat, lng:p.lng, c:"#ffffff", r:0.30, alt:0.02});
+  globe.pointsData(marks);
+  globe.ringsData([{lat:p.lat, lng:p.lng}]);
+
+  updateReadout(p);
+}
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function updateReadout(p){
+  const d = new Date(Date.parse(T.start) + simMin * 60000);
+  const day = Math.floor(simMin / 1440) + 1;
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  $("when").textContent =
+    `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}  ${hh}:${mm}`;
+  $("dist").textContent = `${Math.round(p.km).toLocaleString("en-GB")} km`;
+  $("speed").textContent = `${Math.round(speedAt(T, simMin))} km/h`;
+  $("lat").textContent = fmtDeg(p.lat, "NS");
+  $("lon").textContent = fmtDeg(wrapLng(p.lng), "EW");
+  const s = $("scrub");
+  if (document.activeElement !== s) s.value = String(Math.round(simMin / T.min[T.min.length-1] * 1000));
+  $("when").title = `day ${day} of ${Math.ceil(T.hours/24)}`;
+}
+
+function fmtDeg(v, axis){
+  const h = v >= 0 ? axis[0] : axis[1];
+  return `${Math.abs(v).toFixed(2)}° ${h}`;
+}
+
+/* ------------------------------------------------------------------ frames */
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  if (playing){
+    simMin += dt * speed * 60;
+    const end = T.min[T.min.length - 1];
+    if (simMin >= end){ simMin = end; playing = false; syncPlay(); }
+  }
+  paint(false, dt);
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------------------------------------------ chrome */
+
+function syncPlay(){
+  const b = $("play");
+  b.textContent = playing ? "Pause" : "Play";
+  b.setAttribute("aria-pressed", String(playing));
+}
+
+function setSpecies(k, initial){
+  key = k;
+  T = TRACKS[k];
+  simMin = 0;
+  camReady = false;
+  playing = true;
+
+  const col = SPECIES_COLOUR[k];
+  globe.pathColor(() => [TRAIL_COLD, col])
+       .ringColor(() => (t => `rgba(255,255,255,${1 - t})`));
+
+  for (const b of document.querySelectorAll("#birdRow button"))
+    b.setAttribute("aria-pressed", String(b.dataset.key === k));
+
+  $("blurb").innerHTML =
+    `<strong>${T.label}</strong>${T.note}`
+    + `<span class="src">${T.fixes.toLocaleString("en-GB")} GPS fixes &middot; `
+    + `${Math.round(T.km).toLocaleString("en-GB")} km &middot; `
+    + `${(T.hours/24).toFixed(1)} days &middot; one fix every `
+    + `${T.medianGapMin < 60 ? T.medianGapMin + " min"
+        : (T.medianGapMin/60).toFixed(1) + " h"}<br>${T.source}</span>`;
+
+  syncPlay();
+  buildNotes();
+
+  /* On a switch the camera flies to the new bird's start rather than cutting,
+     so it stays obvious that this is one globe and not two pictures. The flight
+     is just the easing above being given a distant target and left to run; on
+     first load there is nothing to fly from, so it snaps. */
+  targetAlt = altitudeFor(T);
+  if (initial){
+    camLat = T.lat[0]; camLng = T.lon[0]; camAlt = targetAlt;
+    camReady = false; lastSetAlt = -1;
+  }
+  paint(true, 1e3);
+}
+
+/* How far back to stand. The godwit crosses 62 degrees of latitude and wants
+   most of a hemisphere; the albatross works a patch seven degrees tall and
+   would be a squiggle at that distance. So the journey's own extent sets the
+   altitude, clamped to what still reads as a globe rather than a map. */
+function altitudeFor(t){
+  const b = t.bounds;
+  const dLat = b.lat1 - b.lat0;
+  const dLon = (b.lon1 - b.lon0) * Math.cos(Math.PI/180 * (b.lat0 + b.lat1) / 2);
+  const deg = Math.max(dLat, dLon * 0.55);
+  let alt = Math.max(0.78, Math.min(2.2, deg / 42));
+  /* A phone held upright is narrow, and at close range the sphere fills it
+     edge to edge and stops looking like a sphere at all -- which is the one
+     thing this page is for. Standing further back on a tall viewport keeps the
+     limb in frame. */
+  const aspect = innerHeight / Math.max(1, innerWidth);
+  if (aspect > 1) alt *= 1 + 0.45 * Math.min(aspect - 1, 1.4);
+  return alt;
+}
+
+function buildNotes(){
+  $("notes").innerHTML = `
+    <h2>Data notes</h2>
+    <p>Every position on this globe is a real GPS fix with a real timestamp,
+    from a published, openly licensed deposit. Between two fixes the marker
+    interpolates, which is why the panel names the fix interval: at five
+    minutes the line is close to the flight, at two hours it is a straight
+    chord across whatever the bird actually did.</p>
+
+    <h3>Two birds this is <em>not</em></h3>
+    <p>The brief for this page asked for the bar-tailed godwit <code>4BBRW</code>,
+    which flew Alaska to New Zealand nonstop, and for a wandering albatross.
+    Neither is open data, and rather than fake them this page shows the nearest
+    real thing.</p>
+    <p><strong>Bar-tailed godwit.</strong> The one deposit in the Movebank
+    archive, <code>doi:10.5441/001/1.327</code>, is geolocator work: 18 birds and
+    <strong>103 fixes in total</strong>, a median of six per bird, with explicit
+    <code>lat-lower</code>/<code>lat-upper</code> error columns because that is
+    what geolocators give. An eleven-day flight would be two or three points,
+    each uncertain by a hundred kilometres. It cannot be animated honestly.</p>
+    <p><strong>Wandering albatross.</strong> No deposit at all. Procellariiform
+    tracking lives in BirdLife International's Seabird Tracking Database, which
+    releases data per request and per data owner, not by open download.</p>
+
+    <h3>What is shown instead</h3>
+    <p><strong>Hudsonian godwit</strong> (<em>Limosa haemastica</em>) &mdash; the
+    same phenomenon in a species whose data is public: a shorebird crossing open
+    ocean without stopping. The journey here runs from off the coast of Chile to
+    the Texas Gulf coast, 7,931&nbsp;km in 5.9 days, averaging 56&nbsp;km/h the
+    whole way.</p>
+    <p><strong>Grey-headed albatross</strong> (<em>Thalassarche chrysostoma</em>)
+    &mdash; one complete foraging trip from Campbell Island, New Zealand: out
+    across the antimeridian into the South Pacific and back, 12,285&nbsp;km over
+    21.9 days, ending <strong>2&nbsp;km from where it began</strong>. A flat map
+    tears that journey in half at the date line; a globe does not, which is the
+    argument for this page existing.</p>
+
+    <h3>What was thrown away</h3>
+    <p>173 of the 3,548 godwit GPS rows &mdash; 4.9% &mdash; carry impossible
+    coordinates, latitude &minus;213 among them. They are almost all
+    <em>unflagged</em>: <code>manually-marked-outlier</code> is empty for 171 of
+    them and the tag calls 158 of them good 3D fixes, so they have to be caught
+    on the coordinate range rather than on the quality flag.</p>
+    <p>Inside the valid range, a forward pass drops any fix that could only be
+    reached faster than the bird can fly &mdash; 120&nbsp;km/h for the godwit,
+    150 for the albatross &mdash; anchored on the last <em>accepted</em> fix so
+    one bad position does not disqualify the good one after it.</p>
+    <p>Distance is only ever summed inside a continuous run of fixes. A four-day
+    silence spans thousands of kilometres at a perfectly plausible average
+    speed, and counting it would have inflated one bird's total to
+    458,000&nbsp;km.</p>
+
+    <h3>The globe</h3>
+    <p class="sub">Rendered with globe.gl (MIT), which bundles three.js. The
+    surface is NASA's Blue Marble Next Generation, a cloud-free MODIS composite,
+    with a global elevation map as a bump layer. Both are carried in this
+    repository rather than fetched from a CDN, so the page works on a host that
+    allows no outbound requests.</p>
+
+    <h3>Sources</h3>
+    <p class="sub">Senner, N. R., Stager, M., Verhoeven, M. A., et al.
+    <em>Compensation for wind drift prevails for a shorebird on a long-distance,
+    transoceanic flight.</em> Data: <code>doi:10.5441/001/1.t81488n5</code>,
+    Movebank Data Repository, CC0.</p>
+    <p class="sub">Torres, L. G., Orben, R. A., Tolkova, I., Thompson, D. R.
+    <em>Classification of animal movement behavior through residence in space
+    and time.</em> Data: <code>doi:10.5441/001/1.694p666h</code>, Movebank Data
+    Repository, CC0.</p>`;
+}
+
+function wire(){
+  const row = $("birdRow");
+  for (const k of ["godwit", "albatross"]){
+    const t = TRACKS[k];
+    const b = document.createElement("button");
+    b.dataset.key = k;
+    b.innerHTML = `${t.label}<span class="sci">${t.scientific}</span>`;
+    b.setAttribute("aria-pressed", String(k === key));
+    b.addEventListener("click", () => setSpecies(k, false));
+    row.appendChild(b);
+  }
+
+  const sp = $("speeds");
+  for (const v of [1, 4, 8, 24]){
+    const b = document.createElement("button");
+    b.textContent = v + "×";
+    b.dataset.v = String(v);
+    b.setAttribute("aria-pressed", String(v === speed));
+    b.addEventListener("click", () => {
+      speed = v;
+      for (const o of sp.querySelectorAll("button"))
+        o.setAttribute("aria-pressed", String(Number(o.dataset.v) === speed));
+    });
+    sp.appendChild(b);
+  }
+
+  $("play").addEventListener("click", () => {
+    const end = T.min[T.min.length - 1];
+    if (!playing && simMin >= end) simMin = 0;
+    playing = !playing; syncPlay();
+  });
+  $("replay").addEventListener("click", () => {
+    simMin = 0; camReady = false; playing = true; syncPlay(); paint(true, 1e3);
+  });
+  $("scrub").addEventListener("input", e => {
+    playing = false; syncPlay();
+    simMin = Number(e.target.value) / 1000 * T.min[T.min.length - 1];
+    paint(true, 1e3);
+  });
+
+  const nb = $("notesbtn"), nt = $("notes");
+  nb.addEventListener("click", () => {
+    const open = nt.dataset.open !== "true";
+    nt.dataset.open = String(open);
+    nb.setAttribute("aria-expanded", String(open));
+  });
+
+  addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.key === " "){ e.preventDefault(); $("play").click(); }
+    if (e.key === "1") setSpecies("godwit", false);
+    if (e.key === "2") setSpecies("albatross", false);
+  });
+
+  addEventListener("resize", () => {
+    globe.width(innerWidth).height(innerHeight);
+    /* Rotating a phone changes how far back the globe has to sit. */
+    targetAlt = altitudeFor(T);
+  });
+}
+
+/* -------------------------------------------------------------------- boot */
+
+(async function boot(){
+  try {
+    TRACKS = await loadTracks();
+
+    globe = Globe()
+      .globeImageUrl("vendor/earth-blue-marble.jpg")
+      .bumpImageUrl("vendor/earth-topology.png")
+      .backgroundColor("#04070d")
+      .showAtmosphere(true)
+      .atmosphereColor("#5b9fe0")
+      .atmosphereAltitude(0.17)
+      .width(innerWidth)
+      .height(innerHeight)
+      .pathPointLat(p => p[0])
+      .pathPointLng(p => p[1])
+      .pathPointAlt(0.006)
+      .pathStroke(2.2)
+      .pathTransitionDuration(0)      /* it is redrawn constantly; do not tween */
+      .pathResolution(2)
+      .pointLat(d => d.lat).pointLng(d => d.lng)
+      .pointColor(d => d.c).pointRadius(d => d.r).pointAltitude(d => d.alt)
+      .ringMaxRadius(2.6).ringPropagationSpeed(1.4).ringRepeatPeriod(900)
+      (document.getElementById("globe"));
+
+    /* Blue Marble is a daylight composite, so a low-angle sun is not realism
+       here, it is just half the picture missing. Most of the light is made
+       ambient and the directional light is left only to keep some relief in
+       the bump map. */
+    const lights = globe.lights();
+    for (const l of lights){
+      if (l.type === "AmbientLight") l.intensity = 3.1;
+      if (l.type === "DirectionalLight"){ l.intensity = 0.5; l.position.set(1, 1, 1); }
+    }
+    globe.lights(lights);
+
+    /* Let the pointer drag and pinch, but not spin on its own -- the bird
+       drives the rotation here. */
+    const c = globe.controls();
+    c.enableDamping = true;
+    c.dampingFactor = 0.12;
+    c.autoRotate = false;
+
+    wire();
+    setSpecies(key, true);
+
+    $("loading").hidden = true;
+    last = performance.now();
+    requestAnimationFrame(frame);
+  } catch (err){
+    $("loading").innerHTML =
+      "no tracks to load &mdash; rebuild data/processed (see the README), "
+      + "and serve this over http(s) rather than opening the file directly";
+    console.error(err);
+  }
+})();
+</script>
