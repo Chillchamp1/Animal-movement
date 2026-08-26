@@ -58,36 +58,28 @@
   }
 
   /* ---- clock ----------------------------------------------------------- */
+  /* Down the left margin rather than across the middle: the flyways run up the
+     centre of this map and a date sitting on them is a date in the way. */
   header{
-    position:absolute;z-index:3;left:50%;top:78px;
-    text-align:center;pointer-events:none;white-space:nowrap;
-    transform:translate(-50%,0);
+    position:absolute;z-index:3;left:14px;top:150px;
+    text-align:left;pointer-events:none;white-space:nowrap;
     text-shadow:0 0 16px var(--bg-bot), 0 0 8px var(--bg-bot), 0 0 3px var(--bg-bot);
   }
   #clock{
     font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:300;
-    font-size:clamp(2rem,4.6vw,3rem);line-height:1;letter-spacing:-0.01em;
+    font-size:clamp(1.5rem,3.2vw,2.1rem);line-height:1;letter-spacing:-0.01em;
     font-variant-numeric:tabular-nums;color:var(--ink);
   }
   #clock .mins{opacity:0.6}
   #day{margin-top:2px;font-size:0.68rem;letter-spacing:0.06em;color:var(--ink-3);
        font-family:"IBM Plex Mono",monospace;}
-  /* Two readouts, both counted from the data at this hour: how many birds are
-     covering ground, and how many tags are still reporting at all. */
-  #lamps{margin-top:7px;display:flex;gap:16px;justify-content:center;font-size:0.63rem;
-         font-family:"IBM Plex Mono",monospace;letter-spacing:0.1em;text-transform:uppercase}
-  #lamps span{color:var(--ink-2);opacity:0.72;transition:opacity 0.25s,color 0.25s}
-  #lampCoug::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
-                    background:currentColor;margin-right:5px;vertical-align:middle}
-  #lampCoug[data-on="true"]{opacity:1;color:var(--p-germany)}
-  #nearest{opacity:1;color:var(--ink-3)}
 
   /* ---- panels ---------------------------------------------------------- */
   .panel{
     background:var(--panel);border:1px solid var(--rule);border-radius:10px;
     backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
   }
-  #legend{position:fixed;z-index:3;left:20px;bottom:20px;padding:13px 15px 11px;min-width:238px;max-width:340px}
+  #legend{position:fixed;z-index:3;left:20px;bottom:20px;padding:9px 12px 8px;min-width:196px;max-width:300px}
   #notes h2{
     font-size:0.62rem;letter-spacing:0.17em;text-transform:uppercase;
     color:var(--ink-3);font-weight:500;margin-bottom:9px;
@@ -97,22 +89,22 @@
   #legendToggle{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     width:100%;padding:0;border:0;background:none;
-    font-size:0.62rem;letter-spacing:0.17em;text-transform:uppercase;
+    font-size:0.56rem;letter-spacing:0.16em;text-transform:uppercase;
     color:var(--ink-3);font-weight:500;
   }
   #legendToggle:hover{color:var(--ink-2);background:none}
   #legendToggle .chev::before{content:"\2013"}          /* en dash */
   #legendToggle[aria-expanded="false"] .chev::before{content:"+"}
-  #legendBody{margin-top:9px}
+  #legendBody{margin-top:6px}
   #legendToggle[aria-expanded="false"] + #legendBody{display:none}
   #legend[data-collapsed="true"]{min-width:0}
-  .lg{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:0.83rem}
-  .sw{border-radius:50%;flex:0 0 auto;width:9px;height:9px;box-shadow:0 0 0 2px var(--panel)}
+  .lg{display:flex;align-items:center;gap:7px;padding:1px 0;font-size:0.74rem;line-height:1.35}
+  .sw{border-radius:50%;flex:0 0 auto;width:7px;height:7px;box-shadow:0 0 0 2px var(--panel)}
   .lg .nm{flex:1 1 auto;color:var(--ink)}
-  .lg .ct{font-family:"IBM Plex Mono",monospace;font-size:0.76rem;color:var(--ink-2);
+  .lg .ct{font-family:"IBM Plex Mono",monospace;font-size:0.68rem;color:var(--ink-3);
           font-variant-numeric:tabular-nums}
-  #legend footer{margin-top:9px;padding-top:8px;border-top:1px solid var(--rule);
-                 font-size:0.66rem;line-height:1.45;color:var(--ink-3)}
+  #legend footer{margin-top:6px;padding-top:6px;border-top:1px solid var(--rule);
+                 font-size:0.6rem;line-height:1.4;color:var(--ink-3)}
 
   #controls{position:fixed;z-index:3;right:20px;bottom:20px;padding:11px 14px;
             display:flex;align-items:center;gap:12px}
@@ -139,7 +131,7 @@
   #scrub::-moz-range-thumb{width:3px;height:44px;border:0;border-radius:1px;background:var(--ink);cursor:pointer}
   #scrub:focus-visible{outline:1px solid var(--ink-3);outline-offset:2px}
 
-  #meta{position:absolute;z-index:3;left:14px;top:146px;max-width:252px;
+  #meta{position:absolute;z-index:3;left:14px;top:212px;max-width:252px;
         font-size:0.68rem;line-height:1.5;color:var(--ink-3);
         background:rgba(5,8,14,.62);padding:9px 12px;border-radius:8px}
   #meta strong{color:var(--ink-2);font-weight:500}
@@ -161,19 +153,70 @@
     pointer-events:none;
   }
   #attrib[hidden]{display:none}
-  @media (max-width:820px){ #attrib{bottom:auto;top:14px;right:14px} }
+
+  /* Everything a viewer can click is noise in a recording, so the video export
+     turns it off and keeps the date, the key and the attribution. */
+  body[data-bare="true"] #picks,
+  body[data-bare="true"] #controls,
+  body[data-bare="true"] #notesbtn,
+  body[data-bare="true"] #notes,
+  body[data-bare="true"] #meta{display:none}
+  body[data-bare="true"] header{top:20px}
+  body[data-bare="true"] #legend{bottom:20px;left:20px}
+  body[data-bare="true"] #clock{font-size:clamp(1.6rem,4.4vw,2.4rem)}
 
   #loading{position:fixed;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;
            background:var(--bg-bot);font-family:"IBM Plex Mono",monospace;font-size:0.8rem;
            color:var(--ink-3);letter-spacing:0.08em}
   #loading[hidden]{display:none}
 
+  /* --- narrow screens ---------------------------------------------------
+     Seven origins and five crossings will not fit across a phone, and wrapping
+     them costs four more rows of height that the map needs. Each row scrolls
+     sideways instead, with its label pinned at the left edge so you can still
+     tell which row you are dragging. */
   @media (max-width:820px){
-    #legend{left:12px;right:12px;bottom:96px;max-width:none;min-width:0}
-    #controls{left:12px;right:12px;bottom:20px;justify-content:space-between;gap:8px}
-    #profile{width:auto;flex:1 1 auto}
+    #picks{
+      left:8px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));
+      gap:2px;padding:5px 6px;max-width:none;
+      background:var(--panel);border:1px solid var(--rule);border-radius:9px;
+      backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    }
+    .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+    .row::-webkit-scrollbar{display:none}
+    .row button{flex:0 0 auto;padding:5px 9px;font-size:0.68rem}
+    .row .lab{
+      position:sticky;left:0;z-index:1;min-width:0;padding:0 6px 0 0;
+      background:linear-gradient(90deg,var(--panel) 74%,transparent);
+      font-size:0.52rem;letter-spacing:0.12em;
+    }
+    header{top:calc(128px + env(safe-area-inset-top,0px))}
+    #clock{font-size:clamp(1.4rem,7vw,2rem)}
+    #day{font-size:0.6rem}
     #meta{display:none}
-    header{top:120px}
+    #notesbtn{top:calc(8px + env(safe-area-inset-top,0px));right:auto;left:8px;display:none}
+    #notes{left:8px;right:8px;top:auto;bottom:calc(96px + env(safe-area-inset-bottom,0px));
+           max-width:none;max-height:52vh}
+    /* Collapsed by default here: the map is the scarce thing on a phone. */
+    /* The legend and the attribution share the strip above the controls, so
+       they are given the two halves of it rather than the same corner. */
+    #legend{left:8px;right:auto;bottom:calc(78px + env(safe-area-inset-bottom,0px));
+            max-width:58vw;min-width:0;padding:7px 10px 6px}
+    #controls{left:8px;right:8px;bottom:calc(12px + env(safe-area-inset-bottom,0px));
+              justify-content:space-between;gap:7px;padding:8px 10px}
+    #profile{width:auto;flex:1 1 auto;height:38px}
+    #scrub::-webkit-slider-thumb{height:38px}
+    #scrub::-moz-range-thumb{height:38px}
+    #play{min-width:56px;font-size:0.72rem;padding:6px 9px}
+    /* Above the controls, not under the clock: the header is the one thing on a
+       phone that has nowhere else to go. */
+    #attrib{top:auto;bottom:calc(80px + env(safe-area-inset-bottom,0px));
+            left:auto;right:8px;max-width:38vw;font-size:0.5rem;text-align:right}
+  }
+  /* Under this the speed buttons are the first thing worth losing. */
+  @media (max-width:520px){
+    .spd{display:none}
+    #resetview{min-width:44px}
   }
 </style>
 </head>
@@ -189,12 +232,8 @@
   </div>
 
   <header>
-    <div id="clock">1 Aug 2013<span class="mins"> 00:00</span></div>
+    <div id="clock">1 Aug 2013</div>
     <div id="day">day 1</div>
-    <div id="lamps">
-      <span id="lampCoug" data-on="false">0 birds travelling</span>
-      <span id="nearest">0 tags reporting</span>
-    </div>
   </header>
 
   <div id="meta">
@@ -370,9 +409,8 @@ let baseReady = false;
 
    Longitude maps straight through; latitude goes through the Mercator y, and
    both are held in the same world units so a square on screen is a square on
-   the ground. Area inflates towards the poles -- unavoidable in Mercator, and
-   the scale bar is re-measured at the centre of the view to compensate. */
-const R_KM = 6371.0088;
+   the ground. Area inflates towards the poles, which is unavoidable in
+   Mercator and is the one thing this projection asks you to forgive. */
 const DEG = Math.PI / 180;
 const merY = lat => Math.log(Math.tan(Math.PI/4 + Math.max(-85, Math.min(85, lat)) * DEG/2));
 const latOfY = y => (Math.atan(Math.exp(y)) * 2 - Math.PI/2) / DEG;
@@ -509,7 +547,6 @@ function renderBase(){
   if (sel.imagery === "basemap") drawBasemap(b);
   else if (sel.imagery === "sat") drawTiles(b);
 
-  drawScale(b);
   baseReady = true;
 }
 
@@ -605,70 +642,12 @@ function drawBasemap(b){
   b.restore();
 }
 
-function drawScale(b){
-  if (!BOX) return;
-  /* A round-numbered bar, re-chosen as the view zooms so it always spans a
-     usable fraction of the canvas. */
-  /* Mercator stretches with latitude, so a bar drawn from the frame's height
-     would be wrong everywhere except one parallel. Measure it where the viewer
-     is actually looking: at the centre of the view. */
-  const pxPerKm = H / ((BOX.y1 - BOX.y0) * R_KM * Math.cos(CAM.latC * DEG));
-
-  /* The legend holds the bottom-left corner and the controls the bottom-right.
-     Measure the gap they actually leave and sit the bar in the middle of it,
-     so it never ends up underneath either. */
-  const rect = id => {
-    const el = document.getElementById(id);
-    return el ? el.getBoundingClientRect() : null;
-  };
-  const lg = rect("legend"), ct = rect("controls");
-  let y = H - 26, bandL = 16, bandR = W - 16;
-  if (lg && y > lg.top) bandL = Math.max(bandL, lg.right + 16);
-  if (ct && y > ct.top) bandR = Math.min(bandR, ct.left - 16);
-
-  /* On a narrower screen the two panels meet and leave no strip at all. Rather
-     than drop the scale, lift it clear of whichever reaches higher. */
-  if (bandR - bandL < 140){
-    const top = Math.min(lg ? lg.top : H, ct ? ct.top : H);
-    y = top - 14;
-    bandL = 16; bandR = W - 16;
-  }
-  const room = bandR - bandL;
-  if (room < 60 || y < 40) return;
-
-  let km = 2000;
-  for (const cand of [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
-    km = cand;
-    if (cand * pxPerKm <= room - 40) break;
-  }
-  const len = pxPerKm * km;
-  if (!isFinite(len) || len < 20 || len > room - 24) return;
-  const label = km >= 1 ? `${km} km` : `${km*1000} m`;
-  const x = bandL + (room - len) / 2;
-  /* Dark backing so the bar reads over satellite imagery as well as the
-     empty ground. */
-  b.save();
-  b.fillStyle = "rgba(5,8,14,0.55)";
-  b.fillRect(x - 12, y - 20, len + 24, 28);
-  b.restore();
-  b.strokeStyle = pick("ink-2"); b.lineWidth = 1;
-  b.beginPath(); b.moveTo(x, y); b.lineTo(x+len, y);
-  b.moveTo(x, y-4); b.lineTo(x, y+4); b.moveTo(x+len, y-4); b.lineTo(x+len, y+4);
-  b.stroke();
-  b.fillStyle = pick("ink-2");
-  b.font = '300 10px "IBM Plex Mono",monospace';
-  b.textAlign = "center";
-  b.fillText(label, x + len/2, y - 7);
-  b.textAlign = "left";
-}
-
 /* --------------------------------------------------------------- playback */
 
 let simT = 0;                  /* hourly slots since the deposit's first fix */
 let slotsPerSecond = 96;       /* four days a second: a full run in ~2.5 min */
 let playing = true;
 let lastFrame = performance.now();
-let flyingNow = 0;             /* birds covering ground at this hour */
 
 const MS_PER_SLOT = 3600 * 1000;
 const clockDate = () => new Date((DATA ? DATA.epoch : 0) + simT * MS_PER_SLOT);
@@ -705,7 +684,6 @@ function stepKm(t, i){
   return Math.hypot(dLon, dLat) / hours;      /* km per hour, not per step */
 }
 
-const FLYING_KMH = 12;         /* above this the bird is travelling, not foraging */
 const DOT_R = 4.0;
 /* How long after a death the outgoing rings keep going, in hours. */
 const DEATH_RINGS_H = 60;
@@ -724,6 +702,17 @@ const TRAIL_W = 1.6;
 function trailStamp(){
   return [CAM.lonC, CAM.latC, CAM.spanLon, W, H, sel.route,
           [...sel.pops].sort().join(",")].join("|");
+}
+
+/* Last fix at or before `at`, whether or not the map may draw to it. */
+function lastIndexAt(t, at){
+  if (at < t.t0 || at > t.t1) return -1;
+  let lo = 0, hi = t.n - 1;
+  while (lo < hi){
+    const mid = (lo + hi + 1) >> 1;
+    if (t.slots[mid] <= at) lo = mid; else hi = mid - 1;
+  }
+  return lo;
 }
 
 /* First index whose slot is strictly after `after`. */
@@ -786,7 +775,6 @@ function draw(){
   }
 
   const z = Math.min(3, Math.sqrt(zoomLevel()));
-  let flying = 0;
 
   for (const t of TRACKS){
     /* A tag that stopped because the bird died leaves a mark where it stopped.
@@ -822,11 +810,23 @@ function draw(){
       continue;
     }
 
-    const head = posAt(t, simT);
-    if (!head) continue;
     const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
+    const head = posAt(t, simT);
+    if (!head){
+      /* A gap too long to draw across. The bird is still alive and still
+         somewhere; an empty patch of map would say the opposite. So it waits,
+         hollow, at the last place its tag reported -- Pelopidas goes quiet for
+         twenty-eight days in the middle of Africa and comes back. */
+      const i = lastIndexAt(t, simT);
+      if (i < 0) continue;
+      ctx.beginPath();
+      ctx.arc(px(t.lons[i]), py(t.lats[i]), DOT_R * 0.9 * z, 0, 6.2832);
+      ctx.strokeStyle = rgba(col, 0.4);
+      ctx.lineWidth = Math.max(1/DPR, 1.3);
+      ctx.stroke();
+      continue;
+    }
     const kmh = stepKm(t, head[2]);
-    if (kmh > FLYING_KMH) flying++;
 
     /* The trail brightens when the bird is travelling, so a migration reads as
        a streak and a winter on the ground reads as a point. */
@@ -855,7 +855,6 @@ function draw(){
     ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R * z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 1); ctx.fill();
   }
-  flyingNow = flying;
 }
 
 /* ------------------------------------------------------------------- chrome */
@@ -879,7 +878,7 @@ function buildLegend(){
     el.className = "lg";
     el.innerHTML = `<span class="sw" style="background:${pick(POPS[pop].role)}"></span>`
       + `<span class="nm">${POPS[pop].label}</span>`
-      + `<span class="ct">${c.birds} ${c.birds === 1 ? "bird" : "birds"} · ${c.fixes.toLocaleString()} fixes</span>`;
+      + `<span class="ct">${c.birds}</span>`;
     rows.appendChild(el);
   }
 
@@ -888,11 +887,7 @@ function buildLegend(){
   const total = DATA ? DATA.individuals.length : 0;
   const sum = routes ? routes.west + routes.central + routes.east + routes.stayed : 0;
   document.getElementById("legendFoot").innerHTML = TRACKS.length
-    ? `${TRACKS.length} birds on screen, ${died} of whose tags stopped when the bird `
-      + `died &mdash; those are the crosses. `
-      + (routes ? `Of all ${sum || total}: ${routes.west} crossed at Gibraltar, `
-                + `${routes.central} through the central Mediterranean, ${routes.east} by `
-                + `the Levant, and ${routes.stayed} never went south of 36&deg;N at all.` : "")
+    ? `${TRACKS.length} birds &middot; ${died} &times; a tag stopped on a death`
     : "No birds for this combination.";
 }
 
@@ -905,6 +900,9 @@ let profW = 0, profH = 0;
 
 function buildProfile(){
   const r = prof.parentElement.getBoundingClientRect();
+  /* The controls are hidden in the video export, which leaves this canvas with
+     no size at all; a zero-height canvas is not a drawable image. */
+  if (r.width < 2 || r.height < 2){ profW = 0; return; }
   profW = Math.max(120, Math.round(r.width)); profH = Math.round(r.height);
   for (const cv of [prof, profBase]){
     cv.width = Math.round(profW*DPR); cv.height = Math.round(profH*DPR);
@@ -972,19 +970,13 @@ function drawProfile(){
 
 function updateClock(){
   const d = clockDate();
-  const hh = String(d.getUTCHours()).padStart(2,"0");
-  document.getElementById("clock").innerHTML =
-    `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
-    + `<span class="mins"> ${hh}:00</span>`;
+  /* The clock runs on hourly fixes, but an hour reading means little on a map
+     spanning a continent, and a date is what places a migration. */
+  document.getElementById("clock").textContent =
+    `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   document.getElementById("day").textContent =
     `day ${Math.floor(simT/SLOTS_PER_DAY) + 1} of ${Math.max(1, Math.ceil(SPAN/SLOTS_PER_DAY))}`;
 
-  const lamp = document.getElementById("lampCoug");
-  lamp.dataset.on = String(flyingNow > 0);
-  lamp.textContent = flyingNow === 1 ? "1 bird travelling" : `${flyingNow} birds travelling`;
-  const aloft = document.getElementById("nearest");
-  const live = TRACKS.filter(t => (t.died === null || simT <= t.died) && posAt(t, simT)).length;
-  aloft.textContent = `${live} tags reporting`;
 }
 
 /* ------------------------------------------------------------------ loop */
@@ -1079,6 +1071,11 @@ function wireControls(){
 
   document.getElementById("resetview").addEventListener("click", resetView);
 
+  /* On a phone the map is the scarce thing, so the legend starts folded. */
+  if (window.matchMedia("(max-width:820px)").matches){
+    document.getElementById("legendToggle").setAttribute("aria-expanded", "false");
+    document.getElementById("legend").dataset.collapsed = "true";
+  }
   const lt = document.getElementById("legendToggle");
   lt.addEventListener("click", () => {
     const open = lt.getAttribute("aria-expanded") !== "true";
@@ -1245,17 +1242,26 @@ function buildNotes(){
     unpaints them.</p>
 
     <h3>What is missing</h3>
-    <p><strong>Gaps are drawn as absence.</strong> A segment holds consecutive
-    hours only &mdash; a single missed fix ends it, and nothing is drawn across
-    the silence. Solar-charged tags report less in winter and under cloud, so a
-    bird can be missing for days while perfectly alive.</p>
-    <p><strong>These are 72 birds, not the population.</strong> Roughly half a
+    <p><strong>Gaps.</strong> These are solar tags: they report through the day
+    and fall silent overnight &mdash; at 21:00 UTC not one of them reports
+    &mdash; and coverage thins badly on the long crossings. What decides whether
+    a gap may be drawn across is how far wrong a straight line could be, and
+    that is a question about the gap's length rather than the bird's speed. Up
+    to a day the line is a fair approximation: a stork covers a few hundred
+    kilometres at most, a short step at this scale. Longer gaps are bridged only
+    where the bird plainly did not move, which is the case on wintering grounds,
+    where a tag can go quiet for a week between reports from the same field.</p>
+    <p class="sub">Where a gap is too long even for that, the bird does not
+    vanish: it waits as a hollow ring at the last place its tag reported, and
+    its trail stops there until it comes back. Pelopidas goes quiet for
+    twenty-eight days in the middle of Africa. An empty patch of map would say
+    the bird was gone, which is a stronger claim than the data makes.</p>
+    <p><strong>These are 59 birds, not the population.</strong> Roughly half a
     million white storks migrate along these flyways. Empty sky is where no tag
     was.</p>
     <p><strong>The map is Web Mercator</strong>, so area inflates towards the
-    poles: the Baltic is drawn larger than the Sahel for the same ground. The
-    scale bar is re-measured at the centre of the view for that reason, and
-    changes as you pan north or south.</p>
+    poles: the Baltic is drawn larger than the Sahel for the same ground. Judge
+    distance along the tracks rather than across the frame.</p>
     <p><strong>Positions are rounded</strong> to 10<sup>-5</sup> degrees, about
     a metre, well under the tags' own error.</p>
 
@@ -1267,6 +1273,21 @@ function buildNotes(){
     populations.</em> Science Advances 2:e1500931. Data:
     <code>doi:10.5441/001/1.78152p3q</code>, Movebank Data Repository, CC0.</p>`;
 }
+
+/* A seam for scripts/render_video.py: stop the clock, put it where it is asked
+   to be, and draw exactly one frame. Nothing else in the page uses it. */
+window.__render = {
+  bare(on){
+    document.body.dataset.bare = String(!!on);
+    resize(); buildProfile();
+  },
+  seek(t){
+    playing = false;
+    simT = Math.max(0, Math.min(SPAN - 1, t));
+    draw(); updateClock(); drawProfile();
+  },
+  span(){ return SPAN; },
+};
 
 /* ------------------------------------------------------------------- boot */
 

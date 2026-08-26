@@ -52,8 +52,7 @@ Colours run west to east, warm to cool, so when the tracks fan out around the
 Mediterranean their colour already says which end of Europe each bird came from.
 
 Drag to pan, scroll or pinch to zoom (up to 2000×), `0` or the **fit** button to
-reset. The scale bar re-steps from 5000 km down to 100 m, and is re-measured at
-the centre of the view because Mercator stretches with latitude.
+reset.
 
 ## The two crossings
 
@@ -112,22 +111,44 @@ profilers that established it, is in
 
 ## What is missing
 
-**Gaps are drawn as absence, mostly.** These are solar tags: they report through
-the day and fall silent overnight — at 21:00 UTC not one of the 72 is reporting.
-A rule of "consecutive hours only" would empty the map every night, so a gap is
-bridged when the bird cannot have gone anywhere across it, and broken when it
-could. A consecutive hour always connects, however fast the bird was flying;
-only gaps are tested, and only a gap the bird slept through is drawn across.
+**Gaps.** These are solar tags: they report through the day and fall silent
+overnight — at 21:00 UTC not one of them reports — and coverage thins badly on
+the long crossings. What decides whether a gap may be drawn across is how far
+wrong a straight line could be, and that is a question about the gap's length
+rather than the bird's speed. Up to a day the line is a fair approximation: a
+stork covers a few hundred kilometres at most, a short step at this scale.
+Longer gaps are bridged only where the bird plainly did not move, which is the
+case on wintering grounds where a tag can go quiet for a week between reports
+from the same field. Where a gap is too long even for that, the bird waits as a
+hollow ring at the last place its tag reported — Pelopidas goes quiet for
+twenty-eight days in the middle of Africa — because an empty patch of map would
+say it was gone, which is a stronger claim than the data makes.
 
 **These are 72 birds, not the population.** Roughly half a million white storks
 migrate along these flyways. Empty sky is where no tag was.
 
 **The map is Web Mercator**, so area inflates towards the poles: the Baltic is
-drawn larger than the Sahel for the same ground. That is why the scale bar
-changes as you pan north or south.
+drawn larger than the Sahel for the same ground. Judge distance along the tracks
+rather than across the frame.
 
 **Positions are rounded** to 10⁻⁵ degrees, about a metre, well under the tags'
 own error.
+
+## A video of it
+
+`scripts/render_video.py` drives a headless browser through the whole timeline,
+captures a frame per step and hands them to ffmpeg. Playback is stopped and each
+frame is seeked exactly, so the output does not depend on how fast the machine
+rendered. Portrait 1080×1920 by default, because these birds span 82 degrees of
+latitude against 66 of longitude and a vertical frame wastes less of that than a
+landscape one; the interactive controls are hidden, leaving the date, the key
+and the attribution.
+
+```sh
+python3 scripts/build_standalone.py       # the video reads the self-contained build
+python3 scripts/render_video.py           # -> dist/where-the-storks-went.mp4
+python3 scripts/render_video.py --size 1080x1080 --seconds 25
+```
 
 ## Rebuilding the data
 

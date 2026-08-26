@@ -54,13 +54,19 @@ SCALE = 100_000          # 1e-5 degrees, ~1 m; far below tag error
 DEFAULT_FROM = "2013-08-01"
 DEFAULT_EXCLUDE = ("Uzbekistan",)
 # These are solar tags: they report through the day and fall silent overnight,
-# so a rule of "consecutive hours only" empties the map every night -- at 21:00
-# UTC not one of the 72 is reporting. A gap is bridged when the bird cannot
-# have gone anywhere across it (the straight line implies a speed a roosting
-# stork could not beat) and broken when it could, because then the route across
-# the gap is genuinely unknown.
-MAX_GAP_SLOTS = 16       # a long winter night, plus margin
-BRIDGE_KMH = 8.0         # below this the bird was on the ground, not travelling
+# and coverage thins badly on the long crossings -- the birds that reach
+# southern Africa are drawable only 34-56% of the time under a strict rule.
+#
+# What decides whether a gap may be drawn across is how far wrong the straight
+# line could be, and that is a question about the gap's length, not the bird's
+# speed. Up to a day the line is a fair approximation: a stork covers a few
+# hundred kilometres at most, which is a short step at this scale. Beyond that
+# the route is genuinely unknown and the segment ends -- unless the bird plainly
+# did not move, which is the case on wintering grounds where a tag can go quiet
+# for a week between reports from the same field.
+MAX_GAP_SLOTS = 24       # bridged whatever the bird was doing
+STILL_GAP_SLOTS = 240    # bridged only if it went nowhere
+STILL_KMH = 8.0          # below this the bird was on the ground
 
 # Storks soar, and soaring needs thermals, which do not form over open water.
 # So the Mediterranean is crossed at its narrow ends, and where a bird first
@@ -110,10 +116,9 @@ def bridgeable(dslot: np.ndarray, lon: np.ndarray, lat: np.ndarray,
     with np.errstate(divide="ignore", invalid="ignore"):
         kmh = np.where(hours > 0, km / hours, np.inf)
     # A consecutive hour is an observation and always connects, however fast the
-    # bird was going -- that is the migration. The speed test applies only to
-    # gaps, where the question is whether anything could have happened inside
-    # one, and a bird that has not moved cannot have gone anywhere.
-    return (dslot == 1) | ((dslot <= MAX_GAP_SLOTS) & (kmh < BRIDGE_KMH))
+    # bird was going -- that is the migration.
+    return ((dslot <= MAX_GAP_SLOTS)
+            | ((dslot <= STILL_GAP_SLOTS) & (kmh < STILL_KMH)))
 
 
 def build_individuals(df: pd.DataFrame, meta: pd.DataFrame, step_h: float) -> list[dict]:
