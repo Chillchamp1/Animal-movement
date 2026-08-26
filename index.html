@@ -19,9 +19,9 @@
     /* Nine tagging sites, running west to east as warm to cool. The gradient
        is the point: when the tracks fan out around the Mediterranean, their
        colour already says which end of Europe each bird came from. */
-    --p-spain:#ffb03a; --p-germany:#ff7a45; --p-tunisia:#ff5f7e;
-    --p-poland:#d86bff; --p-greece:#8b8cff; --p-russia:#4da3ff;
-    --p-armenia:#35d6c4; --p-uzbekistan:#6ee06a; --p-southafrica:#9aa6b8;
+    --p-spain:#ffc247; --p-germany:#ff8a3d; --p-tunisia:#ff5470;
+    --p-poland:#e070ff; --p-greece:#8f7dff; --p-russia:#3fa9ff;
+    --p-armenia:#2ee0b8;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -189,7 +189,7 @@
   </div>
 
   <header>
-    <div id="clock">30 Nov 2012<span class="mins"> 02:00</span></div>
+    <div id="clock">1 Jun 2013<span class="mins"> 00:00</span></div>
     <div id="day">day 1</div>
     <div id="lamps">
       <span id="lampCoug" data-on="false">0 birds travelling</span>
@@ -198,10 +198,10 @@
   </header>
 
   <div id="meta">
-    <strong>White storks, 2012&ndash;2014</strong><br>
-    Seventy-two juveniles from nine populations, tracked hourly from the Baltic
-    to the Cape. Storks soar, and thermals do not form over open water &mdash;
-    so watch where they cross the Mediterranean, and where they refuse to.
+    <strong>White storks, 2013&ndash;2014</strong><br>
+    Sixty-five juveniles from seven populations, ringed at the nest and tracked
+    hourly. Storks soar, and thermals do not form over open water &mdash; so
+    watch where they cross the Mediterranean, and where they refuse to.
   </div>
 
   <button id="notesbtn" aria-expanded="false">Data notes &amp; gaps</button>
@@ -246,11 +246,8 @@ const POPS = {
   Greece:        {label:"Greece",       role:"p-greece"},
   Russia:        {label:"Russia",       role:"p-russia"},
   Armenia:       {label:"Armenia",      role:"p-armenia"},
-  Uzbekistan:    {label:"Uzbekistan",   role:"p-uzbekistan"},
-  "South Africa":{label:"South Africa", role:"p-southafrica"},
 };
-const POP_ORDER = ["Spain","Germany","Tunisia","Poland","Greece","Russia",
-                   "Armenia","Uzbekistan","South Africa"];
+const POP_ORDER = ["Spain","Germany","Tunisia","Poland","Greece","Russia","Armenia"];
 
 /* Where a bird first crossed 36 N, which is the choice that defines its
    journey: storks soar, thermals do not form over open water, so the
@@ -718,10 +715,10 @@ const TRAIL_SLOTS = 48;        /* two days of trail, so a migrating bird draws a
    into the base layer so it costs nothing per frame. */
 function drawRoutes(b){
   b.save();
-  b.lineWidth = Math.max(0.5/DPR, 0.6);
+  b.lineWidth = Math.max(0.6/DPR, 0.8);
   for (const t of TRACKS){
     const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
-    b.strokeStyle = rgba(col, 0.32);
+    b.strokeStyle = rgba(col, 0.5);
     b.beginPath();
     let pen = false;
     for (let i = 0; i < t.n; i++){
@@ -749,7 +746,7 @@ function draw(){
     if (t.died !== null && simT > t.died){
       const gx = px(t.lons[t.n-1]), gy = py(t.lats[t.n-1]);
       const r = 2.6 * z;
-      ctx.strokeStyle = rgba(hexRGB(pick("ink-3")), 0.5);
+      ctx.strokeStyle = rgba(hexRGB(pick("ink-2")), 0.62);
       ctx.lineWidth = Math.max(1/DPR, 1);
       ctx.beginPath();
       ctx.moveTo(gx-r, gy-r); ctx.lineTo(gx+r, gy+r);
@@ -771,21 +768,25 @@ function draw(){
     for (let k = 1; k <= TRAIL_STEPS; k++){
       const back = posAt(t, simT - (TRAIL_SLOTS/TRAIL_STEPS)*k);
       if (!back) break;
-      const a = (1 - k/TRAIL_STEPS) * (0.30 + heat * 0.55);
+      const a = (1 - k/TRAIL_STEPS) * (0.45 + heat * 0.5);
       if (a <= 0.02) break;
       ctx.beginPath();
       ctx.moveTo(cx, cy); ctx.lineTo(back[0], back[1]);
       ctx.strokeStyle = rgba(col, a);
-      ctx.lineWidth = Math.max(1/DPR, (1.6 + heat * 1.4) * z * (1 - k/(TRAIL_STEPS+3)));
+      ctx.lineWidth = Math.max(1.2/DPR, (2.1 + heat * 1.6) * z * (1 - k/(TRAIL_STEPS+3)));
       ctx.lineCap = "round";
       ctx.stroke();
       cx = back[0]; cy = back[1];
     }
 
-    ctx.beginPath(); ctx.arc(head[0], head[1], (3.2 + heat*2) * z, 0, 6.2832);
-    ctx.fillStyle = rgba(col, 0.14); ctx.fill();
+    /* A dark collar under each bird, so a bright dot never sits on lit ground
+       without an edge to separate it. */
+    ctx.beginPath(); ctx.arc(head[0], head[1], (3.6 + heat*2) * z, 0, 6.2832);
+    ctx.fillStyle = rgba(col, 0.16); ctx.fill();
+    ctx.beginPath(); ctx.arc(head[0], head[1], (DOT_R + 1.1) * z, 0, 6.2832);
+    ctx.fillStyle = "rgba(6,10,16,0.72)"; ctx.fill();
     ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R * z, 0, 6.2832);
-    ctx.fillStyle = rgba(col, 0.98); ctx.fill();
+    ctx.fillStyle = rgba(col, 1); ctx.fill();
   }
   flyingNow = flying;
 }
@@ -817,12 +818,14 @@ function buildLegend(){
 
   const died = TRACKS.filter(t => t.died !== null).length;
   const routes = DATA ? DATA.meta.routes : null;
+  const total = DATA ? DATA.individuals.length : 0;
+  const sum = routes ? routes.west + routes.central + routes.east + routes.stayed : 0;
   document.getElementById("legendFoot").innerHTML = TRACKS.length
     ? `${TRACKS.length} birds on screen, ${died} of whose tags stopped when the bird `
       + `died &mdash; those are the crosses. `
-      + (routes ? `Of all 72: ${routes.west} crossed at Gibraltar, ${routes.central} `
-                + `through the central Mediterranean, ${routes.east} by the Levant, and `
-                + `${routes.stayed} never went south of 36&deg;N at all.` : "")
+      + (routes ? `Of all ${sum || total}: ${routes.west} crossed at Gibraltar, `
+                + `${routes.central} through the central Mediterranean, ${routes.east} by `
+                + `the Levant, and ${routes.stayed} never went south of 36&deg;N at all.` : "")
     : "No birds for this combination.";
 }
 
@@ -1097,11 +1100,26 @@ function buildNotes(){
     interpolation across one hour.</p>
 
     <h3>Who these birds are</h3>
-    <p>Seventy-two juvenile white storks (<em>Ciconia ciconia</em>) tagged in
-    2012 and 2013 across nine sites &mdash; Spain, Germany, Tunisia, Poland,
-    Greece, Russia, Armenia, Uzbekistan and one bird in South Africa &mdash;
-    and followed to July 2014. 180,814 hourly fixes, from 55&deg;N in the
-    Baltic to 34&deg;S at the Cape, and from Senegal east to Uzbekistan.</p>
+    <p>Sixty-five juvenile white storks (<em>Ciconia ciconia</em>) ringed at the
+    nest across seven sites &mdash; Spain, Germany, Tunisia, Poland, Greece,
+    Russia and Armenia &mdash; and followed from June 2013 to July 2014.
+    166,125 hourly fixes, from 55&deg;N in the Baltic to 27&deg;S in southern
+    Africa, and from Senegal east to Kazakhstan.</p>
+
+    <h3>What was left out, and why</h3>
+    <p>The deposit holds 72 birds and runs from November 2012, but two parts of
+    it were not worth drawing.</p>
+    <p><strong>The first six months are one bird.</strong> Every tag but one
+    goes on in June or July 2013, when that year's chicks were ringed at the
+    nest. Before that there is a single South African stork and nothing else
+    &mdash; 226 days, 38% of the original timeline, one dot. The map starts on
+    1 June 2013, which removes that bird along with the empty stretch.</p>
+    <p><strong>The Uzbek birds do not migrate.</strong> Six storks of the
+    Ferghana Valley, ranging a median of 148 km and never going south of
+    40&deg;N in up to 365 days each. That is a real thing about
+    <em>Ciconia ciconia asiatica</em> and not a gap in the data &mdash; but on
+    a map about movement they were six dots that never moved, so they are left
+    out rather than left sitting.</p>
 
     <h3>Why the Mediterranean is crossed at its ends</h3>
     <p>Storks are soaring birds. They climb in thermals and glide between them,

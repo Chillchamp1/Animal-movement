@@ -52,8 +52,20 @@ UA = "stork-migration-map/1.0 (+https://github.com/Chillchamp1)"
 # sits just clear of the background and the sea just below it.
 SEA_DEEP = (6, 11, 18)
 SEA_SHELF = (10, 22, 35)
-LAND_SHADOW = (11, 14, 19)
-LAND_LIT = (46, 54, 66)
+
+# Height matters to a soaring bird. Thermals form over warm ground and form
+# best over broken high ground, so the uplands are the corridors: the Atlas and
+# the Iberian meseta on the western flyway, the Anatolian plateau, the Levantine
+# rift and the Ethiopian highlands on the eastern one. A hypsometric ramp puts
+# them on the map instead of leaving a hillshade that only shows slope.
+# Metres -> colour, interpolated between.
+HYPSOMETRY = [
+    (0,    (16, 21, 28)),     # lowland and floodplain, barely above the sea
+    (300,  (24, 30, 38)),
+    (1200, (40, 42, 47)),
+    (2500, (64, 59, 52)),     # warming, the way relief maps have always done it
+    (4500, (95, 88, 78)),
+]
 SHELF_M = -200.0          # the continental shelf break, roughly
 
 AZIMUTH_DEG = 315.0
@@ -130,6 +142,14 @@ def ramp(t: np.ndarray, lo: tuple, hi: tuple) -> np.ndarray:
     return lo_a + (hi_a - lo_a) * t[:, :, None]
 
 
+def hypsometric(elev: np.ndarray) -> np.ndarray:
+    """Colour by height, interpolated through the HYPSOMETRY stops."""
+    stops = np.array([m for m, _ in HYPSOMETRY], dtype=float)
+    cols = np.array([c for _, c in HYPSOMETRY], dtype=float)
+    e = np.clip(elev, stops[0], stops[-1])
+    return np.stack([np.interp(e, stops, cols[:, i]) for i in range(3)], axis=-1)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -188,9 +208,14 @@ def main() -> int:
     # the light, which is what the relief is for.
     flat = math.cos(math.radians(90 - ALTITUDE_DEG))
     lift = np.clip((shade - flat * 0.82) / (1 - flat * 0.82), 0, 1)
+    # Height sets the colour, slope sets how it is lit. Flat ground keeps its
+    # own tone rather than being flattened to one grey, and a lit slope brightens
+    # from there, so the Atlas and the Ethiopian highlands read as high ground
+    # and not merely as rough ground.
+    land = hypsometric(elev) * (0.62 + 0.85 * lift)[:, :, None]
     rgb = np.where(sea[:, :, None],
                    ramp(1 - depth, SEA_DEEP, SEA_SHELF),
-                   ramp(lift, LAND_SHADOW, LAND_LIT))
+                   np.clip(land, 0, 255))
 
     img = Image.fromarray(rgb.astype(np.uint8), mode="RGB")
     height = int(round(args.width * img.height / img.width))

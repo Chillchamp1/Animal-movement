@@ -1,8 +1,8 @@
 # Where the storks went
 
-Seventy-two white storks, tagged as juveniles in nine places between Spain and
-Uzbekistan, tracked hourly from the Baltic to the Cape. Every dot is a real bird
-at a real date and hour. Storks soar, and thermals do not form over open water —
+Sixty-five white storks, ringed as chicks in seven places between Spain and
+Armenia, tracked hourly across a full year. Every dot is a real bird at a real
+date and hour. Storks soar, and thermals do not form over open water —
 so the thing to watch is where they cross the Mediterranean, and where they
 refuse to.
 
@@ -17,18 +17,17 @@ Movebank Data Repository, CC0.
 
 | Origin | Birds | Fixes |
 |---|---|---|
-| **Germany** | 13 | 42,731 |
-| **Russia** | 10 | 34,700 |
-| **Armenia** | 8 | 19,761 |
-| **Tunisia** | 9 | 18,905 |
+| **Germany** | 13 | 42,752 |
+| **Russia** | 10 | 34,779 |
+| **Armenia** | 8 | 19,779 |
+| **Tunisia** | 9 | 18,919 |
 | **Spain** | 11 | 17,438 |
-| **Greece** | 10 | 16,808 |
-| **Poland** | 4 | 15,442 |
-| **Uzbekistan** | 6 | 13,644 |
-| **South Africa** | 1 | 999 |
+| **Greece** | 10 | 17,005 |
+| **Poland** | 4 | 15,453 |
 
-180,428 hourly fixes over 594 days, from 55°N to 34°S and from Senegal east to
-Uzbekistan. The tags recorded every five minutes; this is thinned to hourly.
+166,125 hourly fixes over 404 days, from 55°N in the Baltic to 27°S in southern
+Africa and from Senegal east to Kazakhstan. The tags recorded every five
+minutes; this is thinned to hourly.
 
 The **clock** is a real calendar date and hour. Under it, two counts taken from
 the data at that hour: how many birds are covering ground, and how many tags are
@@ -51,17 +50,33 @@ crossed where it is narrow: at Gibraltar in the west, or round the eastern end
 through the Levant.
 
 The **Crossing** filter is derived from the data rather than assumed: for each
-bird, the longitude at which it first got south of 36°N. Of the 72, **14 crossed
-at Gibraltar, 11 through the central Mediterranean, 24 by the Levant, and 23
+bird, the longitude at which it first got south of 36°N. Of the 65, **14 crossed
+at Gibraltar, 10 through the central Mediterranean, 24 by the Levant, and 17
 never went south of 36°N at all.**
 
 That last group is not a gap in the data. Some are Spanish birds that no longer
 migrate — they winter on rubbish tips within a few hundred kilometres of the
 nest — and some are birds that died before their first autumn.
 
+## What was left out, and why
+
+The deposit holds 72 birds and runs from November 2012. Two parts of it were not
+worth drawing, and both absences are findings rather than omissions.
+
+**The first six months are one bird.** Every tag but one goes on in June or July
+2013, when that year's chicks were ringed at the nest. Before that there is a
+single South African stork and nothing else — 226 days, 38% of the original
+timeline, one dot. The map starts on 1 June 2013, which drops that bird along
+with the empty stretch.
+
+**The Uzbek birds do not migrate.** Six storks of the Ferghana Valley, ranging a
+median of 148 km and never going south of 40°N in up to 365 days each. That is a
+real thing about *Ciconia ciconia asiatica*, not a gap in the data — but on a
+map about movement they were six dots that never moved.
+
 ## The crosses
 
-Thirty of the 72 tags stopped because the bird died, which the deposit records.
+Twenty-six of the 65 tags stopped because the bird died, which the deposit records.
 Where that happens the track does not simply vanish: a cross stays at the last
 position. A juvenile's first migration is the most dangerous journey of its
 life, and a track that disappeared silently would read as a coverage gap
@@ -142,4 +157,7 @@ Data: `doi:10.5441/001/1.78152p3q`, Movebank Data Repository, CC0.
 
 Backdrop: elevation and bathymetry from Terrain Tiles on AWS Open Data
 (Mapzen/Nextzen terrarium) — SRTM and GMTED on land, ETOPO1 and other surveys
-at sea.
+at sea. Height sets the colour and slope sets how it is lit, because height is
+what matters to a soaring bird: thermals form over warm broken ground, so the
+Atlas, the Iberian meseta, the Anatolian plateau and the Ethiopian highlands are
+the corridors, and the Sahara between them is the barrier.

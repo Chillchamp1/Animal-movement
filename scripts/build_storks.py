@@ -21,6 +21,14 @@ timestamp. The work is thinning and shaping.
   covers 40-60 km/h, so an hour is a legible step at continental scale and a
   twelfth of the data.
 * Break a track wherever the tag was silent; nothing is interpolated across.
+* Start at the point where the deposit becomes a study rather than one bird.
+  Every tag but one goes on in June or July 2013, when that year's chicks were
+  ringed at the nest; the months before are a single South African stork, and
+  they were 38% of the timeline.
+* Drop the Uzbek birds. They are Ciconia ciconia asiatica of the Ferghana
+  Valley and they do not migrate -- six birds, a median range of 148 km and
+  never south of 40 N across up to 365 days each. That is a real finding, and
+  it is also six dots that never move on a map about movement.
 * Carry each bird's population and, for the 30 that did not survive the study,
   the slot its tag stopped -- the map should be able to say that a track ended
   rather than merely leaving the frame.
@@ -41,6 +49,9 @@ import numpy as np
 import pandas as pd
 
 SCALE = 100_000          # 1e-5 degrees, ~1 m; far below tag error
+
+DEFAULT_FROM = "2013-06-01"
+DEFAULT_EXCLUDE = ("Uzbekistan",)
 # These are solar tags: they report through the day and fall silent overnight,
 # so a rule of "consecutive hours only" empties the map every night -- at 21:00
 # UTC not one of the 72 is reporting. A gap is bridged when the bird cannot
@@ -148,6 +159,10 @@ def main() -> int:
     ap.add_argument("--raw", default="data/raw/storks", type=Path)
     ap.add_argument("--out", default="data/processed", type=Path)
     ap.add_argument("--step-min", type=int, default=60, help="thinning interval in minutes")
+    ap.add_argument("--from-date", default=DEFAULT_FROM,
+                    help="drop everything before this date; '' keeps the lot")
+    ap.add_argument("--exclude", nargs="*", default=list(DEFAULT_EXCLUDE),
+                    help="populations to leave out")
     args = ap.parse_args()
 
     gps = next(args.raw.glob("*-gps.csv"), None)
@@ -163,6 +178,19 @@ def main() -> int:
     meta = read_reference(ref)
     print(f"  {len(df):,} fixes, {df.id.nunique()} birds")
 
+    if args.exclude:
+        drop = set(meta[meta.population.isin(args.exclude)].id)
+        before = df.id.nunique()
+        df = df[~df.id.isin(drop)]
+        print(f"  excluding {', '.join(args.exclude)}: "
+              f"-{before - df.id.nunique()} birds, {len(df):,} fixes left")
+    if args.from_date:
+        before = df.id.nunique()
+        df = df[df.timestamp >= pd.Timestamp(args.from_date)]
+        gone = before - df.id.nunique()
+        print(f"  from {args.from_date}: {len(df):,} fixes left"
+              + (f", {gone} bird(s) had nothing after it" if gone else ""))
+
     epoch = df.timestamp.min().floor("h")
     minutes = (df.timestamp - epoch).dt.total_seconds() / 60
     df = df.assign(slot=np.floor(minutes / args.step_min + 0.5).astype(int))
@@ -177,6 +205,7 @@ def main() -> int:
 
     payload = {
         "source": "Flack et al. 2016, doi:10.5441/001/1.78152p3q (CC0)",
+        "window": {"from": args.from_date or None, "excluded": list(args.exclude)},
         "epoch": epoch.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "stepMinutes": args.step_min,
         "slots": int(df.slot.max()) + 1,
