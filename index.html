@@ -22,6 +22,10 @@
     --p-spain:#ffc247; --p-germany:#ff8a3d; --p-tunisia:#ff5470;
     --p-poland:#e070ff; --p-greece:#8f7dff; --p-russia:#3fa9ff;
     --p-armenia:#2ee0b8;
+    /* The second deposit is one site, so its birds are told apart by age, not
+       by where they hatched. Orange against blue is the pair that survives
+       colour vision deficiency, and it sits clear of the origin gradient. */
+    --age-juv:#ff6a3d; --age-adult:#4dd2ff;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -48,6 +52,11 @@
     font:inherit;font-size:0.72rem;
   }
   .row button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
+  /* One row set per view. The two deposits are different studies, so the
+     filters that make sense for one are meaningless for the other. */
+  body[data-view="ages"] #spRow,
+  body[data-view="ages"] #seRow,
+  body:not([data-view="ages"]) #agRow{display:none}
   /* A population with no birds says so rather than sitting lit with nothing
      behind it. */
   .row button[data-unavailable="true"]{opacity:0.3;cursor:not-allowed}
@@ -60,8 +69,12 @@
   /* ---- clock ----------------------------------------------------------- */
   /* Down the left margin rather than across the middle: the flyways run up the
      centre of this map and a date sitting on them is a date in the way. */
+  /* The header sits under the pick panel, which is one row taller in the view
+     that still has an origin filter to show. */
+  body{--picks-h:180px}
+  body[data-view="ages"]{--picks-h:150px}
   header{
-    position:absolute;z-index:3;left:14px;top:150px;
+    position:absolute;z-index:3;left:14px;top:var(--picks-h);
     text-align:left;pointer-events:none;white-space:nowrap;
     text-shadow:0 0 16px var(--bg-bot), 0 0 8px var(--bg-bot), 0 0 3px var(--bg-bot);
   }
@@ -190,7 +203,9 @@
       background:linear-gradient(90deg,var(--panel) 74%,transparent);
       font-size:0.52rem;letter-spacing:0.12em;
     }
-    header{top:calc(128px + env(safe-area-inset-top,0px))}
+    body{--picks-h:152px}
+    body[data-view="ages"]{--picks-h:128px}
+    header{top:calc(var(--picks-h) + env(safe-area-inset-top,0px))}
     #clock{font-size:clamp(1.4rem,7vw,2rem)}
     #day{font-size:0.6rem}
     #meta{display:none}
@@ -225,8 +240,10 @@
   <canvas id="map"></canvas>
 
   <div id="picks">
+    <div class="row" id="vwRow"><span class="lab">View</span></div>
     <div class="row" id="spRow"><span class="lab">Origin</span></div>
     <div class="row" id="seRow"><span class="lab">Crossing</span></div>
+    <div class="row" id="agRow"><span class="lab">Age</span></div>
     <div class="row" id="prRow"><span class="lab">Layer</span></div>
     <div class="row" id="imRow"><span class="lab">Ground</span></div>
   </div>
@@ -236,12 +253,7 @@
     <div id="day">day 1</div>
   </header>
 
-  <div id="meta">
-    <strong>White storks, Aug 2013 &ndash; Jul 2014</strong><br>
-    Fifty-nine juveniles from seven populations, ringed at the nest and tracked
-    hourly. Storks soar, and thermals do not form over open water &mdash; so
-    watch where they cross the Mediterranean, and where they refuse to.
-  </div>
+  <div id="meta"></div>
 
   <button id="notesbtn" aria-expanded="false">Data notes &amp; gaps</button>
   <div id="notes" class="panel"><h2>Data notes &amp; gaps</h2><div id="notesBody"></div></div>
@@ -299,6 +311,23 @@ const ROUTES = {
   stayed:  {label:"Stayed north"},
 };
 
+/* The second view is one tagging site in Sachsen-Anhalt, so origin says
+   nothing and age says everything: 37 birds on their first autumn flying the
+   same weeks and the same route as 37 that had done it before. */
+const AGES = {
+  juv:   {label:"First autumn", role:"age-juv"},
+  adult: {label:"Adult",        role:"age-adult"},
+};
+const AGE_ORDER = ["juv", "adult"];
+
+/* Two deposits, two views, never one pooled sample -- different sites,
+   different sampling, different questions. Switching swaps the whole payload,
+   and with it the clock, since each deposit covers its own stretch of time. */
+const VIEWS = {
+  origins: {label:"Origins", file:"storks"},
+  ages:    {label:"Ages",    file:"storks-ages"},
+};
+
 const pick = name => getComputedStyle(document.documentElement)
   .getPropertyValue("--" + name).trim();
 const hexRGB = hex => {
@@ -307,8 +336,10 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-let sel = {pops:new Set(POP_ORDER), route:"all", layer:"trails", imagery:"basemap"};
-let DATA = null;          /* the loaded storks.json */
+let sel = {view:"origins", pops:new Set(POP_ORDER), ages:new Set(AGE_ORDER),
+           route:"all", layer:"trails", imagery:"basemap"};
+let DATA = null;          /* the active view's payload */
+const LOADED = new Map(); /* view name -> payload, fetched once */
 let TRACKS = [];          /* flattened, currently displayed */
 let BASEMAP = null;       /* basemap.json, land and sea as a data URI */
 let SPAN = 1;             /* hourly slots on the clock */
@@ -333,9 +364,9 @@ async function loadJSON(name){
    but scripts/build_storks.py only leaves a gap inside a segment when the bird
    demonstrably went nowhere across it. Anything faster ends the segment, and
    nothing is drawn across those. */
-async function loadStorks(){
-  const raw = await loadJSON("storks");
-  if (!raw) throw new Error("no stork data");
+async function loadStorks(file){
+  const raw = await loadJSON(file);
+  if (!raw) throw new Error(`no stork data in ${file}`);
   const S = raw.scale, ox = raw.origin.lon, oy = raw.origin.lat;
 
   const individuals = raw.individuals.map(ind => {
@@ -359,25 +390,71 @@ async function loadStorks(){
         i++;
       }
     }
-    return {id:ind.id, pop:ind.pop, route:ind.route, died:ind.died ?? null,
+    return {id:ind.id, pop:ind.pop, route:ind.route, age:ind.age ?? null,
+            died:ind.died ?? null,
             n, slots, lons, lats, brk, t0:slots[0], t1:slots[n-1]};
   });
 
   return {meta:raw, epoch:Date.parse(raw.epoch), individuals};
 }
 
+/* Which colour a bird is drawn in. In the origins view that is where it
+   hatched; in the ages view, whether this was its first autumn. One lookup,
+   so the trails, the dots and the legend can never disagree. */
+function colourOf(t, fallback){
+  const e = sel.view === "ages" ? AGES[t.age] : POPS[t.pop];
+  return e ? e.role : fallback;
+}
+
+/* The payload for a view is fetched the first time it is asked for, not at
+   boot: most visits never leave the view they land on, and the second deposit
+   is most of a megabyte. */
+async function setView(name){
+  if (sel.view === name && LOADED.has(name)) return;
+  const loading = document.getElementById("loading");
+  if (!LOADED.has(name)){
+    loading.textContent = "loading tracks\u2026";
+    loading.hidden = false;
+    try {
+      LOADED.set(name, await loadStorks(VIEWS[name].file));
+    } catch (err){
+      loading.textContent = `${VIEWS[name].label} view unavailable \u2014 rebuild data/processed (see README)`;
+      console.error(err);
+      return;
+    }
+  }
+  sel.view = name;
+  DATA = LOADED.get(name);
+  document.body.dataset.view = name;
+  simT = 0;
+  /* Every other rebuild holds the camera still on purpose -- switching a
+     population off should not move the ground. A view switch is the one case
+     that must not: it is a different deposit over a different frame, and the
+     old camera would sit off-centre inside the new one. Dropping it makes
+     fitHome take its reset branch. */
+  CAM = null;
+  loading.hidden = true;
+  rebuild();
+  syncPills();
+}
+
 function rebuild(){
-  TRACKS = DATA.individuals.filter(t =>
-    sel.pops.has(t.pop) && (sel.route === "all" || t.route === sel.route));
+  TRACKS = DATA.individuals.filter(t => sel.view === "ages"
+    ? sel.ages.has(t.age)
+    : sel.pops.has(t.pop) && (sel.route === "all" || t.route === sel.route));
   SPAN = DATA.meta.slots;
   if (simT >= SPAN) simT = 0;
 
   /* Frame every bird in the deposit, not the current filter, so switching a
-     population off does not move the map out from under the viewer. */
+     population off does not move the map out from under the viewer. Switching
+     view does refit, and should: the second deposit is one colony over three
+     months, and held at the first deposit's continental frame it collapses to
+     a ribbon -- when the whole point of it is how the two colours separate. */
   const b = DATA.meta.bounds;
   BOUNDS = {lon0:b.lon0, lat0:b.lat0, lon1:b.lon1, lat1:b.lat1};
 
   resize();
+  updateBlurb();
   buildLegend();
   buildProfile();
   syncPopPills();
@@ -385,6 +462,7 @@ function rebuild(){
 }
 
 function syncPopPills(){
+  if (sel.view === "ages") return;   /* that row is hidden; leave it alone */
   const present = new Set(DATA ? DATA.individuals.map(t => t.pop) : []);
   for (const b of document.querySelectorAll("#spRow button")){
     const ok = present.has(b.dataset.key);
@@ -699,8 +777,9 @@ let trailCv = null, tctx = null, trailUpTo = 0, trailKey = "";
 const TRAIL_W = 1.6;
 
 function trailStamp(){
-  return [CAM.lonC, CAM.latC, CAM.spanLon, W, H, sel.route,
-          [...sel.pops].sort().join(",")].join("|");
+  return [CAM.lonC, CAM.latC, CAM.spanLon, W, H, sel.view, sel.route,
+          [...sel.pops].sort().join(","),
+          [...sel.ages].sort().join(",")].join("|");
 }
 
 /* Last fix at or before `at`, whether or not the map may draw to it. */
@@ -730,7 +809,7 @@ function paintTrail(from, to){
   tctx.lineWidth = TRAIL_W;
   for (const t of TRACKS){
     if (t.t1 <= from || t.t0 > to) continue;
-    const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
+    const col = hexRGB(pick(colourOf(t, "ink-3")));
     tctx.strokeStyle = rgba(col, 0.55);
     tctx.beginPath();
     let pen = false;
@@ -782,7 +861,7 @@ function draw(){
     if (t.died !== null && simT > t.died){
       const gx = px(t.lons[t.n-1]), gy = py(t.lats[t.n-1]);
       const r = 3.4 * z;                    /* the mark stays; the bird does not */
-      const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-2"));
+      const col = hexRGB(pick(colourOf(t, "ink-2")));
 
       /* For a couple of days after the tag stops, rings go out from the spot,
          so a death registers as an event rather than a dot quietly becoming a
@@ -809,7 +888,7 @@ function draw(){
       continue;
     }
 
-    const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
+    const col = hexRGB(pick(colourOf(t, "ink-3")));
     const head = posAt(t, simT);
     if (!head){
       /* A gap too long to draw across. The bird is still alive and still
@@ -861,30 +940,51 @@ function draw(){
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const SLOTS_PER_DAY = 24;
 
+/* Each view is a different study, and saying so is part of the map. */
+const BLURB = {
+  origins: `<strong>White storks, Aug 2013 &ndash; Jul 2014</strong><br>
+    Fifty-nine juveniles from seven populations, ringed at the nest and tracked
+    hourly. Storks soar, and thermals do not form over open water &mdash; so
+    watch where they cross the Mediterranean, and where they refuse to.`,
+  ages: `<strong>First autumn or fiftieth, Aug &ndash; Oct 2013</strong><br>
+    Seventy-four storks from one site in Sachsen-Anhalt, thirty-seven of them
+    flying south for the first time and thirty-seven that had done it before,
+    over the same weeks and the same eastern route. Watch which group hesitates.`,
+};
+
+function updateBlurb(){
+  document.getElementById("meta").innerHTML = BLURB[sel.view] || "";
+}
+
 function buildLegend(){
   const rows = document.getElementById("legendRows");
   rows.innerHTML = "";
+  /* Whatever the map is coloured by is what the legend counts, so the two can
+     never tell different stories. */
+  const ages = sel.view === "ages";
+  const keyOf = t => ages ? t.age : t.pop;
+  const order = ages ? AGE_ORDER : POP_ORDER;
+  const table = ages ? AGES : POPS;
+
   const counts = new Map();
   for (const t of TRACKS){
-    const c = counts.get(t.pop) || {birds:0, fixes:0};
+    const k = keyOf(t);
+    const c = counts.get(k) || {birds:0, fixes:0};
     c.birds += 1; c.fixes += t.n;
-    counts.set(t.pop, c);
+    counts.set(k, c);
   }
-  for (const pop of POP_ORDER){
-    if (!counts.has(pop)) continue;
-    const c = counts.get(pop);
+  for (const key of order){
+    if (!counts.has(key)) continue;
+    const c = counts.get(key);
     const el = document.createElement("div");
     el.className = "lg";
-    el.innerHTML = `<span class="sw" style="background:${pick(POPS[pop].role)}"></span>`
-      + `<span class="nm">${POPS[pop].label}</span>`
+    el.innerHTML = `<span class="sw" style="background:${pick(table[key].role)}"></span>`
+      + `<span class="nm">${table[key].label}</span>`
       + `<span class="ct">${c.birds}</span>`;
     rows.appendChild(el);
   }
 
   const died = TRACKS.filter(t => t.died !== null).length;
-  const routes = DATA ? DATA.meta.routes : null;
-  const total = DATA ? DATA.individuals.length : 0;
-  const sum = routes ? routes.west + routes.central + routes.east + routes.stayed : 0;
   document.getElementById("legendFoot").innerHTML = TRACKS.length
     ? `${TRACKS.length} birds &middot; ${died} &times; a tag stopped on a death`
     : "No birds for this combination.";
@@ -997,23 +1097,44 @@ function frame(now){
 
 /* --------------------------------------------------------------- controls */
 
+/* Every row registers how to read its own state back, so a change made
+   anywhere -- a click, or the render hook driving the page for the video --
+   leaves all of them showing what is actually selected. */
+const pillSyncs = [];
+function syncPills(){ for (const f of pillSyncs) f(); }
+
 function pillRow(rowId, items, isOn, onPick){
   const row = document.getElementById(rowId);
+  const sync = () => {
+    for (const btn of row.querySelectorAll("button"))
+      btn.setAttribute("aria-pressed", String(isOn(btn.dataset.key)));
+  };
   for (const it of items){
     const b = document.createElement("button");
     b.textContent = it.label;
     b.dataset.key = it.key;
     b.setAttribute("aria-pressed", String(isOn(it.key)));
-    b.addEventListener("click", async () => {
-      await onPick(it.key);
-      for (const btn of row.querySelectorAll("button"))
-        btn.setAttribute("aria-pressed", String(isOn(btn.dataset.key)));
-    });
+    b.addEventListener("click", async () => { await onPick(it.key); syncPills(); });
     row.appendChild(b);
   }
+  pillSyncs.push(sync);
 }
 
 function wireControls(){
+  pillRow("vwRow",
+    Object.keys(VIEWS).map(k => ({key:k, label:VIEWS[k].label})),
+    k => sel.view === k,
+    async k => { await setView(k); });
+
+  pillRow("agRow",
+    AGE_ORDER.map(k => ({key:k, label:AGES[k].label})),
+    k => sel.ages.has(k),
+    async k => {
+      if (sel.ages.has(k)){ if (sel.ages.size > 1) sel.ages.delete(k); }
+      else sel.ages.add(k);
+      rebuild();
+    });
+
   pillRow("spRow",
     POP_ORDER.map(k => ({key:k, label:POPS[k].label})),
     k => sel.pops.has(k),
@@ -1169,6 +1290,29 @@ function buildNotes(){
     127,606 hourly fixes, from 55&deg;N in the Baltic to 27&deg;S in southern
     Africa, and from Senegal east to Kazakhstan.</p>
 
+    <h3>The two views are two studies</h3>
+    <p><strong>Origins</strong> and <strong>Ages</strong> come from different
+    deposits, and the map never pools them &mdash; different sites, different
+    sampling, different questions. Switching swaps the whole dataset, and the
+    clock with it.</p>
+    <p><strong>Origins</strong> is Flack et al. 2016
+    (<code>doi:10.5441/001/1.78152p3q</code>): breadth, nine
+    tagging sites, and every bird a juvenile. It can show you where a
+    generation goes, but it has nobody to compare them against.</p>
+    <p><strong>Ages</strong> is Rotics et al. 2016
+    (<code>doi:10.5441/001/1.hn1bd23k</code>): one site in
+    Sachsen-Anhalt, and the comparison the first deposit lacks. In autumn 2013
+    it carries 37 birds on their first migration and 37 adults, flying the same
+    eastern route in the same weeks &mdash; 71,695 hourly fixes over 92 days.
+    Those 122 birds are not folded into the other view: they are a single
+    colony, they outnumber the whole first deposit two to one, and dropping
+    them into the origin palette would turn a seven-population map into a
+    German one.</p>
+    <p class="sub">The Ages deposit is fall migration only, so it stops on 31
+    October &mdash; which is why the <strong>Crossing</strong> filter is not
+    offered there. A bird that has not passed 36&deg;N by the end of October
+    has not decided against migrating; the window simply ended first.</p>
+
     <h3>What was left out, and why</h3>
     <p>The deposit holds 72 birds and runs from November 2012, but two parts of
     it were not worth drawing.</p>
@@ -1202,8 +1346,9 @@ function buildNotes(){
     died before their first autumn.</p>
 
     <h3>The crosses</h3>
-    <p>Twenty-two of the 59 tags stopped because the bird died, which the
-    deposit records. Rings go out from the spot as it happens and a cross stays
+    <p>Twenty-two of the 59 tags in <strong>Origins</strong>, and 21 of the 74
+    in <strong>Ages</strong>, stopped because the bird died, which both deposits
+    record. Rings go out from the spot as it happens and a cross stays
     there afterwards, because a track that simply vanished would read as a gap
     in coverage instead of what it was. A juvenile's first migration is the
     most dangerous journey of its life.</p>
@@ -1270,7 +1415,12 @@ function buildNotes(){
     <p class="sub">Flack, A., Fiedler, W., Blas, J., et al. (2016).
     <em>Costs of migratory decisions: a comparison across eight white stork
     populations.</em> Science Advances 2:e1500931. Data:
-    <code>doi:10.5441/001/1.78152p3q</code>, Movebank Data Repository, CC0.</p>`;
+    <code>doi:10.5441/001/1.78152p3q</code>, Movebank Data Repository, CC0.</p>
+    <p class="sub">Rotics, S., Kaatz, M., Resheff, Y. S., et al. (2016).
+    <em>The challenges of the first migration: movement and behavior of
+    juvenile versus adult white storks.</em> Journal of Animal Ecology
+    85:938&ndash;947. Data: <code>doi:10.5441/001/1.hn1bd23k</code>, Movebank
+    Data Repository, CC0.</p>`;
 }
 
 /* A seam for scripts/render_video.py: stop the clock, put it where it is asked
@@ -1279,6 +1429,10 @@ window.__render = {
   bare(on){
     document.body.dataset.bare = String(!!on);
     resize(); buildProfile();
+  },
+  async view(name){
+    if (VIEWS[name]) await setView(name);
+    return sel.view;
   },
   seek(t){
     playing = false;
@@ -1301,7 +1455,9 @@ window.__render = {
       img.src = BASEMAP.png;
     }
     updateAttrib();
-    DATA = await loadStorks();
+    document.body.dataset.view = sel.view;
+    LOADED.set(sel.view, await loadStorks(VIEWS[sel.view].file));
+    DATA = LOADED.get(sel.view);
     rebuild();
     document.getElementById("loading").hidden = true;
     lastFrame = performance.now();

@@ -1,16 +1,37 @@
 #!/usr/bin/env python3
 """Turn the white stork deposits into the map's track files.
 
-Source
-------
-Flack, A. et al. (2016) "Costs of migratory decisions: a comparison across
-eight white stork populations", Science Advances 2:e1500931.
-Data: doi:10.5441/001/1.78152p3q, Movebank Data Repository, CC0.
+Sources
+-------
+Both are Movebank Data Repository deposits under CC0, both are one row per
+fix, and both feed this same script -- the page shows them as two views, never
+merged, because they are two studies with two sampling designs.
 
-Fetch it first, skipping the accelerometer files nothing here reads:
+* Flack, A. et al. (2016) "Costs of migratory decisions: a comparison across
+  eight white stork populations", Science Advances 2:e1500931.
+  doi:10.5441/001/1.78152p3q -- 72 birds from nine tagging sites, every one of
+  them a juvenile. Breadth: this is the map of where a population's young go.
+
+* Rotics, S. et al. (2016) "The challenges of the first migration: movement and
+  behavior of juvenile versus adult white storks", J. Anim. Ecol. 85:938-947.
+  doi:10.5441/001/1.hn1bd23k -- 122 birds from one site, Sachsen-Anhalt, split
+  juvenile and adult. Depth on one axis the other deposit cannot supply: in
+  autumn 2013 it is 37 first-year birds against 37 adults, flying the same
+  route in the same weeks.
+
+They must not go in one palette. The Sachsen-Anhalt birds outnumber the whole
+of the first deposit two to one, so folding them in by origin would turn a
+seven-population map into a German one. Hence two runs of this script, two
+files, and a toggle on the page.
+
+Fetch them first, skipping the accelerometer files nothing here reads -- they
+are ten times the size of the fixes:
 
     python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
         --match gps reference-data README --out data/raw/storks
+
+    python3 scripts/fetch_movebank.py --doi 10.5441/001/1.hn1bd23k \
+        --match gps reference-data README --out data/raw/storks-ages
 
 What this does
 --------------
@@ -30,14 +51,21 @@ timestamp. The work is thinning and shaping.
   Valley and they do not migrate -- six birds, a median range of 148 km and
   never south of 40 N across up to 365 days each. That is a real finding, and
   it is also six dots that never move on a map about movement.
-* Carry each bird's population and, for the 30 that did not survive the study,
-  the slot its tag stopped -- the map should be able to say that a track ended
-  rather than merely leaving the frame.
+* Carry each bird's population, its life stage where the deposit records one,
+  and, for the birds that did not survive the study, the slot its tag stopped
+  -- the map should be able to say that a track ended rather than merely
+  leaving the frame.
 
 Usage
 -----
     python3 scripts/build_storks.py
     python3 scripts/build_storks.py --step-min 60 --out data/processed
+
+    # The second deposit is fall migration only, and autumn 2013 is the one
+    # season carrying both age classes in strength (37 juveniles, 37 adults).
+    python3 scripts/build_storks.py --raw data/raw/storks-ages \
+        --out-name storks-ages.json --from-date 2013-08-01 --to-date 2013-11-01 \
+        --exclude --source "Rotics et al. 2016, doi:10.5441/001/1.hn1bd23k (CC0)"
 """
 
 from __future__ import annotations
@@ -51,6 +79,7 @@ import pandas as pd
 
 SCALE = 100_000          # 1e-5 degrees, ~1 m; far below tag error
 
+DEFAULT_SOURCE = "Flack et al. 2016, doi:10.5441/001/1.78152p3q (CC0)"
 DEFAULT_FROM = "2013-08-01"
 DEFAULT_EXCLUDE = ("Uzbekistan",)
 # These are solar tags: they report through the day and fall silent overnight,
@@ -98,13 +127,22 @@ def read_gps(path: Path) -> pd.DataFrame:
     return df.dropna(subset=["lat", "lon"])
 
 
+# The two deposits spell the same life stage differently -- "juvenile" in one,
+# "juv" in the other -- and only one of them records adults at all.
+AGES = {"juv": "juv", "juvenile": "juv", "adult": "adult"}
+
+
 def read_reference(path: Path) -> pd.DataFrame:
     ref = pd.read_csv(path)
     ref = ref.rename(columns={"animal-id": "id", "study-site": "population",
                               "deployment-end-type": "end_type",
                               "animal-life-stage": "life_stage"})
     keep = [c for c in ("id", "population", "end_type", "life_stage") if c in ref]
-    return ref[keep].drop_duplicates(subset=["id"])
+    ref = ref[keep].drop_duplicates(subset=["id"])
+    if "life_stage" in ref:
+        ref["life_stage"] = (ref.life_stage.astype(str).str.strip().str.lower()
+                                .map(AGES))
+    return ref
 
 
 def bridgeable(dslot: np.ndarray, lon: np.ndarray, lat: np.ndarray,
@@ -151,6 +189,11 @@ def build_individuals(df: pd.DataFrame, meta: pd.DataFrame, step_h: float) -> li
                "pop": str(info.get("population", "unknown")),
                "route": classify_route(g),
                "segments": segments}
+        # Only one deposit knows this, so the field is present or absent rather
+        # than guessed: a bird of unrecorded age is not a juvenile.
+        age = info.get("life_stage")
+        if isinstance(age, str) and age in AGES.values():
+            rec["age"] = age
         # A tag that stopped because the bird died is a fact about the bird, not
         # a gap in coverage; the map draws that ending differently.
         if str(info.get("end_type", "")).lower() == "dead":
@@ -167,8 +210,14 @@ def main() -> int:
     ap.add_argument("--step-min", type=int, default=60, help="thinning interval in minutes")
     ap.add_argument("--from-date", default=DEFAULT_FROM,
                     help="drop everything before this date; '' keeps the lot")
+    ap.add_argument("--to-date", default="",
+                    help="drop everything from this date on; '' keeps the lot")
     ap.add_argument("--exclude", nargs="*", default=list(DEFAULT_EXCLUDE),
                     help="populations to leave out")
+    ap.add_argument("--out-name", default="storks.json",
+                    help="file to write inside --out")
+    ap.add_argument("--source", default=DEFAULT_SOURCE,
+                    help="citation carried into the payload and shown on the page")
     args = ap.parse_args()
 
     gps = next(args.raw.glob("*-gps.csv"), None)
@@ -196,6 +245,14 @@ def main() -> int:
         gone = before - df.id.nunique()
         print(f"  from {args.from_date}: {len(df):,} fixes left"
               + (f", {gone} bird(s) had nothing after it" if gone else ""))
+    if args.to_date:
+        before = df.id.nunique()
+        df = df[df.timestamp < pd.Timestamp(args.to_date)]
+        gone = before - df.id.nunique()
+        print(f"  to {args.to_date}: {len(df):,} fixes left"
+              + (f", {gone} bird(s) had nothing before it" if gone else ""))
+    if df.empty:
+        raise SystemExit("no fixes left in that window")
 
     epoch = df.timestamp.min().floor("h")
     minutes = (df.timestamp - epoch).dt.total_seconds() / 60
@@ -209,9 +266,16 @@ def main() -> int:
     pops = (df[df.id.astype(str).isin(kept)].merge(meta, on="id", how="left")
               .groupby("population").agg(birds=("id", "nunique"), fixes=("id", "size")))
 
+    ages = {}
+    for a in ("juv", "adult"):
+        n = sum(1 for i in individuals if i.get("age") == a)
+        if n:
+            ages[a] = n
+
     payload = {
-        "source": "Flack et al. 2016, doi:10.5441/001/1.78152p3q (CC0)",
-        "window": {"from": args.from_date or None, "excluded": list(args.exclude)},
+        "source": args.source,
+        "window": {"from": args.from_date or None, "to": args.to_date or None,
+                   "excluded": list(args.exclude)},
         "epoch": epoch.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "stepMinutes": args.step_min,
         "slots": int(df.slot.max()) + 1,
@@ -221,13 +285,14 @@ def main() -> int:
                    "lon1": float(df.lon.max()), "lat1": float(df.lat.max())},
         "counts": {p: {"birds": int(r.birds), "fixes": int(r.fixes)}
                    for p, r in pops.iterrows()},
+        "ages": ages,
         "died": sum(1 for i in individuals if "died" in i),
         "routes": {r: sum(1 for i in individuals if i["route"] == r)
                    for r in ("west", "central", "east", "stayed")},
         "individuals": individuals,
     }
     args.out.mkdir(parents=True, exist_ok=True)
-    target = args.out / "storks.json"
+    target = args.out / args.out_name
     target.write_text(json.dumps(payload, separators=(",", ":")))
 
     segs = sum(len(i["segments"]) for i in individuals)
@@ -235,6 +300,10 @@ def main() -> int:
           f"{segs:,} segments, {payload['died']} tags ended in death")
     for p, r in pops.iterrows():
         print(f"   {p:<14} {int(r.birds):>3} birds  {int(r.fixes):>7,} fixes")
+    if ages:
+        print("\nby life stage:")
+        for a, n in ages.items():
+            print(f"   {a:<9} {n:>3} birds")
     print("\nhow they left Europe:")
     for route, count in payload["routes"].items():
         print(f"   {route:<9} {count:>3} birds")

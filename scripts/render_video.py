@@ -45,14 +45,22 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--page", default="dist/where-the-storks-went.html", type=Path)
-    ap.add_argument("--out", default="dist/where-the-storks-went.mp4", type=Path)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="defaults to a name matching --view, so recording one "
+                         "view does not overwrite the other")
     ap.add_argument("--size", default="1080x1920", help="WxH; 1080x1920 is a phone feed")
     ap.add_argument("--seconds", type=float, default=40.0, help="length of the migration run")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--hold", type=float, default=2.0, help="seconds to hold on the last frame")
+    ap.add_argument("--view", default="origins", choices=("origins", "ages"),
+                    help="which deposit to record: the seven-population map, "
+                         "or first-autumn birds against adults")
     ap.add_argument("--chrome", default="/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
     args = ap.parse_args()
 
+    if args.out is None:
+        args.out = Path("dist") / ("where-the-storks-went.mp4" if args.view == "origins"
+                                   else "first-autumn-or-fiftieth.mp4")
     if not args.page.exists():
         raise SystemExit(f"missing {args.page}\n  run: python3 scripts/build_standalone.py")
     width, height = (int(v) for v in args.size.lower().split("x"))
@@ -65,7 +73,8 @@ def main() -> int:
         raise SystemExit("playwright is needed\n  pip install playwright")
 
     tmp = Path(tempfile.mkdtemp(prefix="storkframes-"))
-    print(f"{frames} frames at {width}x{height}, {args.fps} fps -> {tmp}")
+    print(f"{frames} frames at {width}x{height}, {args.fps} fps, "
+          f"{args.view} view -> {tmp}")
 
     try:
         with sync_playwright() as p:
@@ -82,6 +91,14 @@ def main() -> int:
             page.wait_for_timeout(2500)
             page.evaluate("window.__render.bare(true)")
             page.wait_for_timeout(500)
+            # The second deposit is fetched on demand, so give the switch time
+            # to land before asking how long its timeline is.
+            page.evaluate("v => window.__render.view(v)", args.view)
+            page.wait_for_timeout(2000)
+            got = page.evaluate("document.body.dataset.view")
+            if got != args.view:
+                raise SystemExit(f"page stayed on the {got} view; is "
+                                 f"data/processed/storks-ages.json built?")
 
             span = page.evaluate("window.__render.span()")
             print(f"timeline is {span} hours")
