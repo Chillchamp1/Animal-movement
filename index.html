@@ -189,7 +189,7 @@
   </div>
 
   <header>
-    <div id="clock">1 Jun 2013<span class="mins"> 00:00</span></div>
+    <div id="clock">1 Aug 2013<span class="mins"> 00:00</span></div>
     <div id="day">day 1</div>
     <div id="lamps">
       <span id="lampCoug" data-on="false">0 birds travelling</span>
@@ -198,8 +198,8 @@
   </header>
 
   <div id="meta">
-    <strong>White storks, 2013&ndash;2014</strong><br>
-    Sixty-five juveniles from seven populations, ringed at the nest and tracked
+    <strong>White storks, Aug 2013 &ndash; Jul 2014</strong><br>
+    Fifty-nine juveniles from seven populations, ringed at the nest and tracked
     hourly. Storks soar, and thermals do not form over open water &mdash; so
     watch where they cross the Mediterranean, and where they refuse to.
   </div>
@@ -268,7 +268,7 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-let sel = {pops:new Set(POP_ORDER), route:"all", layer:"routes", imagery:"basemap"};
+let sel = {pops:new Set(POP_ORDER), route:"all", layer:"trails", imagery:"basemap"};
 let DATA = null;          /* the loaded storks.json */
 let TRACKS = [];          /* flattened, currently displayed */
 let BASEMAP = null;       /* basemap.json, land and sea as a data URI */
@@ -508,7 +508,6 @@ function renderBase(){
 
   if (sel.imagery === "basemap") drawBasemap(b);
   else if (sel.imagery === "sat") drawTiles(b);
-  if (sel.layer === "routes") drawRoutes(b);
 
   drawScale(b);
   baseReady = true;
@@ -707,34 +706,84 @@ function stepKm(t, i){
 }
 
 const FLYING_KMH = 12;         /* above this the bird is travelling, not foraging */
-const DOT_R = 2.0;
+const DOT_R = 4.0;
+/* How long after a death the outgoing rings keep going, in hours. */
+const DEATH_RINGS_H = 60;
 const TRAIL_STEPS = 10;
 const TRAIL_SLOTS = 48;        /* two days of trail, so a migrating bird draws a line */
 
-/* Every track at once, faint, as the ground the live birds move over. Drawn
-   into the base layer so it costs nothing per frame. */
-function drawRoutes(b){
-  b.save();
-  b.lineWidth = Math.max(0.6/DPR, 0.8);
-  for (const t of TRACKS){
-    const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
-    b.strokeStyle = rgba(col, 0.5);
-    b.beginPath();
-    let pen = false;
-    for (let i = 0; i < t.n; i++){
-      if (t.brk[i]){ pen = false; }
-      const x = px(t.lons[i]), y = py(t.lats[i]);
-      if (!pen){ b.moveTo(x, y); pen = true; } else { b.lineTo(x, y); }
-    }
-    b.stroke();
+/* The birds draw their own routes. Nothing is on the map before a stork has
+   flown it: the trail is painted onto its own canvas as the clock advances, so
+   each frame only adds the hour just flown. Panning, zooming or changing the
+   selection reprojects everything, and scrubbing backwards has to unpaint --
+   both are handled by clearing and repainting up to the current hour, which is
+   the only expensive case and happens only on those events. */
+let trailCv = null, tctx = null, trailUpTo = 0, trailKey = "";
+const TRAIL_W = 1.6;
+
+function trailStamp(){
+  return [CAM.lonC, CAM.latC, CAM.spanLon, W, H, sel.route,
+          [...sel.pops].sort().join(",")].join("|");
+}
+
+/* First index whose slot is strictly after `after`. */
+function indexAfter(t, after){
+  let lo = 0, hi = t.n;
+  while (lo < hi){
+    const mid = (lo + hi) >> 1;
+    if (t.slots[mid] <= after) lo = mid + 1; else hi = mid;
   }
-  b.restore();
+  return lo;
+}
+
+function paintTrail(from, to){
+  tctx.lineCap = "round";
+  tctx.lineJoin = "round";
+  tctx.lineWidth = TRAIL_W;
+  for (const t of TRACKS){
+    if (t.t1 <= from || t.t0 > to) continue;
+    const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
+    tctx.strokeStyle = rgba(col, 0.55);
+    tctx.beginPath();
+    let pen = false;
+    for (let i = Math.max(1, indexAfter(t, from)); i < t.n && t.slots[i] <= to; i++){
+      if (t.brk[i]){ pen = false; continue; }
+      if (!pen){ tctx.moveTo(px(t.lons[i-1]), py(t.lats[i-1])); pen = true; }
+      tctx.lineTo(px(t.lons[i]), py(t.lats[i]));
+    }
+    tctx.stroke();
+  }
+}
+
+function updateTrail(){
+  if (!trailCv) trailCv = document.createElement("canvas");
+  const stamp = trailStamp();
+  const resized = trailCv.width !== map.width || trailCv.height !== map.height;
+  if (resized || stamp !== trailKey){
+    if (resized){ trailCv.width = map.width; trailCv.height = map.height; }
+    trailKey = stamp;
+    tctx = trailCv.getContext("2d");
+    tctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    tctx.clearRect(0, 0, W, H);
+    paintTrail(-1, simT);
+  } else if (simT < trailUpTo){
+    tctx.clearRect(0, 0, W, H);
+    paintTrail(-1, simT);
+  } else if (simT > trailUpTo){
+    paintTrail(trailUpTo, simT);
+  }
+  trailUpTo = simT;
 }
 
 function draw(){
   if (!baseReady) renderBase();
   ctx.drawImage(base, 0, 0, W, H);
   if (!BOUNDS) return;
+
+  if (sel.layer === "trails"){
+    updateTrail();
+    ctx.drawImage(trailCv, 0, 0, W, H);
+  }
 
   const z = Math.min(3, Math.sqrt(zoomLevel()));
   let flying = 0;
@@ -745,9 +794,27 @@ function draw(){
        that simply vanishes would read as a coverage gap instead. */
     if (t.died !== null && simT > t.died){
       const gx = px(t.lons[t.n-1]), gy = py(t.lats[t.n-1]);
-      const r = 2.6 * z;
+      const r = 3.4 * z;                    /* the mark stays; the bird does not */
+      const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-2"));
+
+      /* For a couple of days after the tag stops, rings go out from the spot,
+         so a death registers as an event rather than a dot quietly becoming a
+         cross while you were looking somewhere else. */
+      const since = simT - t.died;
+      if (since < DEATH_RINGS_H){
+        for (let k = 0; k < 3; k++){
+          const phase = (since / DEATH_RINGS_H) + k * 0.28;
+          if (phase <= 0 || phase >= 1) continue;
+          ctx.beginPath();
+          ctx.arc(gx, gy, r + phase * 26 * z, 0, 6.2832);
+          ctx.strokeStyle = rgba(col, (1 - phase) * 0.5);
+          ctx.lineWidth = Math.max(1/DPR, 1.4 * (1 - phase));
+          ctx.stroke();
+        }
+      }
+
       ctx.strokeStyle = rgba(hexRGB(pick("ink-2")), 0.62);
-      ctx.lineWidth = Math.max(1/DPR, 1);
+      ctx.lineWidth = Math.max(1/DPR, 1.2);
       ctx.beginPath();
       ctx.moveTo(gx-r, gy-r); ctx.lineTo(gx+r, gy+r);
       ctx.moveTo(gx+r, gy-r); ctx.lineTo(gx-r, gy+r);
@@ -781,9 +848,9 @@ function draw(){
 
     /* A dark collar under each bird, so a bright dot never sits on lit ground
        without an edge to separate it. */
-    ctx.beginPath(); ctx.arc(head[0], head[1], (3.6 + heat*2) * z, 0, 6.2832);
+    ctx.beginPath(); ctx.arc(head[0], head[1], (DOT_R + 2.5 + heat*2) * z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 0.16); ctx.fill();
-    ctx.beginPath(); ctx.arc(head[0], head[1], (DOT_R + 1.1) * z, 0, 6.2832);
+    ctx.beginPath(); ctx.arc(head[0], head[1], (DOT_R + 1.4) * z, 0, 6.2832);
     ctx.fillStyle = "rgba(6,10,16,0.72)"; ctx.fill();
     ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R * z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 1); ctx.fill();
@@ -971,7 +1038,7 @@ function wireControls(){
     async k => { sel.route = k; rebuild(); });
 
   pillRow("prRow",
-    [{key:"none",label:"None"},{key:"routes",label:"Routes"}],
+    [{key:"none",label:"None"},{key:"trails",label:"Trails"}],
     k => sel.layer === k,
     async k => { sel.layer = k; baseReady = false; buildLegend(); });
 
@@ -1100,10 +1167,10 @@ function buildNotes(){
     interpolation across one hour.</p>
 
     <h3>Who these birds are</h3>
-    <p>Sixty-five juvenile white storks (<em>Ciconia ciconia</em>) ringed at the
+    <p>Fifty-nine juvenile white storks (<em>Ciconia ciconia</em>) ringed at the
     nest across seven sites &mdash; Spain, Germany, Tunisia, Poland, Greece,
-    Russia and Armenia &mdash; and followed from June 2013 to July 2014.
-    166,125 hourly fixes, from 55&deg;N in the Baltic to 27&deg;S in southern
+    Russia and Armenia &mdash; and followed from August 2013 to July 2014.
+    127,606 hourly fixes, from 55&deg;N in the Baltic to 27&deg;S in southern
     Africa, and from Senegal east to Kazakhstan.</p>
 
     <h3>What was left out, and why</h3>
@@ -1113,7 +1180,9 @@ function buildNotes(){
     goes on in June or July 2013, when that year's chicks were ringed at the
     nest. Before that there is a single South African stork and nothing else
     &mdash; 226 days, 38% of the original timeline, one dot. The map starts on
-    1 June 2013, which removes that bird along with the empty stretch.</p>
+    1 August 2013, which drops that bird along with the empty stretch, and also
+    the two months the new birds spent standing around the nest before autumn
+    migration began.</p>
     <p><strong>The Uzbek birds do not migrate.</strong> Six storks of the
     Ferghana Valley, ranging a median of 148 km and never going south of
     40&deg;N in up to 365 days each. That is a real thing about
@@ -1137,11 +1206,11 @@ function buildNotes(){
     died before their first autumn.</p>
 
     <h3>The crosses</h3>
-    <p>Thirty of the 72 tags stopped because the bird died, which the deposit
-    records. Where that happens the track does not simply vanish: a cross stays
-    at the last position. A juvenile's first migration is the most dangerous
-    journey of its life, and a track that disappeared silently would read as a
-    gap in coverage instead of what it was.</p>
+    <p>Twenty-two of the 59 tags stopped because the bird died, which the
+    deposit records. Rings go out from the spot as it happens and a cross stays
+    there afterwards, because a track that simply vanished would read as a gap
+    in coverage instead of what it was. A juvenile's first migration is the
+    most dangerous journey of its life.</p>
 
     <h3>The strip under the scrubber</h3>
     <p>Kilometres covered per bird per day, averaged over everyone on screen,
@@ -1150,19 +1219,30 @@ function buildNotes(){
     wintering or breeding grounds, covering a tenth as much.</p>
 
     <h3>The ground</h3>
-    <p><strong>Land &amp; sea</strong> is elevation and bathymetry from the
-    Terrain Tiles set on AWS Open Data &mdash; SRTM and GMTED on land, ETOPO1
-    and other surveys at sea. One raster gives both the hillshade and every
-    coastline, which a map about birds that will not cross open water needs.
-    It is computed once when the data is built, in the same Web Mercator this
-    page draws in, and carried inside the page &mdash; so it is the one
-    backdrop that works with no connection, and the only one in the
-    self-contained build.</p>
+    <p><strong>Land &amp; sea</strong> is built from two measured sources and
+    baked in, so it is the one backdrop that works with no connection and the
+    only one in the self-contained build.</p>
+    <p class="sub">Height and depth come from the Terrain Tiles set on AWS Open
+    Data &mdash; SRTM and GMTED on land, ETOPO1 and other surveys at sea. One
+    raster gives the hillshade and every coastline, which a map about birds
+    that will not cross open water needs. Height sets the colour and slope sets
+    the light, because height is what a soaring bird lives on: thermals form
+    over warm broken ground, so the Atlas, the Iberian meseta, the Anatolian
+    plateau and the Ethiopian highlands are the corridors.</p>
+    <p class="sub">Standing water and vegetation come from ESA WorldCover 2021,
+    10 m global land cover, read at its coarsest overview and reduced to about
+    5 km. Lakes, the Nile, the Niger and the Sudd are drawn as water; the green
+    is a wash keyed to how much of each cell is tree cover, shrub, grass or
+    crop. It is deliberately faint. What it is there for is the edge: the
+    Sahara is bare and the Sahel below it is not, and that line is where the
+    desert crossing ends.</p>
     <p><strong>Satellite</strong> is Esri World Imagery, fetched as tiles at
     view time. It needs a host that permits outbound requests; where they are
     blocked the tiles do not arrive and the attribution line says so.</p>
-    <p><strong>Routes</strong> draws every track at once, faintly, as the
-    ground the live birds move over. It is the same data, not a model.</p>
+    <p><strong>Trails</strong> are drawn by the birds themselves. Nothing is on
+    the map before a stork has flown it, so the routes appear as they are made
+    rather than sitting there waiting to be filled in. Scrubbing backwards
+    unpaints them.</p>
 
     <h3>What is missing</h3>
     <p><strong>Gaps are drawn as absence.</strong> A segment holds consecutive
@@ -1180,6 +1260,8 @@ function buildNotes(){
     a metre, well under the tags' own error.</p>
 
     <h3>Source</h3>
+    <p class="sub">Backdrop: Terrain Tiles on AWS Open Data (Mapzen/Nextzen
+    terrarium), and ESA WorldCover 2021 v200, CC BY 4.0.</p>
     <p class="sub">Flack, A., Fiedler, W., Blas, J., et al. (2016).
     <em>Costs of migratory decisions: a comparison across eight white stork
     populations.</em> Science Advances 2:e1500931. Data:

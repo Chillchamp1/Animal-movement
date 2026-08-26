@@ -24,7 +24,8 @@ timestamp. The work is thinning and shaping.
 * Start at the point where the deposit becomes a study rather than one bird.
   Every tag but one goes on in June or July 2013, when that year's chicks were
   ringed at the nest; the months before are a single South African stork, and
-  they were 38% of the timeline.
+  they were 38% of the timeline. August is the further cut: the birds spend
+  June and July around the nest, and autumn migration is what the map is for.
 * Drop the Uzbek birds. They are Ciconia ciconia asiatica of the Ferghana
   Valley and they do not migrate -- six birds, a median range of 148 km and
   never south of 40 N across up to 365 days each. That is a real finding, and
@@ -50,7 +51,7 @@ import pandas as pd
 
 SCALE = 100_000          # 1e-5 degrees, ~1 m; far below tag error
 
-DEFAULT_FROM = "2013-06-01"
+DEFAULT_FROM = "2013-08-01"
 DEFAULT_EXCLUDE = ("Uzbekistan",)
 # These are solar tags: they report through the day and fall silent overnight,
 # so a rule of "consecutive hours only" empties the map every night -- at 21:00

@@ -68,6 +68,15 @@ HYPSOMETRY = [
 ]
 SHELF_M = -200.0          # the continental shelf break, roughly
 
+# Standing water away from the coast -- lakes, the great rivers, the Sudd -- and
+# vegetation, which is the difference between the Sahara and the Sahel the birds
+# are heading for. Both come from scripts/build_landcover.py, which is optional:
+# without it the backdrop is elevation alone.
+LAKE = (13, 27, 42)
+GREEN_TINT = (24, 38, 28)
+GREEN_MIX = 0.3           # how far full vegetation pulls the ground green
+WATER_LO, WATER_HI = 0.2, 0.6   # cell fractions between which water fades in
+
 AZIMUTH_DEG = 315.0
 ALTITUDE_DEG = 42.0
 PALETTE = 64              # colours kept after quantising; PNG shrinks by ~4x
@@ -142,6 +151,22 @@ def ramp(t: np.ndarray, lo: tuple, hi: tuple) -> np.ndarray:
     return lo_a + (hi_a - lo_a) * t[:, :, None]
 
 
+def load_landcover(path: Path):
+    if not path.exists():
+        print(f"  no landcover at {path}; backdrop will be elevation only")
+        return None
+    d = np.load(path)
+    return d["water"], d["green"], d["bounds"], float(d["cell"][0])
+
+
+def sample(arr: np.ndarray, lc_bounds, cell: float,
+           lats: np.ndarray, lons: np.ndarray) -> np.ndarray:
+    """Nearest-cell lookup from a lon/lat grid onto the Mercator raster."""
+    col = np.clip(((lons - lc_bounds[0]) / cell).astype(int), 0, arr.shape[1] - 1)
+    row = np.clip(((lc_bounds[3] - lats) / cell).astype(int), 0, arr.shape[0] - 1)
+    return arr[row[:, None], col[None, :]]
+
+
 def hypsometric(elev: np.ndarray) -> np.ndarray:
     """Colour by height, interpolated through the HYPSOMETRY stops."""
     stops = np.array([m for m, _ in HYPSOMETRY], dtype=float)
@@ -161,6 +186,8 @@ def main() -> int:
                     help="widest window shape the backdrop should still fill")
     ap.add_argument("--width", type=int, default=3600, help="output width in pixels")
     ap.add_argument("--cache", default="data/raw/terrain", type=Path)
+    ap.add_argument("--landcover", default="data/raw/landcover", type=Path,
+                    help="where scripts/build_landcover.py left its grid")
     ap.add_argument("--out", default="data/processed", type=Path)
     args = ap.parse_args()
 
@@ -196,6 +223,9 @@ def main() -> int:
     lats = np.array([lat_of_tile_y(y, n) for y in y_tiles])
     cell_m = (156543.03392 * np.cos(np.radians(lats)) / n)[:, None]
 
+    lons = np.linspace(bounds["lon0"], bounds["lon1"], elev.shape[1])
+    lc = load_landcover(args.landcover / "landcover.npz")
+
     sea = elev <= 0
     shade = hillshade(np.where(sea, 0, elev), cell_m)
     # Depth only needs to separate shelf from basin; past the shelf it is flat.
@@ -212,7 +242,22 @@ def main() -> int:
     # own tone rather than being flattened to one grey, and a lit slope brightens
     # from there, so the Atlas and the Ethiopian highlands read as high ground
     # and not merely as rough ground.
-    land = hypsometric(elev) * (0.62 + 0.85 * lift)[:, :, None]
+    ground = hypsometric(elev)
+    if lc is not None:
+        water_f, green_f, lc_bounds, cell = lc
+        g = sample(green_f, lc_bounds, cell, lats, lons)[:, :, None]
+        # Vegetation shifts the ground green before it is lit, so the Sahel
+        # reads as green ground rather than as a green light on grey ground.
+        ground = ground * (1 - GREEN_MIX * g) + np.array(GREEN_TINT, float) * GREEN_MIX * g
+
+    land = ground * (0.62 + 0.85 * lift)[:, :, None]
+
+    if lc is not None:
+        w = np.clip((sample(water_f, lc_bounds, cell, lats, lons) - WATER_LO)
+                    / (WATER_HI - WATER_LO), 0, 1)[:, :, None]
+        # Inland water is drawn flat, the way it is: no hillshade on a lake.
+        land = land * (1 - w) + np.array(LAKE, float) * w
+
     rgb = np.where(sea[:, :, None],
                    ramp(1 - depth, SEA_DEEP, SEA_SHELF),
                    np.clip(land, 0, 255))

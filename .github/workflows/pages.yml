@@ -35,7 +35,7 @@ jobs:
 
       - name: Fetch the Movebank deposit
         run: |
-          python -m pip install --quiet pandas numpy pillow
+          python -m pip install --quiet pandas numpy pillow rasterio
           # Skip the accelerometer files: 341 MB nothing here reads.
           python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
             --match gps reference-data README --out data/raw/storks
@@ -43,9 +43,12 @@ jobs:
       - name: Build the tracks and the backdrop
         run: |
           python3 scripts/build_storks.py
-          # Fetches its own elevation tiles; must run before the cache is cleared.
+          # Reads 959 WorldCover tiles at their coarsest overview: about fifteen
+          # minutes, and the reason a deploy is not instant.
+          python3 scripts/build_landcover.py
+          # Fetches its own elevation tiles; both must run before the cache goes.
           python3 scripts/build_basemap.py
-          # The raw CSV must not reach the Pages artifact.
+          # The raw CSV and tile caches must not reach the Pages artifact.
           rm -rf data/raw
 
       # enablement turns Pages on and points its source at this workflow,

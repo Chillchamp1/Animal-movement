@@ -1,12 +1,25 @@
 # Where the storks went
 
-Sixty-five white storks, ringed as chicks in seven places between Spain and
-Armenia, tracked hourly across a full year. Every dot is a real bird at a real
-date and hour. Storks soar, and thermals do not form over open water —
-so the thing to watch is where they cross the Mediterranean, and where they
-refuse to.
+Fifty-nine white storks, ringed as chicks in seven places between Spain and
+Armenia, tracked hourly from the start of their first autumn migration to the
+following July. Every dot is a real bird at a real date and hour, and the routes
+are drawn by the birds as they fly them. Storks soar, and thermals do not form
+over open water — so the thing to watch is where they cross the Mediterranean,
+and where they refuse to.
 
-**Live: https://chillchamp1.github.io/Animal-movement/**
+## Run it
+
+- **Self-contained page** — <https://claude.ai/code/artifact/f84a4d5e-c726-4d82-a258-d838297828c4>
+  Everything is inside the file: tracks, backdrop, code. No data fetch, no tile
+  server, works offline. It is private until shared from the page's own menu.
+- **GitHub Pages** — <https://chillchamp1.github.io/Animal-movement/>
+  The same map, fetching its data at load. It serves whatever is on the default
+  branch, so it follows this work once the branch is merged.
+- **Locally** — the page fetches its data, so it needs http(s):
+
+  ```sh
+  python3 -m http.server 8000    # then open http://localhost:8000
+  ```
 
 Built from Flack et al. (2016), *Costs of migratory decisions: a comparison
 across eight white stork populations*, Science Advances 2:e1500931 —
@@ -17,15 +30,15 @@ Movebank Data Repository, CC0.
 
 | Origin | Birds | Fixes |
 |---|---|---|
-| **Germany** | 13 | 42,752 |
-| **Russia** | 10 | 34,779 |
-| **Armenia** | 8 | 19,779 |
-| **Tunisia** | 9 | 18,919 |
-| **Spain** | 11 | 17,438 |
-| **Greece** | 10 | 17,005 |
-| **Poland** | 4 | 15,453 |
+| **Germany** | 12 | 34,532 |
+| **Russia** | 10 | 31,754 |
+| **Armenia** | 8 | 14,560 |
+| **Poland** | 4 | 14,434 |
+| **Tunisia** | 8 | 11,572 |
+| **Greece** | 10 | 11,504 |
+| **Spain** | 7 | 9,250 |
 
-166,125 hourly fixes over 404 days, from 55°N in the Baltic to 27°S in southern
+127,606 hourly fixes over 350 days, from 55°N in the Baltic to 27°S in southern
 Africa and from Senegal east to Kazakhstan. The tags recorded every five
 minutes; this is thinned to hourly.
 
@@ -50,8 +63,8 @@ crossed where it is narrow: at Gibraltar in the west, or round the eastern end
 through the Levant.
 
 The **Crossing** filter is derived from the data rather than assumed: for each
-bird, the longitude at which it first got south of 36°N. Of the 65, **14 crossed
-at Gibraltar, 10 through the central Mediterranean, 24 by the Levant, and 17
+bird, the longitude at which it first got south of 36°N. Of the 59, **12 crossed
+at Gibraltar, 9 through the central Mediterranean, 24 by the Levant, and 14
 never went south of 36°N at all.**
 
 That last group is not a gap in the data. Some are Spanish birds that no longer
@@ -66,8 +79,9 @@ worth drawing, and both absences are findings rather than omissions.
 **The first six months are one bird.** Every tag but one goes on in June or July
 2013, when that year's chicks were ringed at the nest. Before that there is a
 single South African stork and nothing else — 226 days, 38% of the original
-timeline, one dot. The map starts on 1 June 2013, which drops that bird along
-with the empty stretch.
+timeline, one dot. The map starts on **1 August 2013**, which drops that bird
+along with the empty stretch, and also the two months the new birds spent
+standing around the nest before autumn migration began.
 
 **The Uzbek birds do not migrate.** Six storks of the Ferghana Valley, ranging a
 median of 148 km and never going south of 40°N in up to 365 days each. That is a
@@ -76,7 +90,7 @@ map about movement they were six dots that never moved.
 
 ## The crosses
 
-Twenty-six of the 65 tags stopped because the bird died, which the deposit records.
+Twenty-two of the 59 tags stopped because the bird died, which the deposit records.
 Where that happens the track does not simply vanish: a cross stays at the last
 position. A juvenile's first migration is the most dangerous journey of its
 life, and a track that disappeared silently would read as a coverage gap
@@ -115,14 +129,6 @@ changes as you pan north or south.
 **Positions are rounded** to 10⁻⁵ degrees, about a metre, well under the tags'
 own error.
 
-## Running it
-
-The page fetches its data, so it needs http(s) — GitHub Pages, or locally:
-
-```sh
-python3 -m http.server 8000    # then open http://localhost:8000
-```
-
 ## Rebuilding the data
 
 The data is **not kept in this repository**. The Pages workflow rebuilds it on
@@ -132,7 +138,8 @@ every deploy; to do the same locally:
 python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
     --match gps reference-data README --out data/raw/storks
 python3 scripts/build_storks.py         # -> data/processed/storks.json
-python3 scripts/build_basemap.py        # -> basemap.json, land and sea baked in
+python3 scripts/build_landcover.py      # -> water and greenness, ~15 min, cached
+python3 scripts/build_basemap.py        # -> basemap.json, the whole backdrop baked in
 python3 scripts/build_standalone.py     # -> dist/, one self-contained file
 ```
 
@@ -155,9 +162,17 @@ Flack, A., Fiedler, W., Blas, J., et al. (2016). *Costs of migratory decisions:
 a comparison across eight white stork populations.* Science Advances 2:e1500931.
 Data: `doi:10.5441/001/1.78152p3q`, Movebank Data Repository, CC0.
 
-Backdrop: elevation and bathymetry from Terrain Tiles on AWS Open Data
-(Mapzen/Nextzen terrarium) — SRTM and GMTED on land, ETOPO1 and other surveys
-at sea. Height sets the colour and slope sets how it is lit, because height is
-what matters to a soaring bird: thermals form over warm broken ground, so the
-Atlas, the Iberian meseta, the Anatolian plateau and the Ethiopian highlands are
-the corridors, and the Sahara between them is the barrier.
+Backdrop, from two measured sources:
+
+- Elevation and bathymetry — Terrain Tiles on AWS Open Data (Mapzen/Nextzen
+  terrarium), SRTM and GMTED on land, ETOPO1 and other surveys at sea. Height
+  sets the colour and slope sets how it is lit, because height is what a soaring
+  bird lives on: thermals form over warm broken ground, so the Atlas, the
+  Iberian meseta, the Anatolian plateau and the Ethiopian highlands are the
+  corridors.
+- Water and vegetation — ESA WorldCover 2021 v200 (CC BY 4.0), 10 m global land
+  cover on AWS Open Data, read at its coarsest internal overview and reduced to
+  about 5 km. Lakes, the Nile, the Niger and the Sudd are drawn as water; the
+  green is a faint wash keyed to tree, shrub, grass and crop cover. Its job is
+  one edge: the Sahara is bare and the Sahel below it is not, and that line is
+  where the desert crossing ends.
