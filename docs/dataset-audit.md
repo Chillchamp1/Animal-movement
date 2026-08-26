@@ -73,6 +73,25 @@ the movement, which requires per-fix coordinates and timestamps upstream.
 | `crwOut_ALL_wCovs_for_pub.RData` | 26.5 MB | continuous-time random-walk output, all species, with covariates |
 | `NE_/OK_covariates_30m.RData`, `*_grid_mask.tif`, `*_covariates_1km.RData` | 428 MB | RSF/HMM landscape layers for the two study areas — not animal data |
 
+The 428 MB of landscape layers are worth more than their "not animal data"
+row suggests. The Okavango deposit's largest documented gap is that *"the 25 m
+habitat raster behind the original analysis was not deposited"* — which left
+that map with a mixed-date satellite mosaic and no measured ground under the
+animals at all. This deposit ships what that one withheld: land cover, terrain
+and canopy structure at 30 m, over the real study areas, for roughly the study
+period. The paper's RSFs are fitted from these rasters, so with the published
+coefficients the predator utilisation surfaces are reconstructible too — the
+Okavango range layers' equivalent, except here with real predator tracks to
+draw *over* them rather than in place of them.
+
+What argues against them is logistics rather than value: 428 MB raw, `.RData`
+stacks that need R to open, a CRS and extent that have to line up with the
+fixes, and two separate study areas — so two map extents, not one continuous
+canvas. Any browser map would downsample them heavily in any case, and the
+`*_covariates_1km.RData` pair is that aggregation already done, at 0.5 MB for
+both. All of it waits on the fixes: rasters with nothing to put on them are
+decoration.
+
 **Status: unverified.** Dryad now gates every download route — the API path
 returns `401 Unauthorized, must have current bearer token`, and the web path
 sits behind an Anubis proof-of-work interstitial. The file names and sizes
@@ -120,7 +139,15 @@ fix time. Nothing here is mappable as movement.
 ## What this leaves
 
 Deposit 2 is the only one that can carry a predator-and-prey movement map, and
-it is unverified. If it turns out to hold coordinates and timestamps for all
+it is unverified. The cheapest thing that settles it is the two predator files
+— `wolf_dat_all_for_pub.RData` (4.0 MB) and `coug_dat_all_for_pub.RData`
+(14.6 MB). Predator positions are precisely what Okavango lacked, so if those
+two carry coordinates and timestamps the question is answered and the three
+larger prey files can follow; adding the two 1 km covariate files (0.5 MB)
+settles at the same time what the landscape stack actually contains, rather
+than inferring it from file names.
+
+If it turns out to hold coordinates and timestamps for all
 five species, the map's time model has to change: these are real calendar
 dates, so the de-interleaving, the per-collar day loop and the "day N of M"
 counter all come out and are replaced by a calendar clock, predators become a
