@@ -7,7 +7,8 @@ prey**, or only the analysis tables that were derived from them?
 The Okavango deposit ([doi:10.5061/dryad.w0vt4b8zr]) failed that test on the
 predator side: it shipped herbivore coordinates but no lion or wild dog
 positions, only their activity windows and a utilisation polygon. Four
-candidate replacements were audited. This is what they contain.
+candidate replacements were audited. **All four fail it too**, and this is
+what they contain instead.
 
 Reproduce with:
 
@@ -20,7 +21,7 @@ python3  scripts/profile_tables.py data/raw/<slug>/*.csv      # .csv / .xlsx
 | # | Deposit | Predator fixes | Prey fixes | Timestamps | Usable for a movement map |
 |---|---------|----------------|------------|------------|---------------------------|
 | 1 | [`63xsj3v81`] wolves + caribou, Québec | no | no | no | **No** — monthly summary table only |
-| 2 | [`kh1893292`] eastern Washington, 5 species | unverified | unverified | unverified | **Pending** — download blocked, see below |
+| 2 | [`kh1893292`] eastern Washington, 5 species | coordinates removed | coordinates removed | season label only | **No** — depositors stripped the coordinates |
 | 3 | [`51c59zwkg`] cougar + mule deer | no | coordinates removed | yes | **No** — depositors stripped the coordinates |
 | 4 | [`4xgxd257z`] wolves, ambush sites | no | no | date only | **No** — attribute table, no geometry |
 
@@ -92,12 +93,59 @@ canvas. Any browser map would downsample them heavily in any case, and the
 both. All of it waits on the fixes: rasters with nothing to put on them are
 decoration.
 
-**Status: unverified.** Dryad now gates every download route — the API path
-returns `401 Unauthorized, must have current bearer token`, and the web path
-sits behind an Anubis proof-of-work interstitial. The file names and sizes
-above come from the Dryad API, which still serves metadata freely; the
-*contents* have not been inspected, and deposit 3 below is the standing
-reminder that plausible file names are not evidence.
+**Verified, and it fails the same test as deposit 3.** The deposit's own README
+says so three times, and the files bear it out:
+
+> The coordinates of each observation are excluded due to sensitivity of the
+> information.
+
+Byte-verified against `wolf_dat_all_for_pub.RData` and
+`coug_dat_all_for_pub.RData` (`docs/kh1893292-dryad-readme.md` holds the
+deposit's README):
+
+| | wolves | cougars |
+|---|---|---|
+| rows | 253,050 | 959,805 |
+| of which real fixes (`Used == 1`) | 12,050 | 45,705 |
+| individuals | 13 | 42 |
+| coordinate columns | **none** | **none** |
+| time columns | **none** | **none** |
+
+What each row carries instead is the covariate values sampled at that location
+— `Elev`, `Slope`, `RoadDen`, `Dist2Water`, `HumanMod`, `CanopyCover`,
+`Dist2Edge`, `Landcover_type` — plus a `Season` label (`Summer18`,
+`Winter1819`, …). That is the coarsest time signal of the four deposits: not a
+date, not an hour, a six-level factor spanning three years. Most rows are not
+even fixes: the RSF design samples 20 available points per used one, so 95% of
+the table is random background.
+
+`crwOut_ALL_wCovs_for_pub.RData` is documented as holding `time` (floored to
+the hour), `step`, `angle` and `burst` per animal — but the README states the
+coordinates are excluded there too. Step lengths and turning angles integrate
+into a trajectory *shape*, at true scale and true timing, but with no origin
+and no initial bearing it cannot be placed on the ground, and no two animals
+can be placed relative to each other — which is exactly the predator-prey
+geometry the map would exist to show.
+
+The coordinates were withheld deliberately, to protect animals from being
+located: they are available only to qualified researchers via the Wildlife
+Chief Scientist of the Washington Department of Fish and Wildlife. Every fix
+does carry a covariate signature, and the covariate rasters cover the whole
+study area, so the withheld positions are in principle recoverable by matching
+signatures against the grid. **That is not a route this project will take.**
+Undoing a de-identification that exists to keep collared cougars and wolves
+from being found is not a reconstruction problem, it is the harm the measure
+was put there to prevent. The Okavango reconstruction was legitimate because
+nothing there was withheld for safety — only a sort order had destroyed the
+chronology.
+
+The landscape data is a different matter and is genuinely usable:
+`NE_covariates_1km.RData` holds 11,758 rows, one per 1 km pixel, with
+elevation, slope, road density, distance to water, human modification, and
+canopy cover / distance-to-edge / land cover in per-year versions (2018, 2019,
+2020). Its `ID` is the raster grid index, so the accompanying `.tif` supplies
+the georeference. Measured ground, properly placed — with nothing left to
+draw on it.
 
 ## 3. Abernathy et al. 2025 — cougar, deer and human presence
 
@@ -138,21 +186,31 @@ fix time. Nothing here is mappable as movement.
 
 ## What this leaves
 
-Deposit 2 is the only one that can carry a predator-and-prey movement map, and
-it is unverified. The cheapest thing that settles it is the two predator files
-— `wolf_dat_all_for_pub.RData` (4.0 MB) and `coug_dat_all_for_pub.RData`
-(14.6 MB). Predator positions are precisely what Okavango lacked, so if those
-two carry coordinates and timestamps the question is answered and the three
-larger prey files can follow; adding the two 1 km covariate files (0.5 MB)
-settles at the same time what the landscape stack actually contains, rather
-than inferring it from file names.
+**All four fail.** Three of them — deposits 2, 3 and 4 — hold per-fix rows
+with covariates, behaviour metrics or attributes but no geometry; deposit 1
+holds monthly means. Two of the four had their coordinates removed
+deliberately, for animal safety, which is a decision to respect rather than a
+problem to solve.
 
-If it turns out to hold coordinates and timestamps for all
-five species, the map's time model has to change: these are real calendar
-dates, so the de-interleaving, the per-collar day loop and the "day N of M"
-counter all come out and are replaced by a calendar clock, predators become a
-second set of moving points, and the proximity rings can show measured distance
-instead of range overlap.
+The pattern is worth naming, because it will recur: what gets deposited is
+what the analysis consumed, and modern movement analyses — RSFs, HMMs, step
+selection — consume *covariates extracted at locations*, not the locations.
+The coordinates drop out one step before publication. Okavango was the
+exception only because its RSF tables happened to keep the projected
+coordinates in order to be reproducible.
+
+So the search criterion for the next candidate is not "predator-prey study
+with GPS collars". It is a deposit whose files carry a coordinate pair and a
+timestamp per row, for both guilds. Sources where that is the norm rather than
+the exception — Movebank studies published under an open licence, where the
+deposit *is* the collar download rather than an analysis table — are the place
+to look next.
+
+If a deposit ever does check out, the map's time model has to change: these
+are real calendar dates, so the de-interleaving, the per-collar day loop and
+the "day N of M" counter all come out and are replaced by a calendar clock,
+predators become a second set of moving points, and the proximity rings can
+show measured distance instead of range overlap.
 
 [doi:10.5061/dryad.w0vt4b8zr]: https://doi.org/10.5061/dryad.w0vt4b8zr
 [`63xsj3v81`]: https://doi.org/10.5061/dryad.63xsj3v81
