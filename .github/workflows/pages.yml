@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
-# index.html carries no build step, but it fetches its tracks at runtime, so
-# the job publishes the repository as it stands — the page and
-# data/processed together — rather than a compiled artifact.
+# index.html carries no build step of its own, but it fetches its tracks at
+# runtime and the data is deliberately not kept in the repository. The job
+# therefore fetches the Movebank deposits and rebuilds data/processed before
+# publishing, so the live page has something to load.
 on:
   push:
     branches: [claude/animal-movement-map-jvg57p]
@@ -27,6 +28,23 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch the Movebank deposits
+        run: |
+          python -m pip install --quiet pandas numpy
+          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.712
+          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.711
+
+      - name: Build the tracks and layers
+        run: |
+          python3 scripts/build_utah.py
+          python3 scripts/build_utah_layers.py
+          # The 839 MB of raw CSV must not reach the Pages artifact.
+          rm -rf data/raw
 
       # enablement turns Pages on and points its source at this workflow,
       # so the site needs no visit to the repository settings.

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>A day in the Delta</title>
-<meta name="description" content="Hourly GPS tracks of impala, tsessebe, wildebeest and zebra in the Okavango Delta, animated against lion and wild dog activity.">
+<title>Cougars and their prey</title>
+<meta name="description" content="Two-hourly GPS tracks of cougars, elk and mule deer in the northern Wasatch, Utah, on one calendar clock, with the measured distance between predator and prey.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
@@ -16,11 +16,13 @@
     --bg-bot:#0a1018;
     --ink:#e9eff7; --ink-2:#a7b3c4; --ink-3:#78859a;
     --rule:rgba(39,51,63,0.7); --panel:rgba(13,20,30,0.82);
-    --zebra:#5aa9ff; --wildebeest:#b98cff; --tsessebe:#35d69a; --impala:#ffd93d;
-    --dog:#ff7a45; --lion:#ff8fd8;
+    --muledeer:#5aa9ff; --elk:#35d69a; --cougar:#ff7a45;
+    /* A ring means a collared cougar was measurably close, so it is drawn in
+       the cougar's own colour rather than a separate alarm colour. */
+    --near:#ff7a45;
     /* Landscape layer: two muted, desaturated washes, so the animals stay the
        brightest thing on the map even with a layer switched on. */
-    --dry-bias:#b08d57; --rainy-bias:#4a8f9e;
+    --y2019:#b08d57; --y2020:#4a8f9e;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -47,7 +49,7 @@
     font:inherit;font-size:0.72rem;
   }
   .row button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
-  /* Impala were only collared in the dry season; the pill says so rather than
+  /* A species with no collars in the selected year says so rather than
      sitting lit with nothing behind it. */
   .row button[data-unavailable="true"]{opacity:0.3;cursor:not-allowed}
   .row button[data-unavailable="true"]::after{content:" \2014";letter-spacing:0.1em}
@@ -71,15 +73,16 @@
   #clock .mins{opacity:0.6}
   #day{margin-top:2px;font-size:0.68rem;letter-spacing:0.06em;color:var(--ink-3);
        font-family:"IBM Plex Mono",monospace;}
-  /* Two lamps: which predator is in its active window right now. */
-  #lamps{margin-top:7px;display:flex;gap:14px;justify-content:center;font-size:0.63rem;
+  /* One lamp and one readout, both measured: whether the collared cougars are
+     moving at this hour, and how close the nearest one actually is. */
+  #lamps{margin-top:7px;display:flex;gap:16px;justify-content:center;font-size:0.63rem;
          font-family:"IBM Plex Mono",monospace;letter-spacing:0.1em;text-transform:uppercase}
   #lamps span{color:var(--ink-3);opacity:0.42;transition:opacity 0.25s,color 0.25s}
-  #lamps span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
-                      background:currentColor;margin-right:5px;vertical-align:middle}
-  #lamps span[data-on="true"]{opacity:1}
-  #lampDog[data-on="true"]{color:var(--dog)}
-  #lampLion[data-on="true"]{color:var(--lion)}
+  #lampCoug::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+                    background:currentColor;margin-right:5px;vertical-align:middle}
+  #lampCoug[data-on="true"]{opacity:1;color:var(--cougar)}
+  #nearest{opacity:1;color:var(--ink-3)}
+  #nearest[data-close="true"]{color:var(--near)}
 
   /* ---- panels ---------------------------------------------------------- */
   .panel{
@@ -92,7 +95,7 @@
     color:var(--ink-3);font-weight:500;margin-bottom:9px;
   }
   /* The legend folds away: on a wide screen it sits over the map, and at full
-     extent there is no room to pan the delta out from under it. */
+     extent there is no room to pan the map out from under it. */
   #legendToggle{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
     width:100%;padding:0;border:0;background:none;
@@ -138,7 +141,7 @@
   #scrub::-moz-range-thumb{width:3px;height:44px;border:0;border-radius:1px;background:var(--ink);cursor:pointer}
   #scrub:focus-visible{outline:1px solid var(--ink-3);outline-offset:2px}
 
-  #meta{position:absolute;z-index:3;left:14px;top:106px;max-width:252px;
+  #meta{position:absolute;z-index:3;left:14px;top:146px;max-width:252px;
         font-size:0.68rem;line-height:1.5;color:var(--ink-3);
         background:rgba(5,8,14,.62);padding:9px 12px;border-radius:8px}
   #meta strong{color:var(--ink-2);font-weight:500}
@@ -188,19 +191,19 @@
   </div>
 
   <header>
-    <div id="clock">00<span class="mins">:00</span></div>
+    <div id="clock">1 Jan<span class="mins"> 00:00</span></div>
     <div id="day">day 1</div>
     <div id="lamps">
-      <span id="lampDog" data-on="false">wild dog</span>
-      <span id="lampLion" data-on="false">lion</span>
+      <span id="lampCoug" data-on="false">cougars moving</span>
+      <span id="nearest">nearest cougar &mdash;</span>
     </div>
   </header>
 
   <div id="meta">
-    <strong>Okavango Delta, Botswana</strong><br>
-    Hourly GPS fixes reconstructed from Bennitt et al. (2024).
-    Positions are real; calendar dates are not in the deposit, so days count
-    from each collar's first fix.
+    <strong>Northern Wasatch, Utah</strong><br>
+    Two-hourly GPS fixes from Utah DWR, 2019&ndash;2020. Real dates, real
+    positions, both guilds on one clock: a ring is a measured distance to a
+    cougar that was there at that hour.
   </div>
 
   <button id="notesbtn" aria-expanded="false">Data notes &amp; gaps</button>
@@ -235,19 +238,18 @@
 /* ------------------------------------------------------------------ model */
 
 const SPECIES = {
-  zebra:      {label:"Zebra",      role:"zebra",      seasons:["dry","rainy"]},
-  wildebeest: {label:"Wildebeest", role:"wildebeest", seasons:["dry","rainy"]},
-  tsessebe:   {label:"Tsessebe",   role:"tsessebe",   seasons:["dry","rainy"]},
-  impala:     {label:"Impala",     role:"impala",     seasons:["dry"]},
+  muledeer: {label:"Mule deer", role:"muledeer", guild:"prey"},
+  elk:      {label:"Elk",       role:"elk",      guild:"prey"},
+  cougar:   {label:"Cougar",    role:"cougar",   guild:"predator"},
 };
-const SPECIES_ORDER = ["zebra","wildebeest","tsessebe","impala"];
+const SPECIES_ORDER = ["muledeer","elk","cougar"];
+const SEASON_ORDER  = ["2019","2020"];
 
-/* Predator activity is a function of hour-of-day. These windows are the ones
-   the deposit itself encodes, recovered while de-interleaving the tables. */
-const DOG_HOURS  = new Set([4,5,6,7,8,17,18,19]);
-const LION_HOURS = new Set([18,19,20,21,22,23,0,1,2,3,4,5,6,7]);
-const dogActive  = h => DOG_HOURS.has(h);
-const lionActive = h => LION_HOURS.has(h);
+/* Both deposits carry cougars and prey on the same two-hour schedule, so the
+   builder could measure, for every fix, how far away the nearest animal of the
+   other guild actually was at that hour. A ring fades in below this distance
+   rather than switching on at a line. */
+const NEAR_M = 1000;
 
 const pick = name => getComputedStyle(document.documentElement)
   .getPropertyValue("--" + name).trim();
@@ -257,19 +259,22 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-let sel = {species:new Set(["zebra"]), season:"dry", layer:"none", imagery:false};
+let sel = {species:new Set(["muledeer","elk","cougar"]), season:"2019",
+           layer:"none", imagery:false};
+let SEASON = null;        /* the loaded season payload */
 let TRACKS = [];          /* flattened, currently displayed */
-let RISK = null;          /* predator-risk.json */
-let SEASONAL = null;      /* seasonal-shift.json */
-let SPAN = 1;             /* total hours on the clock */
-let BOUNDS = null;        /* {lon0,lat0,lon1,lat1} of the current selection */
+let USE = null;           /* cougar-use.json */
+let SHIFT = null;         /* year-shift.json */
+let SPAN = 1;             /* slots on the clock */
+let BOUNDS = null;        /* {lon0,lat0,lon1,lat1} of the season */
+let COUGAR_HOURS = new Set();
 const CACHE = new Map();
 
 /* ------------------------------------------------------------------ load */
 
 /* Served from a directory the page can fetch, or inlined ahead of this script
    by scripts/build_standalone.py for a single-file build. */
-const INLINE = (typeof window !== "undefined" && window.__DELTA_DATA__) || null;
+const INLINE = (typeof window !== "undefined" && window.__WASATCH_DATA__) || null;
 
 async function loadJSON(name){
   if (INLINE) return INLINE[name] ?? null;
@@ -278,97 +283,82 @@ async function loadJSON(name){
   return res.json();
 }
 
-async function loadSpeciesSeason(sp, season){
-  const key = sp + "-" + season;
-  if (CACHE.has(key)) return CACHE.get(key);
-  const raw = await loadJSON(key);
-  if (!raw) throw new Error(`no data for ${key}`);
+/* Nothing here has to be reconstructed: every fix arrived with a coordinate
+   pair and a timestamp, so a slot index is just elapsed two-hour steps from
+   the season's first fix. Segments hold consecutive slots only -- wherever a
+   collar missed even one fix the segment ends, and nothing is drawn across it. */
+async function loadSeason(season){
+  if (CACHE.has(season)) return CACHE.get(season);
+  const raw = await loadJSON("tracks-" + season);
+  if (!raw) throw new Error(`no data for ${season}`);
 
-  /* Build one continuous hourly timeline per individual. Inside a segment the
-     step is one hour. Across a gap the deposit cannot say how many hours were
-     lost, only the hour-of-day on either side, so the gap is taken as the
-     smallest positive number of hours consistent with both -- which keeps every
-     animal's diel phase exact and never invents a longer absence than the data
-     requires. */
-  const inds = raw.individuals.map(ind => {
+  const S = raw.scale, ox = raw.origin.lon, oy = raw.origin.lat;
+  const individuals = raw.individuals.map(ind => {
     let n = 0;
-    for (const s of ind.segments) n += s.coords.length;
-    const times = new Int32Array(n);
+    for (const seg of ind.segments) n += seg.d.length;
+    const slots = new Int32Array(n);
     const lons  = new Float32Array(n);
     const lats  = new Float32Array(n);
-    const uiDog = new Float32Array(n);
-    const uiLion= new Float32Array(n);
-    /* Marks the first fix of a segment. The collar could have been silent for
-       days, and the hours on either side cannot tell us how many; nothing is
-       ever drawn across one of these, however small the inferred gap. */
-    const brk   = new Uint8Array(n);
+    const dist  = new Uint8Array(n);   /* to the other guild, in distUnitM steps */
+    const brk   = new Uint8Array(n);   /* first fix of a segment */
 
-    let i = 0, t = 0, prevHour = null;
+    let i = 0;
     for (const seg of ind.segments){
-      if (prevHour === null) t = seg.startHour;
-      else {
-        const gap = (seg.startHour - prevHour + 24) % 24;
-        t += (gap === 0 ? 24 : gap);
-        brk[i] = 1;
+      let x = 0, y = 0;
+      brk[i] = 1;
+      for (let j = 0; j < seg.d.length; j++){
+        x += seg.x[j]; y += seg.y[j];
+        slots[i] = seg.t + j;
+        lons[i]  = ox + x / S;
+        lats[i]  = oy + y / S;
+        dist[i]  = seg.d[j];
+        i++;
       }
-      for (let j = 0; j < seg.coords.length; j++){
-        const c = seg.coords[j];
-        times[i] = t; lons[i] = c[0]; lats[i] = c[1];
-        uiDog[i] = c[2]; uiLion[i] = c[3];
-        i++; if (j < seg.coords.length - 1) t += 1;
-      }
-      prevHour = (seg.startHour + seg.coords.length - 1) % 24;
     }
-    return {id:ind.id, species:sp, n, times, lons, lats, uiDog, uiLion, brk,
-            t0:times[0], t1:times[n-1]};
+    return {id:ind.id, species:ind.sp, n, slots, lons, lats, dist, brk,
+            t0:slots[0], t1:slots[n-1]};
   });
 
-  const out = {meta:raw, individuals:inds};
-  CACHE.set(key, out);
+  const out = {meta:raw, epoch:Date.parse(raw.epoch), individuals};
+  CACHE.set(season, out);
   return out;
 }
 
-/* A fix counts as high-exposure when the predator's utilisation there sits in
-   the top decile of everything that animal experienced. */
-function exposureThresholds(inds){
-  const gather = f => {
-    const all = [];
-    for (const ind of inds) for (let i = 0; i < ind.n; i++) all.push(f(ind, i));
-    all.sort((a,b)=>a-b);
-    return all.length ? all[Math.floor(all.length * 0.9)] : Infinity;
-  };
-  return {
-    dog:  gather((ind,i)=>ind.uiDog[i]),
-    lion: gather((ind,i)=>ind.uiLion[i]),
-  };
+/* In the Okavango map the predator lamps came from activity windows the
+   deposit stated, because no predator was ever positioned. Here the cougars
+   are in the data, so their own median step length per hour-of-day says when
+   they were on the move. */
+function activeHours(diel, stepHours){
+  const d = (diel && diel.cougar) || null;
+  if (!d) return new Set();
+  const vals = Object.values(d).slice().sort((a,b) => a - b);
+  if (!vals.length) return new Set();
+  const median = vals[(vals.length - 1) >> 1];
+  const on = new Set();
+  for (const [key, v] of Object.entries(d)){
+    if (v < median) continue;
+    /* Each figure is the median distance covered by a step *ending* at that
+       hour, and the collars only fire every second hour. Marking the single
+       sampled hour would leave the lamp dark through every hour in between,
+       which would be an artefact of the schedule rather than a measurement --
+       so the whole step the figure describes is marked. */
+    const h = Number(key);
+    for (let k = 1; k <= stepHours; k++) on.add(((h - k) % 24 + 24) % 24);
+  }
+  return on;
 }
 
 async function rebuild(){
-  const wanted = [];
-  for (const sp of SPECIES_ORDER){
-    if (!sel.species.has(sp)) continue;
-    if (!SPECIES[sp].seasons.includes(sel.season)) continue;
-    wanted.push(sp);
-  }
-  const loaded = await Promise.all(wanted.map(sp => loadSpeciesSeason(sp, sel.season)));
+  SEASON = await loadSeason(sel.season);
+  COUGAR_HOURS = activeHours(SEASON.meta.diel, SEASON.meta.stepHours);
+  TRACKS = SEASON.individuals.filter(t => sel.species.has(t.species));
+  SPAN = SEASON.meta.steps;
+  if (simT >= SPAN) simT = 0;
 
-  TRACKS = [];
-  for (const set of loaded){
-    const th = exposureThresholds(set.individuals);
-    for (const ind of set.individuals) TRACKS.push(Object.assign({th}, ind));
-  }
-
-  /* Collars fail at different times: by the end of the longest record most of
-     the others have long since stopped, which left one or two animals moving
-     over everyone else's fixes. Each collar therefore repeats its own record,
-     on a period rounded up to whole days so that hour-of-day - the only real
-     clock this data has - stays exact for every animal at once. */
-  for (const t of TRACKS) t.period = Math.max(24, Math.ceil((t.t1 + 1) / 24) * 24);
-
-  SPAN = 1;
+  /* Frame the whole season, not just the current selection, so switching a
+     species on or off does not move the map out from under the viewer. */
   let lo0 = Infinity, la0 = Infinity, lo1 = -Infinity, la1 = -Infinity;
-  for (const t of TRACKS){
-    if (t.period > SPAN) SPAN = t.period;
+  for (const t of SEASON.individuals){
     for (let i = 0; i < t.n; i++){
       if (t.lons[i] < lo0) lo0 = t.lons[i];
       if (t.lons[i] > lo1) lo1 = t.lons[i];
@@ -376,10 +366,9 @@ async function rebuild(){
       if (t.lats[i] > la1) la1 = t.lats[i];
     }
   }
-  BOUNDS = TRACKS.length ? {lon0:lo0, lat0:la0, lon1:lo1, lat1:la1} : null;
-  if (simH > SPAN) simH = 0;
+  BOUNDS = SEASON.individuals.length ? {lon0:lo0, lat0:la0, lon1:lo1, lat1:la1} : null;
 
-  CAM = null;          /* a new selection reframes */
+  CAM = null;          /* a new season reframes */
   resize();
   buildLegend();
   buildProfile();
@@ -388,8 +377,9 @@ async function rebuild(){
 }
 
 function syncSpeciesPills(){
+  const present = new Set((SEASON ? SEASON.individuals : []).map(t => t.species));
   for (const b of document.querySelectorAll("#spRow button")){
-    const ok = SPECIES[b.dataset.key].seasons.includes(sel.season);
+    const ok = present.has(b.dataset.key);
     b.dataset.unavailable = String(!ok);
     b.setAttribute("aria-pressed", String(ok && sel.species.has(b.dataset.key)));
   }
@@ -407,9 +397,9 @@ let baseReady = false;
    Both are held as a centre plus a longitude span, so the aspect correction
    is applied in one place. */
 let HOME = null, CAM = null, BOX = null;
-const MAX_ZOOM = 400;   /* a 100 m-wide view of a 40 km range */
+const MAX_ZOOM = 400;   /* a 250 m-wide view of a 100 km block */
 
-/* Equirectangular, with the longitude axis squeezed by cos(lat) so the delta
+/* Equirectangular, with the longitude axis squeezed by cos(lat) so the block
    keeps its shape at this latitude. */
 function boxOf(cam){
   const spanLat = cam.spanLon * kLat / (W / H);
@@ -441,7 +431,7 @@ function fitHome(keepCam){
 
 /* Slack beyond the data's own frame, in fractions of the current view. The
    panels sit over the map, so at full extent there has to be room to nudge the
-   delta out from under the legend -- with no slack the camera is pinned and a
+   ground out from under the legend -- with no slack the camera is pinned and a
    drag does nothing. */
 const PAN_SLACK = 0.45;
 
@@ -532,8 +522,8 @@ function renderBase(){
   if (!BOUNDS){ baseReady = true; return; }
 
   if (sel.imagery) drawTiles(b);
-  if (sel.layer === "dog" || sel.layer === "lion") drawRisk(b);
-  else if (sel.layer === "seasonal") drawSeasonal(b);
+  if (sel.layer === "cougar") drawCougarUse(b);
+  else if (sel.layer === "shift") drawYearShift(b);
 
   drawScale(b);
   baseReady = true;
@@ -609,49 +599,55 @@ function updateAttrib(){
     : TILES.attribution;
 }
 
-/* Dry-versus-rainy occupancy for the animals collared in both seasons. In the
-   Okavango the flood arrives in the dry season, so this traces the flood-driven
-   structure of the range -- as animal behaviour, not as mapped water. */
-const seasonalCv = document.createElement("canvas");
-function drawSeasonal(b){
-  if (!SEASONAL) return;
-  const {nx, ny, cells} = SEASONAL;
-  if (seasonalCv.width !== nx || seasonalCv.height !== ny){
-    seasonalCv.width = nx; seasonalCv.height = ny;
+const shiftCv = document.createElement("canvas");
+/* January-to-May occupancy in 2019 against 2020, for the 96 animals collared in
+   both years. Restricting it to those animals is what makes it a comparison of
+   behaviour rather than of who happened to be wearing a collar -- and it is a
+   map of where they went, not of snow or forage. */
+function drawYearShift(b){
+  if (!SHIFT) return;
+  const {nx, ny, cells} = SHIFT;
+  if (shiftCv.width !== nx || shiftCv.height !== ny){
+    shiftCv.width = nx; shiftCv.height = ny;
   }
-  const sc = seasonalCv.getContext("2d");
+  const sc = shiftCv.getContext("2d");
   const img = sc.createImageData(nx, ny);
-  const dryCol = hexRGB(pick("dry-bias")), wetCol = hexRGB(pick("rainy-bias"));
+  const aCol = hexRGB(pick("y2019")), bCol = hexRGB(pick("y2020"));
   for (let iy = 0; iy < ny; iy++){
     for (let ix = 0; ix < nx; ix++){
       const v = cells[iy*nx + ix];
       const o = ((ny-1-iy)*nx + ix) * 4;
       if (!v){ img.data[o+3] = 0; continue; }
-      const col = v > 0 ? dryCol : wetCol;
+      const col = v > 0 ? aCol : bCol;
       img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2];
-      img.data[o+3] = Math.round(Math.min(1, Math.abs(v)/100) * 165);
+      /* Kept well under the cougar layer's weight: this one covers the whole
+         block, and the animals have to stay the brightest thing on it. */
+      img.data[o+3] = Math.round(Math.min(1, Math.abs(v)/100) * 115);
     }
   }
   sc.putImageData(img, 0, 0);
-  const R = SEASONAL.bounds;
+  const R = SHIFT.bounds;
   b.save();
   b.imageSmoothingEnabled = true;
   b.globalAlpha = 0.9;
-  b.drawImage(seasonalCv, px(R.lon0), py(R.lat1),
+  b.drawImage(shiftCv, px(R.lon0), py(R.lat1),
               px(R.lon1) - px(R.lon0), py(R.lat0) - py(R.lat1));
   b.restore();
 }
 
 let riskCv = document.createElement("canvas");
-function drawRisk(b){
-  const state = riskState();
-  const surf = RISK.surfaces[sel.layer + "-" + state];
+/* Where the collared cougars actually were this season. Unlike the Okavango
+   range layers this is an observation, so it does not switch between an active
+   and an inactive state -- there is only one place a cougar was. */
+function drawCougarUse(b){
+  if (!USE) return;
+  const surf = USE.surfaces[sel.season];
   if (!surf) return;
-  const {nx, ny} = RISK;
+  const {nx, ny} = USE;
   if (riskCv.width !== nx || riskCv.height !== ny){ riskCv.width = nx; riskCv.height = ny; }
   const rc = riskCv.getContext("2d");
   const img = rc.createImageData(nx, ny);
-  const col = hexRGB(pick(sel.layer));
+  const col = hexRGB(pick("cougar"));
   for (let iy = 0; iy < ny; iy++){
     for (let ix = 0; ix < nx; ix++){
       const v = surf.cells[iy*nx + ix];
@@ -663,7 +659,7 @@ function drawRisk(b){
   }
   rc.putImageData(img, 0, 0);
 
-  const R = RISK.bounds;
+  const R = USE.bounds;
   const x0 = px(R.lon0), x1 = px(R.lon1), y0 = py(R.lat1), y1 = py(R.lat0);
   b.save();
   b.imageSmoothingEnabled = true;
@@ -700,8 +696,8 @@ function drawScale(b){
   const room = bandR - bandL;
   if (room < 60 || y < 40) return;
 
-  let km = 50;
-  for (const cand of [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
+  let km = 100;
+  for (const cand of [500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
     km = cand;
     if (cand * pxPerKm <= room - 40) break;
   }
@@ -728,95 +724,136 @@ function drawScale(b){
 
 /* --------------------------------------------------------------- playback */
 
-let simH = 0;                  /* hours since the clock's zero */
-let hoursPerSecond = 6;
+let simT = 0;                  /* two-hour slots since the season's first fix */
+let slotsPerSecond = 6;        /* 6 slots = half a day per second */
 let playing = true;
 let lastFrame = performance.now();
+let nearestNow = null;         /* metres to the closest measured encounter on screen */
 
-const hourOfDay = () => ((Math.floor(simH) % 24) + 24) % 24;
-const riskState = () => {
-  const h = hourOfDay();
-  return (sel.layer === "dog" ? dogActive(h) : lionActive(h)) ? "high" : "low";
-};
+const MS_PER_SLOT = 2 * 3600 * 1000;
+const clockDate = () => new Date((SEASON ? SEASON.epoch : 0) + simT * MS_PER_SLOT);
+const hourOfDay = () => clockDate().getUTCHours();
+const cougarActive = h => COUGAR_HOURS.has(h);
 
-/* Where this collar is in its own repeating record. The period is a whole
-   number of days, so the hour-of-day this returns always equals the clock's. */
-const localH = (t, h) => ((h % t.period) + t.period) % t.period;
-
-/* Position at a fractional hour, or null inside a gap / outside the track. */
-function posAt(t, h){
-  if (h < t.t0 || h > t.t1) return null;
-  const times = t.times;
+/* Position at a fractional slot, or null inside a gap / outside the track.
+   Slots inside a segment are consecutive, so a step of more than one slot is
+   a silence and nothing is drawn across it. */
+function posAt(t, at){
+  if (at < t.t0 || at > t.t1) return null;
+  const slots = t.slots;
   let lo = 0, hi = t.n - 1;
   while (lo < hi){
     const mid = (lo + hi + 1) >> 1;
-    if (times[mid] <= h) lo = mid; else hi = mid - 1;
+    if (slots[mid] <= at) lo = mid; else hi = mid - 1;
   }
-  if (lo === t.n - 1) return [px(t.lons[lo]), py(t.lats[lo]), lo];
-  const ta = times[lo], tb = times[lo+1];
-  if (tb - ta > 1 || t.brk[lo+1]) return null;   /* inside a gap: draw nothing */
-  const f = (h - ta) / (tb - ta);
-  return [px(t.lons[lo] + (t.lons[lo+1]-t.lons[lo])*f),
-          py(t.lats[lo] + (t.lats[lo+1]-t.lats[lo])*f), lo];
+  if (lo === t.n - 1) return [px(t.lons[lo]), py(t.lats[lo]), lo, t.lons[lo], t.lats[lo]];
+  const ta = slots[lo], tb = slots[lo+1];
+  if (tb - ta > 1 || t.brk[lo+1]) return null;
+  const f = (at - ta) / (tb - ta);
+  const lon = t.lons[lo] + (t.lons[lo+1]-t.lons[lo])*f;
+  const lat = t.lats[lo] + (t.lats[lo+1]-t.lats[lo])*f;
+  return [px(lon), py(lat), lo, lon, lat];
 }
 
 const DOT_R = 2.1;
 const TRAIL_STEPS = 8;
-const TRAIL_HOURS = 10;
+const TRAIL_SLOTS = 12;        /* a full day of trail behind each animal */
 
 function draw(){
   if (!baseReady) renderBase();
   ctx.drawImage(base, 0, 0, W, H);
   if (!BOUNDS) return;
 
-  const h = hourOfDay();
-  const dogOn = dogActive(h), lionOn = lionActive(h);
-
+  const unit = SEASON ? SEASON.meta.distUnitM : 20;
+  const cap  = SEASON ? SEASON.meta.distCap : 255;
   const z = Math.min(3, Math.sqrt(zoomLevel()));   /* marks grow, but sublinearly */
-  for (const t of TRACKS){
-    const head = posAt(t, localH(t, simH));
-    if (!head) continue;
-    const col = hexRGB(pick(SPECIES[t.species].role));
 
-    /* comet trail, sampled backwards along the track */
+  /* One pass to place everyone, so prey can be linked to the cougar the
+     builder measured them against. */
+  const heads = [], cougars = [];
+  for (const t of TRACKS){
+    const head = posAt(t, simT);
+    if (!head) continue;
+    const rec = {t, head};
+    heads.push(rec);
+    if (SPECIES[t.species].guild === "predator") cougars.push(rec);
+  }
+
+  /* Trails and dots. Prey first, so a cougar is never hidden under one. */
+  heads.sort((a,b) => (SPECIES[a.t.species].guild === "predator") -
+                      (SPECIES[b.t.species].guild === "predator"));
+  for (const {t, head} of heads){
+    const col = hexRGB(pick(SPECIES[t.species].role));
+    const pred = SPECIES[t.species].guild === "predator";
+
     let cx = head[0], cy = head[1];
     for (let k = 1; k <= TRAIL_STEPS; k++){
-      const back = posAt(t, localH(t, simH - (TRAIL_HOURS/TRAIL_STEPS)*k));
+      const back = posAt(t, simT - (TRAIL_SLOTS/TRAIL_STEPS)*k);
       if (!back) break;
-      const a = (1 - k/TRAIL_STEPS) * 0.55;
+      const a = (1 - k/TRAIL_STEPS) * (pred ? 0.72 : 0.55);
       if (a <= 0.02) break;
       ctx.beginPath();
       ctx.moveTo(cx, cy); ctx.lineTo(back[0], back[1]);
       ctx.strokeStyle = rgba(col, a);
-      ctx.lineWidth = Math.max(1/DPR, 2.4 * z * (1 - k/(TRAIL_STEPS+3)));
+      ctx.lineWidth = Math.max(1/DPR, (pred ? 3.0 : 2.4) * z * (1 - k/(TRAIL_STEPS+3)));
       ctx.lineCap = "round";
       ctx.stroke();
       cx = back[0]; cy = back[1];
     }
 
-    /* halo + dot */
-    ctx.beginPath(); ctx.arc(head[0], head[1], 4.0*z, 0, 6.2832);
-    ctx.fillStyle = rgba(col, 0.15); ctx.fill();
-    ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R*z, 0, 6.2832);
+    ctx.beginPath(); ctx.arc(head[0], head[1], (pred ? 5.4 : 4.0)*z, 0, 6.2832);
+    ctx.fillStyle = rgba(col, pred ? 0.20 : 0.15); ctx.fill();
+    ctx.beginPath(); ctx.arc(head[0], head[1], (pred ? DOT_R*1.45 : DOT_R)*z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 0.98); ctx.fill();
-
-    /* Exposure ring: this animal is standing in the top decile of a
-       predator's range while that predator is in its active window. */
-    const i = head[2];
-    const exposed = (dogOn && t.uiDog[i] >= t.th.dog) ? "dog"
-                  : (lionOn && t.uiLion[i] >= t.th.lion) ? "lion" : null;
-    if (exposed){
-      const phase = (simH % 1);
-      const r = (DOT_R + 2 + phase * 9) * z;
-      ctx.beginPath(); ctx.arc(head[0], head[1], r, 0, 6.2832);
-      ctx.strokeStyle = rgba(hexRGB(pick(exposed)), (1 - phase) * 0.55);
-      ctx.lineWidth = Math.max(1/DPR, 1.2);
+    if (pred){    /* an open ring marks the hunters apart from the hunted */
+      ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R*2.5*z, 0, 6.2832);
+      ctx.strokeStyle = rgba(col, 0.7);
+      ctx.lineWidth = Math.max(1/DPR, 1.1);
       ctx.stroke();
     }
   }
+
+  /* Proximity. The distance is measured, precomputed per fix against every
+     collared animal of the other guild at that same hour -- not an overlap
+     with a modelled range. The hairline points at the cougar responsible, so
+     the number on the clock has something to look at. */
+  const nearCol = hexRGB(pick("near"));
+  let nearest = null;
+  for (const {t, head} of heads){
+    if (SPECIES[t.species].guild === "predator") continue;
+    const raw = t.dist[head[2]];
+    if (raw >= cap) continue;                 /* no collared cougar that hour */
+    const m = raw * unit;
+    if (m > NEAR_M) continue;
+    if (nearest === null || m < nearest) nearest = m;
+
+    const closeness = 1 - m/NEAR_M;
+    let best = null, bestD = Infinity;
+    for (const c of cougars){
+      const d = Math.hypot(c.head[0]-head[0], c.head[1]-head[1]);
+      if (d < bestD){ bestD = d; best = c; }
+    }
+    if (best){
+      ctx.beginPath();
+      ctx.moveTo(head[0], head[1]); ctx.lineTo(best.head[0], best.head[1]);
+      ctx.strokeStyle = rgba(nearCol, 0.10 + closeness * 0.45);
+      ctx.lineWidth = Math.max(1/DPR, 0.9);
+      ctx.stroke();
+    }
+    const phase = (simT % 1);
+    ctx.beginPath();
+    ctx.arc(head[0], head[1], (DOT_R + 2 + phase * 9) * z, 0, 6.2832);
+    ctx.strokeStyle = rgba(nearCol, (1 - phase) * (0.25 + closeness * 0.55));
+    ctx.lineWidth = Math.max(1/DPR, 1.2);
+    ctx.stroke();
+  }
+  nearestNow = nearest;
 }
 
 /* ------------------------------------------------------------------- chrome */
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const SLOTS_PER_DAY = 12;
 
 function buildLegend(){
   const rows = document.getElementById("legendRows");
@@ -834,15 +871,12 @@ function buildLegend(){
     el.className = "lg";
     el.innerHTML = `<span class="sw" style="background:${pick(SPECIES[sp].role)}"></span>`
       + `<span class="nm">${SPECIES[sp].label}</span>`
-      + `<span class="ct">${c.inds} collars \u00b7 ${c.fixes.toLocaleString()} fixes</span>`;
+      + `<span class="ct">${c.inds} collars · ${c.fixes.toLocaleString()} fixes</span>`;
     rows.appendChild(el);
   }
-  /* When a landscape layer is on, say what its colours mean. */
   const key = {
-    dog:  [["dog",  "Where wild dogs range, now"]],
-    lion: [["lion", "Where lions range, now"]],
-    seasonal: [["dry-bias",   "Used more in the dry season"],
-               ["rainy-bias", "Used more in the rainy season"]],
+    cougar: [["cougar", "Where the collared cougars were"]],
+    shift:  [["y2019", "Used more in 2019"], ["y2020", "Used more in 2020"]],
   }[sel.layer];
   for (const [token, label] of key || []){
     const el = document.createElement("div");
@@ -852,16 +886,17 @@ function buildLegend(){
     rows.appendChild(el);
   }
 
-  const days = Math.ceil(SPAN/24);
+  const days = Math.ceil(SPAN / SLOTS_PER_DAY);
   document.getElementById("legendFoot").textContent = TRACKS.length
-    ? `${sel.season === "dry" ? "Dry" : "Rainy"} season \u00b7 longest record ${days} days \u00b7 `
-      + `each collar repeats its own record, aligned by time of day \u00b7 `
-      + `rings mark an animal in the top decile of a predator's range while that predator is active.`
+    ? `${sel.season} · ${days} days on one calendar clock, 1 January to mid-May · `
+      + `a ring and its hairline mark a prey animal within ${NEAR_M} m of a collared `
+      + `cougar at that hour — a measured distance, not a modelled range.`
     : "No collars for this combination.";
 }
 
-/* The profile is the real thing the paper is about: how far these animals move
-   in each hour of the day. */
+/* The strip under the scrubber is the season, not the day: mean distance
+   covered per two-hour step, averaged over every animal on screen, one bar per
+   day. Spring shows up in it -- the bars climb as the herds start moving. */
 const prof = document.getElementById("profcv");
 const profBase = document.createElement("canvas");
 let profW = 0, profH = 0;
@@ -874,37 +909,48 @@ function buildProfile(){
   }
   prof.style.width = profW+"px"; prof.style.height = profH+"px";
 
-  const sums = new Float64Array(24), n = new Float64Array(24);
+  const days = Math.max(1, Math.ceil(SPAN / SLOTS_PER_DAY));
+  const sums = new Float64Array(days), n = new Float64Array(days);
   for (const t of TRACKS){
     for (let i = 1; i < t.n; i++){
-      if (t.times[i] - t.times[i-1] !== 1 || t.brk[i]) continue;
+      if (t.slots[i] - t.slots[i-1] !== 1 || t.brk[i]) continue;
       const dLon = (t.lons[i]-t.lons[i-1]) * kLat * 111.32;
       const dLat = (t.lats[i]-t.lats[i-1]) * 110.574;
-      const hh = ((t.times[i-1] % 24) + 24) % 24;
-      sums[hh] += Math.hypot(dLon, dLat) * 1000; n[hh] += 1;
+      const d = Math.floor(t.slots[i-1] / SLOTS_PER_DAY);
+      sums[d] += Math.hypot(dLon, dLat) * 1000; n[d] += 1;
     }
   }
+
   const c = profBase.getContext("2d");
   c.setTransform(DPR,0,0,DPR,0,0);
   c.clearRect(0,0,profW,profH);
   let peak = 1;
-  for (let i=0;i<24;i++) if (n[i] && sums[i]/n[i] > peak) peak = sums[i]/n[i];
+  for (let i=0;i<days;i++) if (n[i] && sums[i]/n[i] > peak) peak = sums[i]/n[i];
 
-  const bw = profW/24;
-  for (let i=0;i<24;i++){
+  const bw = profW/days;
+  const epoch = SEASON ? SEASON.epoch : 0;
+  for (let i=0;i<days;i++){
     const v = n[i] ? sums[i]/n[i] : 0;
     const hgt = (v/peak) * (profH - 12);
-    const dog = dogActive(i), lion = lionActive(i);
-    c.fillStyle = dog ? rgba(hexRGB(pick("dog")), 0.55)
-                : lion ? rgba(hexRGB(pick("lion")), 0.30)
-                : rgba(hexRGB(pick("ink-3")), 0.34);
-    c.fillRect(i*bw + 0.5, profH - 8 - hgt, bw - 1, hgt);
+    /* Alternate the months so the strip reads as a calendar rather than a
+       featureless run of bars. */
+    const month = new Date(epoch + i*SLOTS_PER_DAY*MS_PER_SLOT).getUTCMonth();
+    c.fillStyle = rgba(hexRGB(pick("ink-3")), month % 2 ? 0.46 : 0.30);
+    c.fillRect(i*bw, profH - 8 - hgt, Math.max(0.7, bw - 0.4), hgt);
   }
   c.fillStyle = pick("ink-3");
   c.font = '300 8px "IBM Plex Mono",monospace';
-  c.textAlign = "left";  c.fillText("00", 1, profH - 1);
-  c.textAlign = "center";c.fillText("12", profW/2, profH - 1);
-  c.textAlign = "right"; c.fillText("24", profW - 1, profH - 1);
+  for (let m = 0; m < 12; m++){
+    const first = Date.UTC(new Date(epoch).getUTCFullYear(), m, 1);
+    const day = Math.round((first - epoch) / (SLOTS_PER_DAY*MS_PER_SLOT));
+    if (day < 1 || day >= days) continue;
+    const x = day*bw;
+    c.fillStyle = rgba(hexRGB(pick("rule")), 1);
+    c.fillRect(x, 2, 0.6, profH - 12);
+    c.fillStyle = pick("ink-3");
+    c.textAlign = "left";
+    c.fillText(MONTHS[m], x + 2, profH - 1);
+  }
   c.textAlign = "left";
   drawProfile();
 }
@@ -915,21 +961,30 @@ function drawProfile(){
   c.setTransform(DPR,0,0,DPR,0,0);
   c.clearRect(0,0,profW,profH);
   c.drawImage(profBase, 0, 0, profW, profH);
-  const x = (hourOfDay() + (simH % 1)) / 24 * profW;
+  const x = (simT / Math.max(1, SPAN)) * profW;
   c.strokeStyle = pick("ink");
   c.lineWidth = 1;
   c.beginPath(); c.moveTo(x, 0); c.lineTo(x, profH - 9); c.stroke();
 }
 
 function updateClock(){
-  const h = hourOfDay();
-  const m = Math.floor((simH % 1) * 60);
+  const d = clockDate();
+  const hh = String(d.getUTCHours()).padStart(2,"0");
+  const mm = String(d.getUTCMinutes()).padStart(2,"0");
   document.getElementById("clock").innerHTML =
-    String(h).padStart(2,"0") + '<span class="mins">:' + String(m).padStart(2,"0") + '</span>';
-  document.getElementById("day").textContent = "day " + (Math.floor(simH/24) + 1)
-    + " of " + Math.max(1, Math.ceil(SPAN/24));
-  document.getElementById("lampDog").dataset.on = dogActive(h);
-  document.getElementById("lampLion").dataset.on = lionActive(h);
+    `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
+    + `<span class="mins"> ${hh}:${mm}</span>`;
+  document.getElementById("day").textContent =
+    `${d.getUTCFullYear()} · day ${Math.floor(simT/SLOTS_PER_DAY) + 1}`
+    + ` of ${Math.max(1, Math.ceil(SPAN/SLOTS_PER_DAY))}`;
+
+  document.getElementById("lampCoug").dataset.on = cougarActive(d.getUTCHours());
+  const near = document.getElementById("nearest");
+  near.textContent = nearestNow === null
+    ? "nearest cougar —"
+    : `nearest cougar ${nearestNow < 1000 ? Math.round(nearestNow/10)*10 + " m"
+                                          : (nearestNow/1000).toFixed(1) + " km"}`;
+  near.dataset.close = String(nearestNow !== null && nearestNow < NEAR_M/2);
 }
 
 /* ------------------------------------------------------------------ loop */
@@ -938,10 +993,10 @@ function frame(now){
   const dt = Math.min(0.25, (now - lastFrame)/1000);
   lastFrame = now;
   if (playing && TRACKS.length){
-    simH += dt * hoursPerSecond;
-    if (simH >= SPAN) simH = 0;
-    const s = document.getElementById("scrub");
-    if (document.activeElement !== s) s.value = Math.round(simH/SPAN*1000);
+    simT += dt * slotsPerSecond;
+    if (simT >= SPAN) simT = 0;
+    const sc = document.getElementById("scrub");
+    if (document.activeElement !== sc) sc.value = Math.round(simT/SPAN*1000);
   }
   draw();
   updateClock();
@@ -970,22 +1025,22 @@ function pillRow(rowId, items, isOn, onPick){
 function wireControls(){
   pillRow("spRow",
     SPECIES_ORDER.map(k => ({key:k, label:SPECIES[k].label})),
-    k => sel.species.has(k) && SPECIES[k].seasons.includes(sel.season),
+    k => sel.species.has(k),
     async k => {
-      if (!SPECIES[k].seasons.includes(sel.season)) return;
       if (sel.species.has(k)){ if (sel.species.size > 1) sel.species.delete(k); }
       else sel.species.add(k);
-      await rebuild();
+      TRACKS = SEASON.individuals.filter(t => sel.species.has(t.species));
+      buildLegend(); buildProfile(); syncSpeciesPills();
     });
 
   pillRow("seRow",
-    [{key:"dry",label:"Dry"},{key:"rainy",label:"Rainy"}],
+    SEASON_ORDER.map(k => ({key:k, label:k})),
     k => sel.season === k,
-    async k => { sel.season = k; simH = 0; await rebuild(); });
+    async k => { sel.season = k; simT = 0; await rebuild(); });
 
   pillRow("prRow",
-    [{key:"none",label:"None"},{key:"dog",label:"Wild dog range"},
-     {key:"lion",label:"Lion range"},{key:"seasonal",label:"Flood shift"}],
+    [{key:"none",label:"None"},{key:"cougar",label:"Cougar range"},
+     {key:"shift",label:"Year shift"}],
     k => sel.layer === k,
     async k => { sel.layer = k; baseReady = false; buildLegend(); });
 
@@ -1005,9 +1060,9 @@ function wireControls(){
   for (const v of [3, 6, 12, 24]){
     const b = document.createElement("button");
     b.textContent = (v/6) + "\u00d7";
-    b.setAttribute("aria-pressed", String(v === hoursPerSecond));
+    b.setAttribute("aria-pressed", String(v === slotsPerSecond));
     b.addEventListener("click", () => {
-      hoursPerSecond = v;
+      slotsPerSecond = v;
       for (const x of spd.querySelectorAll("button"))
         x.setAttribute("aria-pressed", String(x === b));
     });
@@ -1015,7 +1070,7 @@ function wireControls(){
   }
 
   const scrub = document.getElementById("scrub");
-  scrub.addEventListener("input", () => { simH = scrub.value/1000 * SPAN; });
+  scrub.addEventListener("input", () => { simT = scrub.value/1000 * SPAN; });
 
   const nb = document.getElementById("notesbtn"), notes = document.getElementById("notes");
   nb.addEventListener("click", () => {
@@ -1108,87 +1163,86 @@ function wireMapGestures(){
 
 function buildNotes(){
   document.getElementById("notesBody").innerHTML = `
-    <p>Every position on this map is a real GPS fix. The animation between
-    fixes is straight-line interpolation across one hour.</p>
+    <p>Every position on this map is a real GPS fix with a real timestamp.
+    Nothing was reconstructed. The animation between fixes is straight-line
+    interpolation across one two-hour step.</p>
 
-    <h3>How the tracks were recovered</h3>
-    <p>The Dryad deposit ships analysis tables, not raw collar downloads. The
-    coordinates live in the resource-selection tables, sorted by predator
-    activity state; the chronological order lives in a second set of tables that
-    carry hour-of-day but no coordinates. Because predator activity is a
-    function of hour-of-day, that sort is invertible, and walking the hour
-    sequence recovers the original track.</p>
-    <p class="sub">Every reconstruction is scored against the authors' own
-    step-length column: all seven species-seasons reproduce it at 98.8&ndash;100%
-    within 40 m, median error 5&ndash;7 m. Individuals where the two tables
-    disagree about a fix are left out rather than shown unverified.</p>
+    <h3>Where this is</h3>
+    <p>The northern Wasatch and Cache Valley, Utah &mdash; a 100 &times; 91 km
+    block chosen because it is where the two guilds actually share ground.
+    Across the whole state 80% of cougar fixes fall in cells that ungulates
+    also used; this block holds the densest overlap of that.</p>
+    <p class="sub"><strong>2019</strong>: 8 cougars, 74 elk, 83 mule deer &mdash;
+    143,445 fixes. <strong>2020</strong>: 11 cougars, 85 elk, 89 mule deer
+    &mdash; 188,688 fixes.</p>
+
+    <h3>Why the year stops in May</h3>
+    <p>Both deposits cover <strong>1 January to 16 May, in 2019 and again in
+    2020</strong>, and nothing in between: this is winter and spring range
+    monitoring, so there is no June-to-December data at all. Rather than run a
+    calendar clock across seven empty months, the two windows are offered as
+    two seasons &mdash; the same months, a year apart, which is what makes the
+    year-shift layer a comparison rather than a coincidence.</p>
+
+    <h3>The ring is a measurement</h3>
+    <p>Because both guilds are on the same two-hour schedule, the distance from
+    every prey fix to the nearest collared cougar <em>at that same hour</em>
+    could be computed directly. A ring and its hairline appear when that
+    distance is under 1 km, brightening as it closes; the readout under the
+    clock gives the closest one on screen.</p>
+    <p><strong>No ring is not no cougar.</strong> Only 8 to 11 cougars wore
+    collars here. An unringed animal means no <em>collared</em> cougar was
+    within a kilometre at that hour, which is a much weaker statement than
+    safety. Distances above 5.1 km are stored as "far" and never drawn.</p>
 
     <h3>The landscape layers</h3>
-    <p><strong>Satellite</strong> is the only real picture of this landscape
-    available: Esri World Imagery, fetched as tiles when you switch it on.
-    Nothing is bundled with the page, so it needs a working connection &mdash;
-    on a host that forbids outbound requests the tiles simply do not arrive, the
-    dark ground stays, and the attribution line says so. Tiles are Web Mercator
-    while this map is equirectangular, so each is drawn into the rectangle its
-    own corners project to; within one tile the difference is far below a pixel.
-    The imagery is a mosaic of different dates and does not correspond to
-    2014&ndash;2016, and in a delta that floods annually the water you see is not
-    the water these animals walked around.</p>
-    <p><strong>No vegetation or water map.</strong> The deposit gives vegetation
-    only as aggregate proportions per animal &mdash; floodplain, grassland,
-    mixed, mopane &mdash; never mapped, and the 25 m habitat raster behind the
-    original analysis was not deposited. Public vector data does not fill the
-    gap: at 1:10m scale the entire Okavango is a single river centreline, which
-    says nothing across 70 km. So there is no basemap here, and none of these
-    layers is one.</p>
-    <p><strong>Flood shift</strong> is the closest honest substitute: dry-versus-rainy
-    occupancy for the ten animals collared in <em>both</em> seasons (four
-    tsessebe, four zebra, two wildebeest; 68,926 fixes). Restricting it to
-    animals present in both seasons is what makes it a seasonal comparison
-    rather than a comparison of who happened to be wearing a collar. In the
-    Okavango the flood arrives during the dry season, so the contrast traces the
-    flood-driven structure of the range &mdash; but it is a map of where animals
-    went, not of where water is.</p>
-    <p class="sub"><strong>Wild dog range</strong> and <strong>Lion range</strong>
-    are the predator utilisation surfaces, switching between the predator's
-    active and inactive state as the clock crosses its hunting window.</p>
+    <p><strong>Cougar range</strong> is where the collared cougars actually
+    were that season, smoothed &mdash; an observation, not a model. It has no
+    active and inactive state, because there is only one place a cougar was.
+    Blank ground means no collar recorded a cougar there.</p>
+    <p><strong>Year shift</strong> is January-to-May occupancy in 2019 against
+    2020 for the 96 animals collared in <em>both</em> years (54 elk, 40 mule
+    deer, 2 cougars; 223,011 fixes). Restricting it to animals present in both
+    is what makes it a comparison of behaviour rather than of who happened to
+    be wearing a collar. It is a map of where these animals went, not of snow
+    or forage.</p>
+    <p><strong>Satellite</strong> is Esri World Imagery, fetched as tiles when
+    you switch it on. Nothing is bundled with the page, so it needs a working
+    connection; where outbound requests are blocked the tiles do not arrive,
+    the dark ground stays, and the attribution line says so. Tiles are Web
+    Mercator while this map is equirectangular, so each is drawn into the
+    rectangle its own corners project to. The imagery is a mosaic of mixed
+    dates and is not 2019&ndash;2020.</p>
+
+    <h3>What the lamp means</h3>
+    <p>Cougars are in this data as positions, so their activity did not have to
+    be assumed: <strong>cougars moving</strong> lights in the hours where the
+    collared cougars' own median step length runs above their daily median.
+    It is measured from these tracks, not taken from a stated hunting window.</p>
+    <p class="sub">What it finds, in 2019: the median cougar step peaks at
+    03:00 (245 m per two hours) and 05:00 (178 m), falls to about 20 m through
+    the evening, and shows a second smaller bump in the early afternoon. The
+    lamp is lit for roughly 23:00&ndash;08:00 and again around midday. The
+    collars fire every second hour, so each figure describes the whole
+    two-hour step it ends, and the lamp is lit across that step rather than
+    at the single sampled hour.</p>
 
     <h3>What is missing</h3>
-    <p><strong>No calendar dates.</strong> The deposit records hour-of-day but
-    never a date, so the clock is real and the day counter is only elapsed time
-    from each collar's first fix. Animals are aligned by time of day, not by
-    date &mdash; two dots side by side were not necessarily there in the same
-    week.</p>
-    <p><strong>Each collar repeats its own record.</strong> The collars ran for
-    very different lengths, from 35 days to 200, and played once through they
-    drop away one by one until a couple of animals are moving over everyone
-    else's fixes. Each therefore loops, on a period rounded up to whole days so
-    that every animal's hour-of-day still matches the clock exactly. The cost is
-    that elapsed days are no longer comparable between animals once the shorter
-    records come round again.</p>
-    <p><strong>The predators are in the data, but not as positions.</strong> Ten
-    were collared alongside the herbivores &mdash; six lions (Buzz, Chloe, F3,
-    F8, Hector, Pride) and four wild dogs (Adiga, Bali, Bongwe, Xerxes), each
-    with habitat selection measured in both seasons. What the deposit carries of
-    them is their <em>utilisation surface</em>, evaluated at every prey location,
-    together with their activity windows; the range layers and the lamps under
-    the clock are both built from it. What it does not carry is a single
-    predator coordinate or timestamp, so they cannot be drawn moving. A ring
-    means an animal sits in the top decile of a predator's range while that
-    predator is active &mdash; real exposure, not an observed encounter.</p>
-    <p><strong>Positions are quantised.</strong> Coordinates are snapped to the
-    25 m habitat raster used in the original analysis, so fine-scale detail is
-    not real detail.</p>
-    <p><strong>Gaps are drawn as absence.</strong> Where the collar missed
-    hours the animal is simply not drawn. Gap length is taken as the shortest
-    span consistent with the hours on either side, so long absences are
-    understated.</p>
+    <p><strong>Gaps are drawn as absence.</strong> A track segment holds
+    consecutive fixes only &mdash; a single missed fix ends it, and nothing is
+    ever drawn across the silence. An animal simply is not there until its
+    collar reports again.</p>
+    <p><strong>These are the collared animals, not the population.</strong>
+    2,694 ungulates were collared statewide and 165 to 185 animals fall inside
+    this block. Empty ground is where no collar was, not where no animal was.</p>
+    <p><strong>Positions are rounded</strong> to 10<sup>-5</sup> degrees, about
+    a metre, which is well under the collars' own error.</p>
 
     <h3>Source</h3>
-    <p class="sub">Bennitt, E. et al. (2024). <em>Proactive cursorial and ambush
-    predation risk avoidance in four African herbivore species.</em> Ecology and
-    Evolution. Data: <code>doi:10.5061/dryad.w0vt4b8zr</code>. Collared in the
-    Okavango Delta, Botswana, 2014&ndash;2016.</p>`;
+    <p class="sub">Utah Division of Wildlife Resources. <em>GPS tracking of
+    cougars in Utah by UDWR (2019-2020)</em>, <code>doi:10.5441/001/1.712</code>,
+    and <em>GPS tracking of ungulates in Utah by UDWR (2019-2020)</em>,
+    <code>doi:10.5441/001/1.711</code>. Movebank Data Repository, both CC0.</p>`;
 }
 
 /* ------------------------------------------------------------------- boot */
@@ -1197,8 +1251,8 @@ function buildNotes(){
   try {
     buildNotes();
     wireControls();
-    RISK = await loadJSON("predator-risk").catch(() => null);
-    SEASONAL = await loadJSON("seasonal-shift").catch(() => null);
+    USE   = await loadJSON("cougar-use").catch(() => null);
+    SHIFT = await loadJSON("year-shift").catch(() => null);
     await rebuild();
     document.getElementById("loading").hidden = true;
     lastFrame = performance.now();
