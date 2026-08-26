@@ -79,9 +79,12 @@ def main() -> int:
         payload = rescale(json.loads(path.read_text()))
         total_fixes += sum(i["fixes"] for i in payload["individuals"])
         bundle[name] = payload
-    risk = args.data / "predator-risk.json"
-    if risk.exists():
-        bundle["predator-risk"] = json.loads(risk.read_text())
+    for name in ("predator-risk", "seasonal-shift"):
+        path = args.data / f"{name}.json"
+        if path.exists():
+            bundle[name] = json.loads(path.read_text())
+        else:
+            print(f"  missing {path}, the matching layer will be unavailable")
 
     data_js = json.dumps(bundle, separators=(",", ":"))
     args.out.parent.mkdir(parents=True, exist_ok=True)

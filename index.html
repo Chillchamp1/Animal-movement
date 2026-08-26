@@ -18,6 +18,9 @@
     --rule:rgba(39,51,63,0.7); --panel:rgba(13,20,30,0.82);
     --zebra:#5aa9ff; --wildebeest:#b98cff; --tsessebe:#35d69a; --impala:#ffd93d;
     --dog:#ff7a45; --lion:#ff8fd8;
+    /* Landscape layer: two muted, desaturated washes, so the animals stay the
+       brightest thing on the map even with a layer switched on. */
+    --dry-bias:#b08d57; --rainy-bias:#4a8f9e;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -84,10 +87,24 @@
     backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
   }
   #legend{position:fixed;z-index:3;left:20px;bottom:20px;padding:13px 15px 11px;min-width:238px;max-width:340px}
-  #legend h2,#notes h2{
+  #notes h2{
     font-size:0.62rem;letter-spacing:0.17em;text-transform:uppercase;
     color:var(--ink-3);font-weight:500;margin-bottom:9px;
   }
+  /* The legend folds away: on a wide screen it sits over the map, and at full
+     extent there is no room to pan the delta out from under it. */
+  #legendToggle{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    width:100%;padding:0;border:0;background:none;
+    font-size:0.62rem;letter-spacing:0.17em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:500;
+  }
+  #legendToggle:hover{color:var(--ink-2);background:none}
+  #legendToggle .chev::before{content:"\2013"}          /* en dash */
+  #legendToggle[aria-expanded="false"] .chev::before{content:"+"}
+  #legendBody{margin-top:9px}
+  #legendToggle[aria-expanded="false"] + #legendBody{display:none}
+  #legend[data-collapsed="true"]{min-width:0}
   .lg{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:0.83rem}
   .sw{border-radius:50%;flex:0 0 auto;width:9px;height:9px;box-shadow:0 0 0 2px var(--panel)}
   .lg .nm{flex:1 1 auto;color:var(--ink)}
@@ -156,7 +173,7 @@
   <div id="picks">
     <div class="row" id="spRow"><span class="lab">Species</span></div>
     <div class="row" id="seRow"><span class="lab">Season</span></div>
-    <div class="row" id="prRow"><span class="lab">Risk</span></div>
+    <div class="row" id="prRow"><span class="lab">Layer</span></div>
   </div>
 
   <header>
@@ -179,9 +196,13 @@
   <div id="notes" class="panel"><h2>Data notes &amp; gaps</h2><div id="notesBody"></div></div>
 
   <div id="legend" class="panel">
-    <h2>On screen</h2>
-    <div id="legendRows"></div>
-    <footer id="legendFoot"></footer>
+    <button id="legendToggle" aria-expanded="true" aria-controls="legendBody">
+      On screen<span class="chev" aria-hidden="true"></span>
+    </button>
+    <div id="legendBody">
+      <div id="legendRows"></div>
+      <footer id="legendFoot"></footer>
+    </div>
   </div>
 
   <div id="controls" class="panel">
@@ -224,9 +245,10 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-let sel = {species:new Set(["zebra"]), season:"dry", risk:"none"};
+let sel = {species:new Set(["zebra"]), season:"dry", layer:"none"};
 let TRACKS = [];          /* flattened, currently displayed */
 let RISK = null;          /* predator-risk.json */
+let SEASONAL = null;      /* seasonal-shift.json */
 let SPAN = 1;             /* total hours on the clock */
 let BOUNDS = null;        /* {lon0,lat0,lon1,lat1} of the current selection */
 const CACHE = new Map();
@@ -405,15 +427,22 @@ function fitHome(keepCam){
   baseReady = false;
 }
 
+/* Slack beyond the data's own frame, in fractions of the current view. The
+   panels sit over the map, so at full extent there has to be room to nudge the
+   delta out from under the legend -- with no slack the camera is pinned and a
+   drag does nothing. */
+const PAN_SLACK = 0.45;
+
 function clampCam(){
   if (!HOME) return;
   CAM.spanLon = Math.min(HOME.spanLon,
                          Math.max(HOME.spanLon / MAX_ZOOM, CAM.spanLon));
-  /* Keep the data in view: the centre may not wander beyond the home frame. */
-  const halfLon = Math.max(0, (HOME.spanLon - CAM.spanLon) / 2);
   const spanLat = CAM.spanLon * kLat / (W / H);
   const homeLat = HOME.spanLon * kLat / (W / H);
-  const halfLat = Math.max(0, (homeLat - spanLat) / 2);
+  const halfLon = Math.max(0, (HOME.spanLon - CAM.spanLon) / 2)
+                + CAM.spanLon * PAN_SLACK;
+  const halfLat = Math.max(0, (homeLat - spanLat) / 2)
+                + spanLat * PAN_SLACK;
   CAM.lonC = Math.min(HOME.lonC + halfLon, Math.max(HOME.lonC - halfLon, CAM.lonC));
   CAM.latC = Math.min(HOME.latC + halfLat, Math.max(HOME.latC - halfLat, CAM.latC));
   BOX = boxOf(CAM);
@@ -480,10 +509,9 @@ function resize(){
 
 /* ------------------------------------------------------------- base layer */
 
-/* The deposit ships no coastline or river geometry and this page fetches no
-   basemap, so the landscape is drawn from the data itself: every fix in the
-   current selection as a dim speck. What you see is exactly where these
-   animals went, and nothing that they did not. */
+/* Only the animals move on this map. The base carries the chosen landscape
+   layer and nothing else -- no cloud of past fixes, so a dot on screen is an
+   animal at that hour rather than a smear of everywhere it ever stood. */
 function renderBase(){
   const b = base.getContext("2d");
   b.setTransform(DPR,0,0,DPR,0,0);
@@ -491,36 +519,56 @@ function renderBase(){
   b.fillRect(0,0,W,H);
   if (!BOUNDS){ baseReady = true; return; }
 
-  if (sel.risk !== "none" && RISK) drawRisk(b);
+  if (sel.layer === "dog" || sel.layer === "lion") drawRisk(b);
+  else if (sel.layer === "seasonal") drawSeasonal(b);
 
-  /* Zoomed out the fixes pile into one speck per cell and the cloud reads as
-     a mass; zoomed in they separate, so each is drawn a little larger and
-     brighter and the mass resolves into individual visits. */
-  const z = zoomLevel();
-  const size = Math.min(3, 1 + Math.log2(Math.max(1, z)) * 0.5);
-  const alpha = Math.min(0.42, 0.14 + Math.log2(Math.max(1, z)) * 0.05);
-  for (const t of TRACKS){
-    b.fillStyle = rgba(hexRGB(pick(SPECIES[t.species].role)), alpha);
-    for (let i = 0; i < t.n; i++){
-      const x = px(t.lons[i]), y = py(t.lats[i]);
-      if (x < -4 || x > W+4 || y < -4 || y > H+4) continue;
-      b.fillRect(x - size/2, y - size/2, size, size);
-    }
-  }
   drawScale(b);
   baseReady = true;
+}
+
+/* Dry-versus-rainy occupancy for the animals collared in both seasons. In the
+   Okavango the flood arrives in the dry season, so this traces the flood-driven
+   structure of the range -- as animal behaviour, not as mapped water. */
+const seasonalCv = document.createElement("canvas");
+function drawSeasonal(b){
+  if (!SEASONAL) return;
+  const {nx, ny, cells} = SEASONAL;
+  if (seasonalCv.width !== nx || seasonalCv.height !== ny){
+    seasonalCv.width = nx; seasonalCv.height = ny;
+  }
+  const sc = seasonalCv.getContext("2d");
+  const img = sc.createImageData(nx, ny);
+  const dryCol = hexRGB(pick("dry-bias")), wetCol = hexRGB(pick("rainy-bias"));
+  for (let iy = 0; iy < ny; iy++){
+    for (let ix = 0; ix < nx; ix++){
+      const v = cells[iy*nx + ix];
+      const o = ((ny-1-iy)*nx + ix) * 4;
+      if (!v){ img.data[o+3] = 0; continue; }
+      const col = v > 0 ? dryCol : wetCol;
+      img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2];
+      img.data[o+3] = Math.round(Math.min(1, Math.abs(v)/100) * 165);
+    }
+  }
+  sc.putImageData(img, 0, 0);
+  const R = SEASONAL.bounds;
+  b.save();
+  b.imageSmoothingEnabled = true;
+  b.globalAlpha = 0.9;
+  b.drawImage(seasonalCv, px(R.lon0), py(R.lat1),
+              px(R.lon1) - px(R.lon0), py(R.lat0) - py(R.lat1));
+  b.restore();
 }
 
 let riskCv = document.createElement("canvas");
 function drawRisk(b){
   const state = riskState();
-  const surf = RISK.surfaces[sel.risk + "-" + state];
+  const surf = RISK.surfaces[sel.layer + "-" + state];
   if (!surf) return;
   const {nx, ny} = RISK;
   if (riskCv.width !== nx || riskCv.height !== ny){ riskCv.width = nx; riskCv.height = ny; }
   const rc = riskCv.getContext("2d");
   const img = rc.createImageData(nx, ny);
-  const col = hexRGB(pick(sel.risk));
+  const col = hexRGB(pick(sel.layer));
   for (let iy = 0; iy < ny; iy++){
     for (let ix = 0; ix < nx; ix++){
       const v = surf.cells[iy*nx + ix];
@@ -576,7 +624,7 @@ let lastFrame = performance.now();
 const hourOfDay = () => ((Math.floor(simH) % 24) + 24) % 24;
 const riskState = () => {
   const h = hourOfDay();
-  return (sel.risk === "dog" ? dogActive(h) : lionActive(h)) ? "high" : "low";
+  return (sel.layer === "dog" ? dogActive(h) : lionActive(h)) ? "high" : "low";
 };
 
 /* Where this collar is in its own repeating record. The period is a whole
@@ -677,6 +725,21 @@ function buildLegend(){
       + `<span class="ct">${c.inds} collars \u00b7 ${c.fixes.toLocaleString()} fixes</span>`;
     rows.appendChild(el);
   }
+  /* When a landscape layer is on, say what its colours mean. */
+  const key = {
+    dog:  [["dog",  "Where wild dogs range, now"]],
+    lion: [["lion", "Where lions range, now"]],
+    seasonal: [["dry-bias",   "Used more in the dry season"],
+               ["rainy-bias", "Used more in the rainy season"]],
+  }[sel.layer];
+  for (const [token, label] of key || []){
+    const el = document.createElement("div");
+    el.className = "lg";
+    el.innerHTML = `<span class="sw" style="background:${pick(token)};opacity:0.75"></span>`
+      + `<span class="nm" style="color:var(--ink-2)">${label}</span>`;
+    rows.appendChild(el);
+  }
+
   const days = Math.ceil(SPAN/24);
   document.getElementById("legendFoot").textContent = TRACKS.length
     ? `${sel.season === "dry" ? "Dry" : "Rainy"} season \u00b7 longest record ${days} days \u00b7 `
@@ -809,9 +872,10 @@ function wireControls(){
     async k => { sel.season = k; simH = 0; await rebuild(); });
 
   pillRow("prRow",
-    [{key:"none",label:"None"},{key:"dog",label:"Wild dog"},{key:"lion",label:"Lion"}],
-    k => sel.risk === k,
-    async k => { sel.risk = k; baseReady = false; });
+    [{key:"none",label:"None"},{key:"dog",label:"Wild dog range"},
+     {key:"lion",label:"Lion range"},{key:"seasonal",label:"Flood shift"}],
+    k => sel.layer === k,
+    async k => { sel.layer = k; baseReady = false; buildLegend(); });
 
   const play = document.getElementById("play");
   play.addEventListener("click", () => {
@@ -844,6 +908,13 @@ function wireControls(){
   });
 
   document.getElementById("resetview").addEventListener("click", resetView);
+
+  const lt = document.getElementById("legendToggle");
+  lt.addEventListener("click", () => {
+    const open = lt.getAttribute("aria-expanded") !== "true";
+    lt.setAttribute("aria-expanded", String(open));
+    document.getElementById("legend").dataset.collapsed = String(!open);
+  });
 
   addEventListener("resize", () => { resize(); buildProfile(); });
   addEventListener("keydown", e => {
@@ -935,6 +1006,26 @@ function buildNotes(){
     within 40 m, median error 5&ndash;7 m. Individuals where the two tables
     disagree about a fix are left out rather than shown unverified.</p>
 
+    <h3>The landscape layers</h3>
+    <p><strong>No vegetation or water map.</strong> The deposit gives vegetation
+    only as aggregate proportions per animal &mdash; floodplain, grassland,
+    mixed, mopane &mdash; never mapped, and the 25 m habitat raster behind the
+    original analysis was not deposited. Public vector data does not fill the
+    gap: at 1:10m scale the entire Okavango is a single river centreline, which
+    says nothing across 70 km. So there is no basemap here, and none of these
+    layers is one.</p>
+    <p><strong>Flood shift</strong> is the closest honest substitute: dry-versus-rainy
+    occupancy for the ten animals collared in <em>both</em> seasons (four
+    tsessebe, four zebra, two wildebeest; 68,926 fixes). Restricting it to
+    animals present in both seasons is what makes it a seasonal comparison
+    rather than a comparison of who happened to be wearing a collar. In the
+    Okavango the flood arrives during the dry season, so the contrast traces the
+    flood-driven structure of the range &mdash; but it is a map of where animals
+    went, not of where water is.</p>
+    <p class="sub"><strong>Wild dog range</strong> and <strong>Lion range</strong>
+    are the predator utilisation surfaces, switching between the predator's
+    active and inactive state as the clock crosses its hunting window.</p>
+
     <h3>What is missing</h3>
     <p><strong>No calendar dates.</strong> The deposit records hour-of-day but
     never a date, so the clock is real and the day counter is only elapsed time
@@ -948,12 +1039,16 @@ function buildNotes(){
     that every animal's hour-of-day still matches the clock exactly. The cost is
     that elapsed days are no longer comparable between animals once the shorter
     records come round again.</p>
-    <p><strong>No predator positions.</strong> Lions and wild dogs were collared,
-    but the deposit contains none of their coordinates. They appear here only as
-    their activity windows (the lamps under the clock) and as a utilisation
-    surface sampled at prey locations (the risk layer). A ring means an animal
-    sits in the top decile of a predator's range while that predator is active
-    &mdash; a measure of exposure, not an observed encounter.</p>
+    <p><strong>The predators are in the data, but not as positions.</strong> Ten
+    were collared alongside the herbivores &mdash; six lions (Buzz, Chloe, F3,
+    F8, Hector, Pride) and four wild dogs (Adiga, Bali, Bongwe, Xerxes), each
+    with habitat selection measured in both seasons. What the deposit carries of
+    them is their <em>utilisation surface</em>, evaluated at every prey location,
+    together with their activity windows; the range layers and the lamps under
+    the clock are both built from it. What it does not carry is a single
+    predator coordinate or timestamp, so they cannot be drawn moving. A ring
+    means an animal sits in the top decile of a predator's range while that
+    predator is active &mdash; real exposure, not an observed encounter.</p>
     <p><strong>Positions are quantised.</strong> Coordinates are snapped to the
     25 m habitat raster used in the original analysis, so fine-scale detail is
     not real detail.</p>
@@ -976,6 +1071,7 @@ function buildNotes(){
     buildNotes();
     wireControls();
     RISK = await loadJSON("predator-risk").catch(() => null);
+    SEASONAL = await loadJSON("seasonal-shift").catch(() => null);
     await rebuild();
     document.getElementById("loading").hidden = true;
     lastFrame = performance.now();
