@@ -28,7 +28,7 @@
 
   /* ---------------------------------------------------------- bird picker */
   #birds{position:fixed;z-index:3;left:16px;top:calc(16px + env(safe-area-inset-top,0px));
-         display:flex;flex-direction:column;gap:7px;max-width:min(340px,calc(100vw - 32px))}
+         display:flex;flex-direction:column;gap:7px;max-width:min(400px,calc(100vw - 32px))}
   #birdRow{display:flex;gap:6px;padding:5px;align-items:stretch}
   #birdRow button{
     flex:1 1 0;min-width:0;font:inherit;font-size:.76rem;font-weight:500;
@@ -36,7 +36,14 @@
     background:transparent;color:var(--ink-3);transition:color .15s,border-color .15s;
     display:flex;flex-direction:column;gap:2px;text-align:left;line-height:1.25;
   }
-  #birdRow button .sci{font-size:.62rem;font-style:italic;opacity:.72;font-weight:400}
+  #birdRow button{flex-direction:row;align-items:center;gap:8px}
+  #birdRow button .nm{min-width:0;line-height:1.2}
+  #blurb .sci{font-style:italic;font-weight:400;opacity:.7;font-size:.7rem}
+  /* The silhouette takes the button's own colour, so it lights up with the
+     label when its view is the one on screen. */
+  #birdRow button .sil{flex:0 0 auto;display:block;width:34px;height:24px;opacity:.65}
+  #birdRow button[aria-pressed="true"] .sil{opacity:1}
+  #birdRow button .sil svg{width:100%;height:100%;display:block;fill:currentColor}
   #birdRow button:hover{color:var(--ink-2)}
   #birdRow button[aria-pressed="true"]{color:var(--ink);border-color:currentColor}
   #birdRow button[data-key="godwit"][aria-pressed="true"]{color:var(--godwit)}
@@ -130,7 +137,8 @@
      read-out keeps only what changes, and the controls span the width. */
   @media (max-width:820px){
     #birds{left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));max-width:none}
-    #birdRow button{font-size:.72rem;padding:6px 9px}
+    #birdRow button{font-size:.72rem;padding:6px 8px;gap:6px}
+    #birdRow button .sil{width:26px;height:19px}
     #blurb{display:none}
     #readout{right:10px;top:auto;left:10px;
              bottom:calc(64px + env(safe-area-inset-bottom,0px));min-width:0;
@@ -222,6 +230,50 @@ const POPS = {
   Armenia: "#2ee0b8", Uzbekistan: "#9aa7bd", "South Africa": "#7ee08a",
 };
 const popColour = pop => POPS[pop] || "#c9d6ea";
+
+/* A shape for each species beside its name. These are drawn silhouettes, not
+   photographs -- no photo of these birds could be fetched from where this is
+   built, and an invented one presented as a photograph would be a lie. Drawn
+   from above in level flight, which is how the globe shows them, and the three
+   are genuinely told apart this way: the albatross is nearly all wing, span
+   about six times its body; the stork flies neck out and legs trailing past
+   the tail, on broad wings with slotted tips; the godwit is a wader, swept
+   wings and a long straight bill. */
+const SILHOUETTE = {
+  stork: `<svg viewBox="0 0 48 34" aria-hidden="true" focusable="false">
+      <path d="M24 4.6c.7 0 1.2.5 1.3 1.2l.4 3.1c2.2.4 3.3 1.6 3.6 3.3
+        1.9-.3 4.2-.9 6.6-1.7 2.4-.8 4.4-1.4 6.1-1.6 1.2-.1 2 .2 2.4.7.4.6.2 1.2-.5 1.6
+        -1.1.6-2.4 1-3.9 1.5 1.5.1 2.6.3 3.3.7.7.4.8 1 .3 1.5-.6.6-1.7 1-3.2 1.4
+        1.2.3 2 .7 2.3 1.2.3.6 0 1.1-.9 1.4-1.8.6-4.4 1-7.5 1.2-2.2.1-4.1.1-5.6 0
+        -.4 1.5-1.3 2.5-2.7 3l.5 3.4c1.1.8 2.1 1.9 3 3.3.5.8.6 1.4.2 1.7-.4.3-1 .1-1.7-.6
+        -.9-.9-1.7-1.7-2.4-2.2-.7.5-1.5 1.3-2.4 2.2-.7.7-1.3.9-1.7.6-.4-.3-.3-.9.2-1.7
+        .9-1.4 1.9-2.5 3-3.3l.5-3.4c-1.4-.5-2.3-1.5-2.7-3-1.5.1-3.4.1-5.6 0
+        -3.1-.2-5.7-.6-7.5-1.2-.9-.3-1.2-.8-.9-1.4.3-.5 1.1-.9 2.3-1.2
+        -1.5-.4-2.6-.8-3.2-1.4-.5-.5-.4-1.1.3-1.5.7-.4 1.8-.6 3.3-.7
+        -1.5-.5-2.8-.9-3.9-1.5-.7-.4-.9-1-.5-1.6.4-.5 1.2-.8 2.4-.7
+        1.7.2 3.7.8 6.1 1.6 2.4.8 4.7 1.4 6.6 1.7.3-1.7 1.4-2.9 3.6-3.3l.4-3.1
+        c.1-.7.6-1.2 1.3-1.2z"/>
+    </svg>`,
+  godwit: `<svg viewBox="0 0 48 34" aria-hidden="true" focusable="false">
+      <path d="M24 3.2c.6 0 1 .4 1.1 1l.6 4.6c1.9.5 2.9 1.7 3.1 3.5
+        2.3.5 5.1 1.6 8.2 3.2 3.2 1.7 5.5 3.2 6.9 4.6.8.8 1 1.5.6 1.9-.4.4-1.2.3-2.3-.3
+        -3.1-1.6-6.6-2.9-10.4-3.9-1 .1-2 .1-2.9 0 .1 1.9.1 3.6 0 5.2 1 .9 1.9 2 2.6 3.3
+        .4.8.4 1.4 0 1.6-.4.3-1 0-1.7-.7-.7-.8-1.4-1.4-2-1.9-.6.5-1.3 1.1-2 1.9
+        -.7.7-1.3 1-1.7.7-.4-.2-.4-.8 0-1.6.7-1.3 1.6-2.4 2.6-3.3-.1-1.6-.1-3.3 0-5.2
+        -.9.1-1.9.1-2.9 0-3.8 1-7.3 2.3-10.4 3.9-1.1.6-1.9.7-2.3.3-.4-.4-.2-1.1.6-1.9
+        1.4-1.4 3.7-2.9 6.9-4.6 3.1-1.6 5.9-2.7 8.2-3.2.2-1.8 1.2-3 3.1-3.5l.6-4.6
+        c.1-.6.5-1 1.1-1z"/>
+    </svg>`,
+  albatross: `<svg viewBox="0 0 48 34" aria-hidden="true" focusable="false">
+      <path d="M24 10.4c1.6 0 2.6 1 2.9 2.9 3.4.1 7.4.4 11.9.9 3.6.4 6.1.9 7.5 1.4
+        .9.3 1.3.8 1.2 1.3-.1.5-.7.8-1.7.9-1.6.2-4.1.2-7.6.1-4.4-.2-8.2-.5-11.4-.9
+        -.2.6-.5 1.1-.9 1.4.1 1.7.1 3.3 0 4.7.8.7 1.5 1.6 2.1 2.7.3.6.3 1.1 0 1.3
+        -.3.2-.8 0-1.4-.6-.6-.6-1.1-1.1-1.6-1.5-.5.4-1 .9-1.6 1.5-.6.6-1.1.8-1.4.6
+        -.3-.2-.3-.7 0-1.3.6-1.1 1.3-2 2.1-2.7-.1-1.4-.1-3 0-4.7-.4-.3-.7-.8-.9-1.4
+        -3.2.4-7 .7-11.4.9-3.5.1-6 .1-7.6-.1-1-.1-1.6-.4-1.7-.9-.1-.5.3-1 1.2-1.3
+        1.4-.5 3.9-1 7.5-1.4 4.5-.5 8.5-.8 11.9-.9.3-1.9 1.3-2.9 2.9-2.9z"/>
+    </svg>`,
+};
 
 /* The trail is drawn as a gradient from cold at the start to the species
    colour at the bird, so how far along the journey is has a colour. */
@@ -587,7 +639,7 @@ function setSpecies(k, initial){
     b.setAttribute("aria-pressed", String(b.dataset.key === k));
 
   $("blurb").innerHTML =
-    `<strong>${T.label}</strong>${T.note}`
+    `<strong>${T.label} <span class="sci">${T.scientific}</span></strong>${T.note}`
     + `<span class="src">${T.fixes.toLocaleString("en-GB")} GPS fixes &middot; `
     + `${Math.round(T.km).toLocaleString("en-GB")} km &middot; `
     + `${(T.hours/24).toFixed(1)} days &middot; one fix every `
@@ -642,6 +694,17 @@ function buildNotes(){
     interpolates, which is why the panel names the fix interval: at five
     minutes the line is close to the flight, at two hours it is a straight
     chord across whatever the bird actually did.</p>
+
+    <h3>The three shapes</h3>
+    <p class="sub">The marks beside the names are <strong>drawn
+    silhouettes, not photographs</strong> &mdash; no photograph of these birds
+    could be fetched from where this page is built, and an invented image
+    presented as one would be a lie about a real animal. They are drawn from
+    above in level flight, which is how the globe shows them, and the three are
+    genuinely told apart that way: the albatross is nearly all wing, with a span
+    about six times its body; the stork flies neck out and legs trailing past
+    the tail on broad wings with slotted tips; the godwit is a wader, swept
+    wings and a long straight bill.</p>
 
     <h3>Turning it, and following</h3>
     <p>The globe starts holding the bird named under <strong>following</strong>.
@@ -756,7 +819,11 @@ function wire(){
     const t = TRACKS[k];
     const b = document.createElement("button");
     b.dataset.key = k;
-    b.innerHTML = `${t.label}<span class="sci">${t.scientific}</span>`;
+    /* The scientific name moved to the blurb: with a silhouette beside it the
+       button had no room, and "Thalassarche chrysostoma" was being cut off. */
+    b.title = `${t.label} (${t.scientific})`;
+    b.innerHTML = `<span class="sil">${SILHOUETTE[k] || ""}</span>`
+      + `<span class="nm">${t.label}</span>`;
     b.setAttribute("aria-pressed", String(k === key));
     b.addEventListener("click", () => setSpecies(k, false));
     row.appendChild(b);
