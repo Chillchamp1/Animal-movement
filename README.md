@@ -21,10 +21,18 @@ and where they refuse to.
   python3 -m http.server 8000    # then open http://localhost:8000
   ```
 
-Built from Flack et al. (2016), *Costs of migratory decisions: a comparison
-across eight white stork populations*, Science Advances 2:e1500931 —
-[`doi:10.5441/001/1.78152p3q`](https://doi.org/10.5441/001/1.78152p3q) in the
-Movebank Data Repository, CC0.
+Built from two Movebank Data Repository deposits, both CC0, shown as two views
+and never pooled:
+
+- **Origins** — Flack et al. (2016), *Costs of migratory decisions: a comparison
+  across eight white stork populations*, Science Advances 2:e1500931,
+  [`doi:10.5441/001/1.78152p3q`](https://doi.org/10.5441/001/1.78152p3q).
+  Fifty-nine juveniles from seven tagging sites, Aug 2013 – Jul 2014.
+- **Ages** — Rotics et al. (2016), *The challenges of the first migration*,
+  Journal of Animal Ecology 85:938–947,
+  [`doi:10.5441/001/1.hn1bd23k`](https://doi.org/10.5441/001/1.hn1bd23k).
+  Seventy-four storks from one colony in Sachsen-Anhalt over autumn 2013 — 37 on
+  their first migration, 37 adults, same route and same weeks.
 
 ## What is on screen
 
@@ -87,9 +95,56 @@ median of 148 km and never going south of 40°N in up to 365 days each. That is 
 real thing about *Ciconia ciconia asiatica*, not a gap in the data — but on a
 map about movement they were six dots that never moved.
 
+## The second view: first autumn against adult
+
+Every bird in the first deposit is a juvenile — all 72, checked in the
+reference data. It can show where a generation goes; it has nobody to measure
+them against. The second deposit supplies exactly that, and only that: one
+colony, both age classes, the same eastern flyway. In autumn 2013 it carries 37
+first-year birds and 37 adults over the same 92 days.
+
+They are deliberately **not** folded into the first view. They are a single
+site, they outnumber the whole first deposit two to one, and dropping them into
+a palette keyed on origin would turn a seven-population map into a German one.
+So the toggle swaps the entire dataset — and the clock with it, since the second
+deposit is fall migration only and stops on 31 October. That is also why the
+**Crossing** filter is not offered there: a bird that has not passed 36°N by the
+end of October has not decided against migrating, the window simply ended first.
+
+## Why not LifeTrack
+
+The obvious larger option was the LifeTrack series — 7 studies, 326 birds,
+42.4 million fixes, CC0. It was measured and rejected:
+
+- **251 of the 326 birds are German or Austrian**, so western flyway only. The
+  map's subject is the fork into two flyways; LifeTrack thickens one cord.
+- Its question is the *ontogeny* of migration — how one bird refines a route
+  across its life — so its value is a decade of depth on one population. This
+  map is a 350-day window, which would keep about a tenth of it.
+- The five German and Austrian studies alone are 1.56 GB of GPS archives, and
+  42.4 M fixes thinned to hourly is still roughly 14 M — around a hundred times
+  what the page carries.
+
+LifeTrack deserves its own map. It is not an addition to this one.
+
+## The ground under them
+
+**Satellite** — Esri World Imagery, fetched as tiles at view time — is the
+default on the web app, because imagery is the only real picture of this
+ground. It needs a host that permits outbound requests, so where those are
+blocked the page falls back to the backdrop it already carries rather than
+showing an empty map, and says why in the attribution line. An explicit choice
+of satellite is never overridden that way; only the default is.
+
+**Land & sea** is that baked backdrop: one elevation raster for the hillshade,
+the bathymetry and every coastline, plus ESA WorldCover for standing water and
+a faint green wash. It needs no connection, so it is what the self-contained
+build starts on — that build has no network by design.
+
 ## The crosses
 
-Twenty-two of the 59 tags stopped because the bird died, which the deposit records.
+Twenty-two of the 59 tags in **Origins**, and 21 of the 74 in **Ages**, stopped
+because the bird died, which both deposits record.
 Where that happens the track does not simply vanish: a cross stays at the last
 position. A juvenile's first migration is the most dangerous journey of its
 life, and a track that disappeared silently would read as a coverage gap
@@ -147,6 +202,7 @@ and the attribution.
 ```sh
 python3 scripts/build_standalone.py       # the video reads the self-contained build
 python3 scripts/render_video.py           # -> dist/where-the-storks-went.mp4
+python3 scripts/render_video.py --view ages   # -> dist/first-autumn-or-fiftieth.mp4
 python3 scripts/render_video.py --size 1080x1080 --seconds 25
 ```
 
@@ -158,14 +214,19 @@ every deploy; to do the same locally:
 ```sh
 python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
     --match gps reference-data README --out data/raw/storks
+python3 scripts/fetch_movebank.py --doi 10.5441/001/1.hn1bd23k \
+    --match gps reference-data README --out data/raw/storks-ages
 python3 scripts/build_storks.py         # -> data/processed/storks.json
+python3 scripts/build_storks.py --raw data/raw/storks-ages \
+    --out-name storks-ages.json --from-date 2013-08-01 --to-date 2013-11-01 \
+    --exclude --source "Rotics et al. 2016, doi:10.5441/001/1.hn1bd23k (CC0)"
 python3 scripts/build_landcover.py      # -> water and greenness, ~15 min, cached
 python3 scripts/build_basemap.py        # -> basemap.json, the whole backdrop baked in
 python3 scripts/build_standalone.py     # -> dist/, one self-contained file
 ```
 
-`--match` matters: the deposit ships 341 MB of accelerometer data that nothing
-here reads.
+`--match` matters: between them the two deposits ship 640 MB of accelerometer
+data that nothing here reads.
 
 `scripts/profile_rdata.R` and `scripts/profile_tables.py` are the audit's two
 profilers: point either at a candidate deposit and it reports columns, row
@@ -182,6 +243,11 @@ against `doi:10.5061/dryad.w0vt4b8zr`, the Okavango reconstruction.
 Flack, A., Fiedler, W., Blas, J., et al. (2016). *Costs of migratory decisions:
 a comparison across eight white stork populations.* Science Advances 2:e1500931.
 Data: `doi:10.5441/001/1.78152p3q`, Movebank Data Repository, CC0.
+
+Rotics, S., Kaatz, M., Resheff, Y. S., et al. (2016). *The challenges of the
+first migration: movement and behavior of juvenile versus adult white storks
+with insights regarding juvenile mortality.* Journal of Animal Ecology
+85:938–947. Data: `doi:10.5441/001/1.hn1bd23k`, Movebank Data Repository, CC0.
 
 Backdrop, from two measured sources:
 

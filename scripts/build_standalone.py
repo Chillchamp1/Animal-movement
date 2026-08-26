@@ -20,7 +20,7 @@ from pathlib import Path
 
 # The tracks are already delta-encoded integers by scripts/build_utah.py, so
 # there is nothing left to rescale here -- the files go in as they are.
-DATASETS = ["storks"]
+DATASETS = ["storks", "storks-ages"]
 LAYERS = ["basemap"]
 
 

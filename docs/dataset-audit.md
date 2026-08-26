@@ -269,6 +269,61 @@ calendar clock over sixteen months, predators as a second set of moving points
 rather than a static surface, and rings that show measured distance instead of
 range overlap.
 
+## 6. Deepening the stork map — LifeTrack rejected, Rotics chosen
+
+Once the map ran on Flack et al., the question was whether to add the other big
+open white-stork source. Eighteen white-stork deposits exist in the repository,
+963 animals and 177.6 M locations between them. Two candidates were profiled
+against the map's actual need.
+
+**LifeTrack — 7 studies, 326 birds, 42,402,165 fixes, CC0. Rejected.**
+
+| Study | Birds | Fixes | GPS archive |
+|---|---:|---:|---:|
+| SW Germany 2013–23 | 92 | 13.18 M | 478 MB |
+| Rheinland-Pfalz 2015–23 | 108 | 12.79 M | 508 MB |
+| Vorarlberg 2016–23 | 26 | 8.49 M | 288 MB |
+| Bavaria 2014–23 | 67 | 5.09 M | 196 MB |
+| Oberschwaben 2014–23 | 18 | 2.49 M | 93 MB |
+| Kosova, Sicily | 15 | 0.36 M | small |
+
+Three measurements decided it. **251 of the 326 birds are German or Austrian**,
+so the western flyway alone — and this map's subject is the fork into two
+flyways, which one thicker cord cannot strengthen. Its research question is the
+ontogeny of migration, so its value is a decade of depth on one population,
+against a map that is a 350-day window and would keep roughly a tenth of it.
+And the five German and Austrian studies alone are 1.56 GB of GPS archives;
+42.4 M fixes thinned to hourly is still about 14 M, near a hundred times the
+127,606 the page carries. LifeTrack is a different map, not an addition.
+
+**Rotics et al. 2016 — [`doi:10.5441/001/1.hn1bd23k`][], 122 birds,
+1,440,936 fixes, CC0. Chosen.**
+
+What the map actually lacked was a comparison group: every one of the 72 birds
+in the Flack deposit is `animal-life-stage = juvenile`. This deposit is 66 `juv`
+and 56 `adult` from one colony in Sachsen-Anhalt, and its GPS file is **33.3 MB**
+— the remaining ~300 MB are four acceleration parts that `--match gps` skips.
+There is **no overlap in `animal-id`** with the Flack birds (4 shared `tag-id`s
+only, tags being reused between individuals), and 46 of the 122 carry a recorded
+death.
+
+Profiling by season found one clear window:
+
+| Autumn | Birds | juv | adult | Raw fixes | Hourly |
+|---|---:|---:|---:|---:|---:|
+| 2011 | 10 | 0 | 10 | 89,729 | 9,154 |
+| 2012 | 46 | 17 | 29 | 513,646 | 48,245 |
+| 2013 | 74 | **37** | **37** | 766,035 | 71,695 |
+
+Autumn 2013 is balanced, is the best covered, and opens on 1 August 2013 — the
+same epoch the existing map already starts from. Two caveats are carried into
+the page rather than hidden: the deposit is fall migration only, so it stops on
+31 October, which makes the **Crossing** classification meaningless there (a
+bird that has not passed 36°N by then has not decided against migrating); and
+all 122 birds are one site, so they are given their own view coloured by age
+instead of being folded into a palette keyed on origin, where they would
+outnumber the seven populations two to one.
+
 [doi:10.5061/dryad.w0vt4b8zr]: https://doi.org/10.5061/dryad.w0vt4b8zr
 [`63xsj3v81`]: https://doi.org/10.5061/dryad.63xsj3v81
 [`kh1893292`]: https://doi.org/10.5061/dryad.kh1893292
@@ -289,3 +344,4 @@ range overlap.
 [10.5441/001/1.7d8301h2]: https://doi.org/10.5441/001/1.7d8301h2
 [10.5441/001/1.662]: https://doi.org/10.5441/001/1.662
 [10.5441/001/1.5g4h5t6c]: https://doi.org/10.5441/001/1.5g4h5t6c
+[`doi:10.5441/001/1.hn1bd23k`]: https://doi.org/10.5441/001/1.hn1bd23k
