@@ -677,20 +677,49 @@ function drawScale(b){
   /* A round-numbered bar, re-chosen as the view zooms so it always spans a
      usable fraction of the canvas. */
   const pxPerKm = H / ((BOX.lat1 - BOX.lat0) * 110.574);
-  let km = 10;
+
+  /* The legend holds the bottom-left corner and the controls the bottom-right.
+     Measure the gap they actually leave and sit the bar in the middle of it,
+     so it never ends up underneath either. */
+  const rect = id => {
+    const el = document.getElementById(id);
+    return el ? el.getBoundingClientRect() : null;
+  };
+  const lg = rect("legend"), ct = rect("controls");
+  let y = H - 26, bandL = 16, bandR = W - 16;
+  if (lg && y > lg.top) bandL = Math.max(bandL, lg.right + 16);
+  if (ct && y > ct.top) bandR = Math.min(bandR, ct.left - 16);
+
+  /* On a narrower screen the two panels meet and leave no strip at all. Rather
+     than drop the scale, lift it clear of whichever reaches higher. */
+  if (bandR - bandL < 140){
+    const top = Math.min(lg ? lg.top : H, ct ? ct.top : H);
+    y = top - 14;
+    bandL = 16; bandR = W - 16;
+  }
+  const room = bandR - bandL;
+  if (room < 60 || y < 40) return;
+
+  let km = 50;
   for (const cand of [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
     km = cand;
-    if (cand * pxPerKm <= W * 0.28) break;
+    if (cand * pxPerKm <= room - 40) break;
   }
   const len = pxPerKm * km;
-  if (!isFinite(len) || len < 20) return;
+  if (!isFinite(len) || len < 20 || len > room - 24) return;
   const label = km >= 1 ? `${km} km` : `${km*1000} m`;
-  const x = W - len - 26, y = H - 30;
-  b.strokeStyle = pick("ink-3"); b.lineWidth = 1;
+  const x = bandL + (room - len) / 2;
+  /* Dark backing so the bar reads over satellite imagery as well as the
+     empty ground. */
+  b.save();
+  b.fillStyle = "rgba(5,8,14,0.55)";
+  b.fillRect(x - 12, y - 20, len + 24, 28);
+  b.restore();
+  b.strokeStyle = pick("ink-2"); b.lineWidth = 1;
   b.beginPath(); b.moveTo(x, y); b.lineTo(x+len, y);
-  b.moveTo(x, y-3); b.lineTo(x, y+3); b.moveTo(x+len, y-3); b.lineTo(x+len, y+3);
+  b.moveTo(x, y-4); b.lineTo(x, y+4); b.moveTo(x+len, y-4); b.lineTo(x+len, y+4);
   b.stroke();
-  b.fillStyle = pick("ink-3");
+  b.fillStyle = pick("ink-2");
   b.font = '300 10px "IBM Plex Mono",monospace';
   b.textAlign = "center";
   b.fillText(label, x + len/2, y - 7);
