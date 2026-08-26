@@ -129,6 +129,14 @@ up to whole days so every animal's hour-of-day still matches the clock exactly.
 The cost is that elapsed days are no longer comparable between animals once the
 shorter records come round again.
 
+## Looking for a deposit that carries both sides
+
+The gap above — predators present as a surface but never as positions — is what
+sent this looking for a replacement deposit. Four candidates were audited
+before anything was rebuilt on them; three are ruled out and one is still
+unverified. The findings, the evidence for each, and the profiling scripts that
+produced them are in **[docs/dataset-audit.md](docs/dataset-audit.md)**.
+
 ## Running it
 
 The page fetches its data, so it needs http(s) — GitHub Pages, or locally:
