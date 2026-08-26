@@ -336,8 +336,21 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
+/* Served from a directory the page can fetch, or inlined ahead of this script
+   by scripts/build_standalone.py for a single-file build. That distinction is
+   also the answer to whether satellite imagery can work at all: the standalone
+   carries its data inline precisely because it runs with no network. */
+const INLINE = (typeof window !== "undefined" && window.__STORK_DATA__) || null;
+
 let sel = {view:"origins", pops:new Set(POP_ORDER), ages:new Set(AGE_ORDER),
-           route:"all", layer:"trails", imagery:"basemap"};
+           route:"all", layer:"trails",
+           /* Satellite where it can be fetched, the baked backdrop where it
+              cannot. Imagery is the only real picture of this ground, so it is
+              worth defaulting to wherever it will actually arrive. */
+           imagery: INLINE ? "basemap" : "sat"};
+/* An explicit click on the imagery row is respected even if it fails; only the
+   default falls back on its own. */
+let imageryPinned = false;
 let DATA = null;          /* the active view's payload */
 const LOADED = new Map(); /* view name -> payload, fetched once */
 let TRACKS = [];          /* flattened, currently displayed */
@@ -346,10 +359,6 @@ let SPAN = 1;             /* hourly slots on the clock */
 let BOUNDS = null;
 
 /* ------------------------------------------------------------------ load */
-
-/* Served from a directory the page can fetch, or inlined ahead of this script
-   by scripts/build_standalone.py for a single-file build. */
-const INLINE = (typeof window !== "undefined" && window.__STORK_DATA__) || null;
 
 async function loadJSON(name){
   if (INLINE) return INLINE[name] ?? null;
@@ -672,7 +681,7 @@ function drawTiles(b){
         /* No crossOrigin: the canvas is never read back, and requesting CORS
            would fail the load outright on servers that do not send it. */
         img.onload  = () => { tileLoads++; baseReady = false; };
-        img.onerror = () => { tileFails++; tileCache.set(key, null); updateAttrib(); };
+        img.onerror = () => { tileFails++; tileCache.set(key, null); tileTrouble(); };
         img.src = TILES.url.replace("{z}", z).replace("{x}", tx).replace("{y}", ty);
         tileCache.set(key, img);
         if (tileCache.size > TILES.cap){
@@ -687,14 +696,35 @@ function drawTiles(b){
   }
 }
 
+/* Now that satellite is the default, a host that blocks the tile server would
+   hand the visitor a black map. The backdrop is already inside the page, so
+   dropping back to it costs nothing and is plainly better than nothing -- but
+   only when satellite was the default. Somebody who asked for it out loud gets
+   the empty ground and the reason, not a silent override. */
+let satBlocked = false;
+function tileTrouble(){
+  if (sel.imagery !== "sat" || tileLoads > 0){ updateAttrib(); return; }
+  /* One failure is a bad tile; several with nothing through is the host. */
+  if (tileFails < 4){ updateAttrib(); return; }
+  satBlocked = true;
+  if (imageryPinned){ updateAttrib(); return; }
+  sel.imagery = "basemap";
+  baseReady = false;
+  syncPills();
+  updateAttrib();
+}
+
 function updateAttrib(){
   const el = document.getElementById("attrib");
   if (!el) return;
   if (sel.imagery === "off"){ el.hidden = true; return; }
   el.hidden = false;
   if (sel.imagery === "basemap"){
-    /* Carried inside the page, so it has no failure state. */
-    el.textContent = BASEMAP ? BASEMAP.attribution : "basemap unavailable";
+    /* Carried inside the page, so it has no failure state of its own -- but it
+       should say why it is on screen if satellite was meant to be. */
+    const why = satBlocked && !imageryPinned
+      ? "satellite unavailable here \u2014 " : "";
+    el.textContent = why + (BASEMAP ? BASEMAP.attribution : "basemap unavailable");
     return;
   }
   el.textContent = (tileLoads === 0 && tileFails > 0)
@@ -1157,7 +1187,10 @@ function wireControls(){
   pillRow("imRow",
     [{key:"off",label:"Off"},{key:"basemap",label:"Land & sea"},{key:"sat",label:"Satellite"}],
     k => sel.imagery === k,
-    async k => { sel.imagery = k; baseReady = false; updateAttrib(); });
+    async k => {
+      sel.imagery = k; imageryPinned = true;
+      baseReady = false; updateAttrib();
+    });
 
   const play = document.getElementById("play");
   play.addEventListener("click", () => {
@@ -1360,9 +1393,11 @@ function buildNotes(){
     wintering or breeding grounds, covering a tenth as much.</p>
 
     <h3>The ground</h3>
-    <p><strong>Land &amp; sea</strong> is built from two measured sources and
-    baked in, so it is the one backdrop that works with no connection and the
-    only one in the self-contained build.</p>
+    <p><strong>Satellite</strong> is the default here, because imagery is the
+    only real picture of this ground. <strong>Land &amp; sea</strong> is built
+    from two measured sources and baked into the page, so it is the backdrop
+    that works with no connection at all &mdash; and the only one in the
+    self-contained build, which starts on it for that reason.</p>
     <p class="sub">Height and depth come from the Terrain Tiles set on AWS Open
     Data &mdash; SRTM and GMTED on land, ETOPO1 and other surveys at sea. One
     raster gives the hillshade and every coastline, which a map about birds
@@ -1377,9 +1412,12 @@ function buildNotes(){
     crop. It is deliberately faint. What it is there for is the edge: the
     Sahara is bare and the Sahel below it is not, and that line is where the
     desert crossing ends.</p>
-    <p><strong>Satellite</strong> is Esri World Imagery, fetched as tiles at
-    view time. It needs a host that permits outbound requests; where they are
-    blocked the tiles do not arrive and the attribution line says so.</p>
+    <p class="sub">Satellite is Esri World Imagery, fetched as tiles at view
+    time, so it needs a host that permits outbound requests. Where they are
+    blocked the page does not sit on an empty map: it drops back to the baked
+    backdrop it already carries and the attribution line says why. Ask for
+    satellite yourself and that stands &mdash; the fallback only overrides the
+    default, never a choice.</p>
     <p><strong>Trails</strong> are drawn by the birds themselves. Nothing is on
     the map before a stork has flown it, so the routes appear as they are made
     rather than sitting there waiting to be filled in. Scrubbing backwards

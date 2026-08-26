@@ -127,6 +127,20 @@ The obvious larger option was the LifeTrack series — 7 studies, 326 birds,
 
 LifeTrack deserves its own map. It is not an addition to this one.
 
+## The ground under them
+
+**Satellite** — Esri World Imagery, fetched as tiles at view time — is the
+default on the web app, because imagery is the only real picture of this
+ground. It needs a host that permits outbound requests, so where those are
+blocked the page falls back to the backdrop it already carries rather than
+showing an empty map, and says why in the attribution line. An explicit choice
+of satellite is never overridden that way; only the default is.
+
+**Land & sea** is that baked backdrop: one elevation raster for the hillshade,
+the bathymetry and every coastline, plus ESA WorldCover for standing water and
+a faint green wash. It needs no connection, so it is what the self-contained
+build starts on — that build has no network by design.
+
 ## The crosses
 
 Twenty-two of the 59 tags in **Origins**, and 21 of the 74 in **Ages**, stopped
