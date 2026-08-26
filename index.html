@@ -29,7 +29,11 @@
     -webkit-font-smoothing:antialiased;
   }
   #stage{position:fixed;inset:0;overflow:hidden}
-  #map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+  /* The map owns every gesture on it: there is nothing to scroll past. */
+  #map{position:absolute;inset:0;width:100%;height:100%;display:block;
+       touch-action:none;cursor:grab}
+  #resetview{min-width:56px;font-family:"IBM Plex Mono",monospace;font-size:0.72rem}
+  #resetview:disabled{opacity:0.45;cursor:default}
 
   /* ---- pickers --------------------------------------------------------- */
   #picks{position:fixed;z-index:6;left:14px;top:14px;display:flex;flex-direction:column;gap:6px;max-width:calc(100vw - 40px)}
@@ -183,6 +187,9 @@
   <div id="controls" class="panel">
     <button id="play" aria-pressed="true">Pause</button>
     <div class="spd" id="spd"></div>
+    <button id="resetview" title="Reset the view (0)" disabled>
+      <span id="zoomlv">fit</span>
+    </button>
     <div id="profile"><canvas id="profcv"></canvas><input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek"></div>
   </div>
 </div>
@@ -317,10 +324,17 @@ async function rebuild(){
     for (const ind of set.individuals) TRACKS.push(Object.assign({th}, ind));
   }
 
+  /* Collars fail at different times: by the end of the longest record most of
+     the others have long since stopped, which left one or two animals moving
+     over everyone else's fixes. Each collar therefore repeats its own record,
+     on a period rounded up to whole days so that hour-of-day - the only real
+     clock this data has - stays exact for every animal at once. */
+  for (const t of TRACKS) t.period = Math.max(24, Math.ceil((t.t1 + 1) / 24) * 24);
+
   SPAN = 1;
   let lo0 = Infinity, la0 = Infinity, lo1 = -Infinity, la1 = -Infinity;
   for (const t of TRACKS){
-    if (t.t1 + 1 > SPAN) SPAN = t.t1 + 1;
+    if (t.period > SPAN) SPAN = t.period;
     for (let i = 0; i < t.n; i++){
       if (t.lons[i] < lo0) lo0 = t.lons[i];
       if (t.lons[i] > lo1) lo1 = t.lons[i];
@@ -331,6 +345,7 @@ async function rebuild(){
   BOUNDS = TRACKS.length ? {lon0:lo0, lat0:la0, lon1:lo1, lat1:la1} : null;
   if (simH > SPAN) simH = 0;
 
+  CAM = null;          /* a new selection reframes */
   resize();
   buildLegend();
   buildProfile();
@@ -348,16 +363,110 @@ function syncSpeciesPills(){
 
 /* ------------------------------------------------------------- projection */
 
-let W=0, H=0, DPR=1, OX=0, OY=0, SX=1, SY=1, kLat=1;
+let W=0, H=0, DPR=1, kLat=1;
 const map = document.getElementById("map");
 const ctx = map.getContext("2d", {alpha:false});
 const base = document.createElement("canvas");
 let baseReady = false;
 
-const ux = lon => (lon - BOUNDS.lon0) / (BOUNDS.lon1 - BOUNDS.lon0);
-const uy = lat => 1 - (lat - BOUNDS.lat0) / (BOUNDS.lat1 - BOUNDS.lat0);
-const px = lon => OX + ux(lon) * SX;
-const py = lat => OY + uy(lat) * SY;
+/* HOME is the whole selection framed; CAM is where the viewer has moved to.
+   Both are held as a centre plus a longitude span, so the aspect correction
+   is applied in one place. */
+let HOME = null, CAM = null, BOX = null;
+const MAX_ZOOM = 400;   /* a 100 m-wide view of a 40 km range */
+
+/* Equirectangular, with the longitude axis squeezed by cos(lat) so the delta
+   keeps its shape at this latitude. */
+function boxOf(cam){
+  const spanLat = cam.spanLon * kLat / (W / H);
+  return {lon0: cam.lonC - cam.spanLon/2, lon1: cam.lonC + cam.spanLon/2,
+          lat0: cam.latC - spanLat/2,     lat1: cam.latC + spanLat/2};
+}
+const px = lon => (lon - BOX.lon0) / (BOX.lon1 - BOX.lon0) * W;
+const py = lat => (1 - (lat - BOX.lat0) / (BOX.lat1 - BOX.lat0)) * H;
+const lonAt = sx => BOX.lon0 + (sx / W) * (BOX.lon1 - BOX.lon0);
+const latAt = sy => BOX.lat1 - (sy / H) * (BOX.lat1 - BOX.lat0);
+const zoomLevel = () => HOME ? HOME.spanLon / CAM.spanLon : 1;
+
+function fitHome(keepCam){
+  if (!BOUNDS) return;
+  const midLat = (BOUNDS.lat0 + BOUNDS.lat1) / 2;
+  kLat = Math.cos(midLat * Math.PI / 180);
+  const dataLon = (BOUNDS.lon1 - BOUNDS.lon0) || 0.01;
+  const dataLat = (BOUNDS.lat1 - BOUNDS.lat0) || 0.01;
+  const pad = 1.08;
+  /* Whichever axis is tighter against the canvas decides the span. */
+  const spanLon = Math.max(dataLon * pad,
+                           (dataLat * pad) * (W / H) / kLat);
+  HOME = {lonC:(BOUNDS.lon0 + BOUNDS.lon1)/2, latC:midLat, spanLon};
+  if (!CAM || !keepCam) CAM = Object.assign({}, HOME);
+  clampCam();
+  BOX = boxOf(CAM);
+  baseReady = false;
+}
+
+function clampCam(){
+  if (!HOME) return;
+  CAM.spanLon = Math.min(HOME.spanLon,
+                         Math.max(HOME.spanLon / MAX_ZOOM, CAM.spanLon));
+  /* Keep the data in view: the centre may not wander beyond the home frame. */
+  const halfLon = Math.max(0, (HOME.spanLon - CAM.spanLon) / 2);
+  const spanLat = CAM.spanLon * kLat / (W / H);
+  const homeLat = HOME.spanLon * kLat / (W / H);
+  const halfLat = Math.max(0, (homeLat - spanLat) / 2);
+  CAM.lonC = Math.min(HOME.lonC + halfLon, Math.max(HOME.lonC - halfLon, CAM.lonC));
+  CAM.latC = Math.min(HOME.latC + halfLat, Math.max(HOME.latC - halfLat, CAM.latC));
+  BOX = boxOf(CAM);
+}
+
+/* Redrawing the fix layer costs real milliseconds at full extent, and at full
+   extent the camera is clamped so a drag moves nothing. Invalidate only when
+   the camera actually changed. */
+function commitCam(before){
+  const moved = CAM.lonC !== before.lonC || CAM.latC !== before.latC
+             || CAM.spanLon !== before.spanLon;
+  if (moved) baseReady = false;
+  return moved;
+}
+
+function zoomAround(sx, sy, factor){
+  if (!CAM) return;
+  const before = Object.assign({}, CAM);
+  const lon = lonAt(sx), lat = latAt(sy);
+  CAM.spanLon = CAM.spanLon / factor;
+  clampCam();
+  /* Put the point that was under the pointer back under the pointer. */
+  const spanLat = CAM.spanLon * kLat / (W / H);
+  CAM.lonC = lon - (sx / W - 0.5) * CAM.spanLon;
+  CAM.latC = lat + (sy / H - 0.5) * spanLat;
+  clampCam();
+  commitCam(before);
+  updateZoomUI();
+}
+
+function panBy(dx, dy){
+  if (!CAM) return;
+  const before = Object.assign({}, CAM);
+  CAM.lonC -= (dx / W) * (BOX.lon1 - BOX.lon0);
+  CAM.latC += (dy / H) * (BOX.lat1 - BOX.lat0);
+  clampCam();
+  commitCam(before);
+}
+
+function resetView(){
+  if (!HOME) return;
+  CAM = Object.assign({}, HOME);
+  clampCam();
+  baseReady = false;
+  updateZoomUI();
+}
+
+function updateZoomUI(){
+  const el = document.getElementById("zoomlv");
+  if (el) el.textContent = zoomLevel() < 1.05 ? "fit" : zoomLevel().toFixed(1) + "×";
+  const rb = document.getElementById("resetview");
+  if (rb) rb.disabled = zoomLevel() < 1.05;
+}
 
 function resize(){
   DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -366,20 +475,7 @@ function resize(){
   map.style.width = W+"px"; map.style.height = H+"px";
   ctx.setTransform(DPR,0,0,DPR,0,0);
   base.width = map.width; base.height = map.height;
-
-  if (!BOUNDS) return;
-  /* Equirectangular, with the longitude axis squeezed by cos(lat) so the
-     delta keeps its shape. */
-  const midLat = (BOUNDS.lat0 + BOUNDS.lat1) / 2;
-  kLat = Math.cos(midLat * Math.PI / 180);
-  const dataW = (BOUNDS.lon1 - BOUNDS.lon0) * kLat;
-  const dataH = (BOUNDS.lat1 - BOUNDS.lat0);
-  const pad = 64;
-  const availW = W - pad*2, availH = H - pad*2;
-  const scale = Math.min(availW / dataW, availH / dataH);
-  SX = dataW * scale; SY = dataH * scale;
-  OX = (W - SX) / 2; OY = (H - SY) / 2;
-  baseReady = false;
+  fitHome(true);
 }
 
 /* ------------------------------------------------------------- base layer */
@@ -397,10 +493,18 @@ function renderBase(){
 
   if (sel.risk !== "none" && RISK) drawRisk(b);
 
+  /* Zoomed out the fixes pile into one speck per cell and the cloud reads as
+     a mass; zoomed in they separate, so each is drawn a little larger and
+     brighter and the mass resolves into individual visits. */
+  const z = zoomLevel();
+  const size = Math.min(3, 1 + Math.log2(Math.max(1, z)) * 0.5);
+  const alpha = Math.min(0.42, 0.14 + Math.log2(Math.max(1, z)) * 0.05);
   for (const t of TRACKS){
-    b.fillStyle = rgba(hexRGB(pick(SPECIES[t.species].role)), 0.14);
+    b.fillStyle = rgba(hexRGB(pick(SPECIES[t.species].role)), alpha);
     for (let i = 0; i < t.n; i++){
-      b.fillRect(px(t.lons[i]) - 0.5, py(t.lats[i]) - 0.5, 1, 1);
+      const x = px(t.lons[i]), y = py(t.lats[i]);
+      if (x < -4 || x > W+4 || y < -4 || y > H+4) continue;
+      b.fillRect(x - size/2, y - size/2, size, size);
     }
   }
   drawScale(b);
@@ -438,12 +542,18 @@ function drawRisk(b){
 }
 
 function drawScale(b){
-  if (!BOUNDS) return;
-  /* 10 km bar, sized from the current projection. */
-  const kmPerDegLat = 110.574;
-  const pxPerKm = SY / ((BOUNDS.lat1 - BOUNDS.lat0) * kmPerDegLat);
-  const len = pxPerKm * 10;
-  if (!isFinite(len) || len < 20 || len > W*0.5) return;
+  if (!BOX) return;
+  /* A round-numbered bar, re-chosen as the view zooms so it always spans a
+     usable fraction of the canvas. */
+  const pxPerKm = H / ((BOX.lat1 - BOX.lat0) * 110.574);
+  let km = 10;
+  for (const cand of [50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
+    km = cand;
+    if (cand * pxPerKm <= W * 0.28) break;
+  }
+  const len = pxPerKm * km;
+  if (!isFinite(len) || len < 20) return;
+  const label = km >= 1 ? `${km} km` : `${km*1000} m`;
   const x = W - len - 26, y = H - 30;
   b.strokeStyle = pick("ink-3"); b.lineWidth = 1;
   b.beginPath(); b.moveTo(x, y); b.lineTo(x+len, y);
@@ -452,7 +562,7 @@ function drawScale(b){
   b.fillStyle = pick("ink-3");
   b.font = '300 10px "IBM Plex Mono",monospace';
   b.textAlign = "center";
-  b.fillText("10 km", x + len/2, y - 7);
+  b.fillText(label, x + len/2, y - 7);
   b.textAlign = "left";
 }
 
@@ -468,6 +578,10 @@ const riskState = () => {
   const h = hourOfDay();
   return (sel.risk === "dog" ? dogActive(h) : lionActive(h)) ? "high" : "low";
 };
+
+/* Where this collar is in its own repeating record. The period is a whole
+   number of days, so the hour-of-day this returns always equals the clock's. */
+const localH = (t, h) => ((h % t.period) + t.period) % t.period;
 
 /* Position at a fractional hour, or null inside a gap / outside the track. */
 function posAt(t, h){
@@ -498,31 +612,32 @@ function draw(){
   const h = hourOfDay();
   const dogOn = dogActive(h), lionOn = lionActive(h);
 
+  const z = Math.min(3, Math.sqrt(zoomLevel()));   /* marks grow, but sublinearly */
   for (const t of TRACKS){
-    const head = posAt(t, simH);
+    const head = posAt(t, localH(t, simH));
     if (!head) continue;
     const col = hexRGB(pick(SPECIES[t.species].role));
 
     /* comet trail, sampled backwards along the track */
     let cx = head[0], cy = head[1];
     for (let k = 1; k <= TRAIL_STEPS; k++){
-      const back = posAt(t, simH - (TRAIL_HOURS/TRAIL_STEPS)*k);
+      const back = posAt(t, localH(t, simH - (TRAIL_HOURS/TRAIL_STEPS)*k));
       if (!back) break;
       const a = (1 - k/TRAIL_STEPS) * 0.55;
       if (a <= 0.02) break;
       ctx.beginPath();
       ctx.moveTo(cx, cy); ctx.lineTo(back[0], back[1]);
       ctx.strokeStyle = rgba(col, a);
-      ctx.lineWidth = Math.max(1/DPR, 2.4 * (1 - k/(TRAIL_STEPS+3)));
+      ctx.lineWidth = Math.max(1/DPR, 2.4 * z * (1 - k/(TRAIL_STEPS+3)));
       ctx.lineCap = "round";
       ctx.stroke();
       cx = back[0]; cy = back[1];
     }
 
     /* halo + dot */
-    ctx.beginPath(); ctx.arc(head[0], head[1], 4.0, 0, 6.2832);
+    ctx.beginPath(); ctx.arc(head[0], head[1], 4.0*z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 0.15); ctx.fill();
-    ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R, 0, 6.2832);
+    ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R*z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 0.98); ctx.fill();
 
     /* Exposure ring: this animal is standing in the top decile of a
@@ -532,7 +647,7 @@ function draw(){
                   : (lionOn && t.uiLion[i] >= t.th.lion) ? "lion" : null;
     if (exposed){
       const phase = (simH % 1);
-      const r = DOT_R + 2 + phase * 9;
+      const r = (DOT_R + 2 + phase * 9) * z;
       ctx.beginPath(); ctx.arc(head[0], head[1], r, 0, 6.2832);
       ctx.strokeStyle = rgba(hexRGB(pick(exposed)), (1 - phase) * 0.55);
       ctx.lineWidth = Math.max(1/DPR, 1.2);
@@ -564,7 +679,8 @@ function buildLegend(){
   }
   const days = Math.ceil(SPAN/24);
   document.getElementById("legendFoot").textContent = TRACKS.length
-    ? `${sel.season === "dry" ? "Dry" : "Rainy"} season \u00b7 ${days} days of hourly fixes \u00b7 `
+    ? `${sel.season === "dry" ? "Dry" : "Rainy"} season \u00b7 longest record ${days} days \u00b7 `
+      + `each collar repeats its own record, aligned by time of day \u00b7 `
       + `rings mark an animal in the top decile of a predator's range while that predator is active.`
     : "No collars for this combination.";
 }
@@ -727,9 +843,78 @@ function wireControls(){
     nb.setAttribute("aria-expanded", String(open));
   });
 
+  document.getElementById("resetview").addEventListener("click", resetView);
+
   addEventListener("resize", () => { resize(); buildProfile(); });
   addEventListener("keydown", e => {
     if (e.key === " "){ e.preventDefault(); play.click(); }
+    else if (e.key === "0"){ resetView(); }
+    else if (e.key === "+" || e.key === "="){ zoomAround(W/2, H/2, 1.4); }
+    else if (e.key === "-"){ zoomAround(W/2, H/2, 1/1.4); }
+  });
+
+  wireMapGestures();
+}
+
+/* Wheel, drag and two-finger pinch, on one pointer-event path so a trackpad,
+   a mouse and a touchscreen all behave the same. */
+function wireMapGestures(){
+  const pts = new Map();
+  let pinch = null, panning = false, last = null;
+
+  map.addEventListener("wheel", e => {
+    e.preventDefault();
+    const r = map.getBoundingClientRect();
+    /* Trackpads report small deltas continuously, mice one large notch. */
+    const step = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.002));
+    zoomAround(e.clientX - r.left, e.clientY - r.top,
+               Math.min(2.4, Math.max(1/2.4, step)));
+  }, {passive:false});
+
+  map.addEventListener("pointerdown", e => {
+    map.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (pts.size === 2){
+      const [a, b] = [...pts.values()];
+      pinch = {d: Math.hypot(a.x-b.x, a.y-b.y),
+               mx:(a.x+b.x)/2, my:(a.y+b.y)/2};
+      panning = false;
+    } else if (pts.size === 1){
+      panning = true; last = {x:e.clientX, y:e.clientY};
+      map.style.cursor = "grabbing";
+    }
+  });
+
+  map.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+    if (pts.size === 2 && pinch){
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a.x-b.x, a.y-b.y);
+      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+      const r = map.getBoundingClientRect();
+      panBy(mx - pinch.mx, my - pinch.my);
+      if (pinch.d > 0) zoomAround(mx - r.left, my - r.top, d / pinch.d);
+      pinch = {d, mx, my};
+    } else if (panning && last){
+      panBy(e.clientX - last.x, e.clientY - last.y);
+      last = {x:e.clientX, y:e.clientY};
+    }
+  });
+
+  const release = e => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 0){ panning = false; last = null; map.style.cursor = ""; }
+    else if (pts.size === 1){ panning = true; last = [...pts.values()][0]; }
+    updateZoomUI();
+  };
+  map.addEventListener("pointerup", release);
+  map.addEventListener("pointercancel", release);
+  map.addEventListener("dblclick", e => {
+    const r = map.getBoundingClientRect();
+    zoomAround(e.clientX - r.left, e.clientY - r.top, 2);
   });
 }
 
@@ -756,6 +941,13 @@ function buildNotes(){
     from each collar's first fix. Animals are aligned by time of day, not by
     date &mdash; two dots side by side were not necessarily there in the same
     week.</p>
+    <p><strong>Each collar repeats its own record.</strong> The collars ran for
+    very different lengths, from 35 days to 200, and played once through they
+    drop away one by one until a couple of animals are moving over everyone
+    else's fixes. Each therefore loops, on a period rounded up to whole days so
+    that every animal's hour-of-day still matches the clock exactly. The cost is
+    that elapsed days are no longer comparable between animals once the shorter
+    records come round again.</p>
     <p><strong>No predator positions.</strong> Lions and wild dogs were collared,
     but the deposit contains none of their coordinates. They appear here only as
     their activity windows (the lamps under the clock) and as a utilisation
