@@ -2,7 +2,7 @@
 """Fold index.html and its data into one self-contained page.
 
 The served page fetches data/processed/*.json at runtime, which needs a web
-server. This build inlines the same JSON as `window.__WASATCH_DATA__` so the
+server. This build inlines the same JSON as `window.__STORK_DATA__` so the
 result is a single file that runs anywhere, including hosts that permit no
 outbound requests at all.
 
@@ -20,8 +20,8 @@ from pathlib import Path
 
 # The tracks are already delta-encoded integers by scripts/build_utah.py, so
 # there is nothing left to rescale here -- the files go in as they are.
-DATASETS = ["tracks-2019", "tracks-2020"]
-LAYERS = ["cougar-use", "year-shift", "terrain"]
+DATASETS = ["storks"]
+LAYERS = ["basemap"]
 
 
 def main() -> int:
@@ -29,7 +29,7 @@ def main() -> int:
     ap.add_argument("--page", type=Path, default=Path("index.html"))
     ap.add_argument("--data", type=Path, default=Path("data/processed"))
     ap.add_argument("--out", type=Path,
-                    default=Path("dist/cougars-and-their-prey.html"))
+                    default=Path("dist/where-the-storks-went.html"))
     args = ap.parse_args()
 
     src = args.page.read_text()
@@ -50,7 +50,7 @@ def main() -> int:
             print(f"  missing {path}, skipped")
             continue
         payload = json.loads(path.read_text())
-        total_fixes += sum(len(seg["d"]) for ind in payload["individuals"]
+        total_fixes += sum(len(seg["x"]) for ind in payload["individuals"]
                            for seg in ind["segments"])
         bundle[name] = payload
     for name in LAYERS:
@@ -67,7 +67,7 @@ def main() -> int:
     # the meta is a second line of defence, not the primary one.
     args.out.write_text(
         f'<meta charset="utf-8">\n<title>{title}</title>\n{fonts}\n{styles}\n{body}\n'
-        f"<script>window.__WASATCH_DATA__={data_js};</script>\n"
+        f"<script>window.__STORK_DATA__={data_js};</script>\n"
         f"<script>\n{app}</script>\n"
     )
 

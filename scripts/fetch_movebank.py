@@ -15,6 +15,11 @@ Usage
     python3 scripts/fetch_movebank.py --doi 10.5441/001/1.712
     python3 scripts/fetch_movebank.py --list-only --doi 10.5441/001/1.711
     python3 scripts/fetch_movebank.py --search "predator prey"
+
+    # Bird deposits ship accelerometer files many times the size of the GPS
+    # ones. Nothing here reads acceleration, so skip it.
+    python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
+        --match gps reference-data README
 """
 
 from __future__ import annotations
@@ -124,6 +129,8 @@ def main() -> int:
     parser.add_argument("--doi", help="deposit DOI, e.g. 10.5441/001/1.712")
     parser.add_argument("--search", help="free-text search over the repository")
     parser.add_argument("--list-only", action="store_true", help="describe the deposit, download nothing")
+    parser.add_argument("--match", nargs="+", metavar="SUBSTR",
+                        help="only fetch files whose name contains one of these")
     parser.add_argument("--out", default="data/raw/movebank", type=Path, help="output directory")
     args = parser.parse_args()
 
@@ -141,6 +148,12 @@ def main() -> int:
     item = find_by_doi(args.doi)
     describe(item)
     files = list_files(item)
+    if args.match:
+        keep = [f for f in files if any(m.lower() in f["name"].lower() for m in args.match)]
+        skipped = sum(f["sizeBytes"] for f in files) - sum(f["sizeBytes"] for f in keep)
+        print(f"  --match kept {len(keep)} of {len(files)} file(s), "
+              f"skipping {skipped / 1e6:.0f} MB")
+        files = keep
     if args.list_only:
         for rec in files:
             print(f"  {rec['sizeBytes']:>14,} B  {rec['name']}")

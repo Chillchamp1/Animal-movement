@@ -33,19 +33,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Fetch the Movebank deposits
+      - name: Fetch the Movebank deposit
         run: |
           python -m pip install --quiet pandas numpy pillow
-          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.712
-          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.711
+          # Skip the accelerometer files: 341 MB nothing here reads.
+          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
+            --match gps reference-data README --out data/raw/storks
 
-      - name: Build the tracks and layers
+      - name: Build the tracks and the backdrop
         run: |
-          python3 scripts/build_utah.py
-          python3 scripts/build_utah_layers.py
+          python3 scripts/build_storks.py
           # Fetches its own elevation tiles; must run before the cache is cleared.
-          python3 scripts/build_terrain.py
-          # The 839 MB of raw CSV must not reach the Pages artifact.
+          python3 scripts/build_basemap.py
+          # The raw CSV must not reach the Pages artifact.
           rm -rf data/raw
 
       # enablement turns Pages on and points its source at this workflow,

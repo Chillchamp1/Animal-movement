@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Cougars and their prey</title>
-<meta name="description" content="Two-hourly GPS tracks of cougars, elk and mule deer in the northern Wasatch, Utah, on one calendar clock, with the measured distance between predator and prey.">
+<title>Where the storks went</title>
+<meta name="description" content="Seventy-two white storks from nine populations, tracked hourly from the Baltic to the Cape, on one calendar clock — and the two narrow places they cross the Mediterranean.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
@@ -16,19 +16,12 @@
     --bg-bot:#0a1018;
     --ink:#e9eff7; --ink-2:#a7b3c4; --ink-3:#78859a;
     --rule:rgba(39,51,63,0.7); --panel:rgba(13,20,30,0.82);
-    --muledeer:#5aa9ff; --elk:#35d69a; --cougar:#ff7a45;
-    /* A ring means a collared cougar was measurably close, so it is drawn in
-       the cougar's own colour rather than a separate alarm colour. */
-    --near:#ff7a45;
-    /* Landscape layer: two muted, desaturated washes, so the animals stay the
-       brightest thing on the map even with a layer switched on. */
-    --y2019:#b08d57; --y2020:#4a8f9e;
-    /* Fully lit ground in the hillshade. The relief ships as a greyscale ramp
-       and is multiplied by this, so shadow lands on black and slopes facing the
-       light reach this colour. Kept close to the background: bright enough to
-       read the mountain front, dark enough that a collared animal is still the
-       brightest thing on the map, which is the whole premise of the page. */
-    --terrain-lit:#2a323e;
+    /* Nine tagging sites, running west to east as warm to cool. The gradient
+       is the point: when the tracks fan out around the Mediterranean, their
+       colour already says which end of Europe each bird came from. */
+    --p-spain:#ffb03a; --p-germany:#ff7a45; --p-tunisia:#ff5f7e;
+    --p-poland:#d86bff; --p-greece:#8b8cff; --p-russia:#4da3ff;
+    --p-armenia:#35d6c4; --p-uzbekistan:#6ee06a; --p-southafrica:#9aa6b8;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -55,8 +48,8 @@
     font:inherit;font-size:0.72rem;
   }
   .row button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
-  /* A species with no collars in the selected year says so rather than
-     sitting lit with nothing behind it. */
+  /* A population with no birds says so rather than sitting lit with nothing
+     behind it. */
   .row button[data-unavailable="true"]{opacity:0.3;cursor:not-allowed}
   .row button[data-unavailable="true"]::after{content:" \2014";letter-spacing:0.1em}
   .row .lab{
@@ -69,7 +62,7 @@
     position:absolute;z-index:3;left:50%;top:78px;
     text-align:center;pointer-events:none;white-space:nowrap;
     transform:translate(-50%,0);
-    text-shadow:0 0 10px var(--bg-bot), 0 0 4px var(--bg-bot);
+    text-shadow:0 0 16px var(--bg-bot), 0 0 8px var(--bg-bot), 0 0 3px var(--bg-bot);
   }
   #clock{
     font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:300;
@@ -79,16 +72,15 @@
   #clock .mins{opacity:0.6}
   #day{margin-top:2px;font-size:0.68rem;letter-spacing:0.06em;color:var(--ink-3);
        font-family:"IBM Plex Mono",monospace;}
-  /* One lamp and one readout, both measured: whether the collared cougars are
-     moving at this hour, and how close the nearest one actually is. */
+  /* Two readouts, both counted from the data at this hour: how many birds are
+     covering ground, and how many tags are still reporting at all. */
   #lamps{margin-top:7px;display:flex;gap:16px;justify-content:center;font-size:0.63rem;
          font-family:"IBM Plex Mono",monospace;letter-spacing:0.1em;text-transform:uppercase}
-  #lamps span{color:var(--ink-3);opacity:0.42;transition:opacity 0.25s,color 0.25s}
+  #lamps span{color:var(--ink-2);opacity:0.72;transition:opacity 0.25s,color 0.25s}
   #lampCoug::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
                     background:currentColor;margin-right:5px;vertical-align:middle}
-  #lampCoug[data-on="true"]{opacity:1;color:var(--cougar)}
+  #lampCoug[data-on="true"]{opacity:1;color:var(--p-germany)}
   #nearest{opacity:1;color:var(--ink-3)}
-  #nearest[data-close="true"]{color:var(--near)}
 
   /* ---- panels ---------------------------------------------------------- */
   .panel{
@@ -190,26 +182,26 @@
   <canvas id="map"></canvas>
 
   <div id="picks">
-    <div class="row" id="spRow"><span class="lab">Species</span></div>
-    <div class="row" id="seRow"><span class="lab">Season</span></div>
+    <div class="row" id="spRow"><span class="lab">Origin</span></div>
+    <div class="row" id="seRow"><span class="lab">Crossing</span></div>
     <div class="row" id="prRow"><span class="lab">Layer</span></div>
-    <div class="row" id="imRow"><span class="lab">Imagery</span></div>
+    <div class="row" id="imRow"><span class="lab">Ground</span></div>
   </div>
 
   <header>
-    <div id="clock">1 Jan<span class="mins"> 00:00</span></div>
+    <div id="clock">30 Nov 2012<span class="mins"> 02:00</span></div>
     <div id="day">day 1</div>
     <div id="lamps">
-      <span id="lampCoug" data-on="false">cougars moving</span>
-      <span id="nearest">nearest cougar &mdash;</span>
+      <span id="lampCoug" data-on="false">0 birds travelling</span>
+      <span id="nearest">0 tags reporting</span>
     </div>
   </header>
 
   <div id="meta">
-    <strong>Northern Wasatch, Utah</strong><br>
-    Two-hourly GPS fixes from Utah DWR, 2019&ndash;2020. Real dates, real
-    positions, both guilds on one clock: a ring is a measured distance to a
-    cougar that was there at that hour.
+    <strong>White storks, 2012&ndash;2014</strong><br>
+    Seventy-two juveniles from nine populations, tracked hourly from the Baltic
+    to the Cape. Storks soar, and thermals do not form over open water &mdash;
+    so watch where they cross the Mediterranean, and where they refuse to.
   </div>
 
   <button id="notesbtn" aria-expanded="false">Data notes &amp; gaps</button>
@@ -243,19 +235,33 @@
 
 /* ------------------------------------------------------------------ model */
 
-const SPECIES = {
-  muledeer: {label:"Mule deer", role:"muledeer", guild:"prey"},
-  elk:      {label:"Elk",       role:"elk",      guild:"prey"},
-  cougar:   {label:"Cougar",    role:"cougar",   guild:"predator"},
+/* Nine tagging sites, ordered west to east and coloured as a gradient, so the
+   fan of tracks reads as the geography that produced it rather than as nine
+   arbitrary hues. */
+const POPS = {
+  Spain:         {label:"Spain",        role:"p-spain"},
+  Germany:       {label:"Germany",      role:"p-germany"},
+  Tunisia:       {label:"Tunisia",      role:"p-tunisia"},
+  Poland:        {label:"Poland",       role:"p-poland"},
+  Greece:        {label:"Greece",       role:"p-greece"},
+  Russia:        {label:"Russia",       role:"p-russia"},
+  Armenia:       {label:"Armenia",      role:"p-armenia"},
+  Uzbekistan:    {label:"Uzbekistan",   role:"p-uzbekistan"},
+  "South Africa":{label:"South Africa", role:"p-southafrica"},
 };
-const SPECIES_ORDER = ["muledeer","elk","cougar"];
-const SEASON_ORDER  = ["2019","2020"];
+const POP_ORDER = ["Spain","Germany","Tunisia","Poland","Greece","Russia",
+                   "Armenia","Uzbekistan","South Africa"];
 
-/* Both deposits carry cougars and prey on the same two-hour schedule, so the
-   builder could measure, for every fix, how far away the nearest animal of the
-   other guild actually was at that hour. A ring fades in below this distance
-   rather than switching on at a line. */
-const NEAR_M = 1000;
+/* Where a bird first crossed 36 N, which is the choice that defines its
+   journey: storks soar, thermals do not form over open water, so the
+   Mediterranean is crossed at its narrow ends or not at all. */
+const ROUTES = {
+  all:     {label:"All"},
+  west:    {label:"Gibraltar"},
+  central: {label:"Central"},
+  east:    {label:"Levant"},
+  stayed:  {label:"Stayed north"},
+};
 
 const pick = name => getComputedStyle(document.documentElement)
   .getPropertyValue("--" + name).trim();
@@ -265,26 +271,18 @@ const hexRGB = hex => {
 };
 const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-/* imagery: "off" | "terrain" | "sat". Terrain leads because it is baked into
-   the page -- it is the only backdrop that survives an offline host or a strict
-   content policy, and without one the map opens as an unreadable black field. */
-let sel = {species:new Set(["muledeer","elk","cougar"]), season:"2019",
-           layer:"none", imagery:"terrain"};
-let SEASON = null;        /* the loaded season payload */
+let sel = {pops:new Set(POP_ORDER), route:"all", layer:"routes", imagery:"basemap"};
+let DATA = null;          /* the loaded storks.json */
 let TRACKS = [];          /* flattened, currently displayed */
-let USE = null;           /* cougar-use.json */
-let TERRAIN = null;       /* terrain.json, with the hillshade as a data URI */
-let SHIFT = null;         /* year-shift.json */
-let SPAN = 1;             /* slots on the clock */
-let BOUNDS = null;        /* {lon0,lat0,lon1,lat1} of the season */
-let COUGAR_HOURS = new Set();
-const CACHE = new Map();
+let BASEMAP = null;       /* basemap.json, land and sea as a data URI */
+let SPAN = 1;             /* hourly slots on the clock */
+let BOUNDS = null;
 
 /* ------------------------------------------------------------------ load */
 
 /* Served from a directory the page can fetch, or inlined ahead of this script
    by scripts/build_standalone.py for a single-file build. */
-const INLINE = (typeof window !== "undefined" && window.__WASATCH_DATA__) || null;
+const INLINE = (typeof window !== "undefined" && window.__STORK_DATA__) || null;
 
 async function loadJSON(name){
   if (INLINE) return INLINE[name] ?? null;
@@ -293,146 +291,124 @@ async function loadJSON(name){
   return res.json();
 }
 
-/* Nothing here has to be reconstructed: every fix arrived with a coordinate
-   pair and a timestamp, so a slot index is just elapsed two-hour steps from
-   the season's first fix. Segments hold consecutive slots only -- wherever a
-   collar missed even one fix the segment ends, and nothing is drawn across it. */
-async function loadSeason(season){
-  if (CACHE.has(season)) return CACHE.get(season);
-  const raw = await loadJSON("tracks-" + season);
-  if (!raw) throw new Error(`no data for ${season}`);
-
+/* Nothing here is reconstructed: every fix arrived with a coordinate pair and
+   a timestamp. A slot is elapsed hours from the first fix in the deposit.
+   A segment may skip hours -- these are solar tags and they sleep at night --
+   but scripts/build_storks.py only leaves a gap inside a segment when the bird
+   demonstrably went nowhere across it. Anything faster ends the segment, and
+   nothing is drawn across those. */
+async function loadStorks(){
+  const raw = await loadJSON("storks");
+  if (!raw) throw new Error("no stork data");
   const S = raw.scale, ox = raw.origin.lon, oy = raw.origin.lat;
+
   const individuals = raw.individuals.map(ind => {
     let n = 0;
-    for (const seg of ind.segments) n += seg.d.length;
+    for (const seg of ind.segments) n += seg.x.length;
     const slots = new Int32Array(n);
     const lons  = new Float32Array(n);
     const lats  = new Float32Array(n);
-    const dist  = new Uint8Array(n);   /* to the other guild, in distUnitM steps */
-    const brk   = new Uint8Array(n);   /* first fix of a segment */
+    const brk   = new Uint8Array(n);
 
     let i = 0;
     for (const seg of ind.segments){
-      let x = 0, y = 0;
+      let x = 0, y = 0, t = seg.t;
       brk[i] = 1;
-      for (let j = 0; j < seg.d.length; j++){
+      for (let j = 0; j < seg.x.length; j++){
         x += seg.x[j]; y += seg.y[j];
-        slots[i] = seg.t + j;
+        if (j) t += seg.ds[j-1];
+        slots[i] = t;
         lons[i]  = ox + x / S;
         lats[i]  = oy + y / S;
-        dist[i]  = seg.d[j];
         i++;
       }
     }
-    return {id:ind.id, species:ind.sp, n, slots, lons, lats, dist, brk,
-            t0:slots[0], t1:slots[n-1]};
+    return {id:ind.id, pop:ind.pop, route:ind.route, died:ind.died ?? null,
+            n, slots, lons, lats, brk, t0:slots[0], t1:slots[n-1]};
   });
 
-  const out = {meta:raw, epoch:Date.parse(raw.epoch), individuals};
-  CACHE.set(season, out);
-  return out;
+  return {meta:raw, epoch:Date.parse(raw.epoch), individuals};
 }
 
-/* In the Okavango map the predator lamps came from activity windows the
-   deposit stated, because no predator was ever positioned. Here the cougars
-   are in the data, so their own median step length per hour-of-day says when
-   they were on the move. */
-function activeHours(diel, stepHours){
-  const d = (diel && diel.cougar) || null;
-  if (!d) return new Set();
-  const vals = Object.values(d).slice().sort((a,b) => a - b);
-  if (!vals.length) return new Set();
-  const median = vals[(vals.length - 1) >> 1];
-  const on = new Set();
-  for (const [key, v] of Object.entries(d)){
-    if (v < median) continue;
-    /* Each figure is the median distance covered by a step *ending* at that
-       hour, and the collars only fire every second hour. Marking the single
-       sampled hour would leave the lamp dark through every hour in between,
-       which would be an artefact of the schedule rather than a measurement --
-       so the whole step the figure describes is marked. */
-    const h = Number(key);
-    for (let k = 1; k <= stepHours; k++) on.add(((h - k) % 24 + 24) % 24);
-  }
-  return on;
-}
-
-async function rebuild(){
-  SEASON = await loadSeason(sel.season);
-  COUGAR_HOURS = activeHours(SEASON.meta.diel, SEASON.meta.stepHours);
-  TRACKS = SEASON.individuals.filter(t => sel.species.has(t.species));
-  SPAN = SEASON.meta.steps;
+function rebuild(){
+  TRACKS = DATA.individuals.filter(t =>
+    sel.pops.has(t.pop) && (sel.route === "all" || t.route === sel.route));
+  SPAN = DATA.meta.slots;
   if (simT >= SPAN) simT = 0;
 
-  /* Frame the whole season, not just the current selection, so switching a
-     species on or off does not move the map out from under the viewer. */
-  let lo0 = Infinity, la0 = Infinity, lo1 = -Infinity, la1 = -Infinity;
-  for (const t of SEASON.individuals){
-    for (let i = 0; i < t.n; i++){
-      if (t.lons[i] < lo0) lo0 = t.lons[i];
-      if (t.lons[i] > lo1) lo1 = t.lons[i];
-      if (t.lats[i] < la0) la0 = t.lats[i];
-      if (t.lats[i] > la1) la1 = t.lats[i];
-    }
-  }
-  BOUNDS = SEASON.individuals.length ? {lon0:lo0, lat0:la0, lon1:lo1, lat1:la1} : null;
+  /* Frame every bird in the deposit, not the current filter, so switching a
+     population off does not move the map out from under the viewer. */
+  const b = DATA.meta.bounds;
+  BOUNDS = {lon0:b.lon0, lat0:b.lat0, lon1:b.lon1, lat1:b.lat1};
 
-  CAM = null;          /* a new season reframes */
   resize();
   buildLegend();
   buildProfile();
-  syncSpeciesPills();
+  syncPopPills();
   baseReady = false;
 }
 
-function syncSpeciesPills(){
-  const present = new Set((SEASON ? SEASON.individuals : []).map(t => t.species));
+function syncPopPills(){
+  const present = new Set(DATA ? DATA.individuals.map(t => t.pop) : []);
   for (const b of document.querySelectorAll("#spRow button")){
     const ok = present.has(b.dataset.key);
     b.dataset.unavailable = String(!ok);
-    b.setAttribute("aria-pressed", String(ok && sel.species.has(b.dataset.key)));
+    b.setAttribute("aria-pressed", String(ok && sel.pops.has(b.dataset.key)));
   }
 }
 
 /* ------------------------------------------------------------- projection */
 
-let W=0, H=0, DPR=1, kLat=1;
+let W=0, H=0, DPR=1;
 const map = document.getElementById("map");
 const ctx = map.getContext("2d", {alpha:false});
 const base = document.createElement("canvas");
 let baseReady = false;
 
-/* HOME is the whole selection framed; CAM is where the viewer has moved to.
-   Both are held as a centre plus a longitude span, so the aspect correction
-   is applied in one place. */
-let HOME = null, CAM = null, BOX = null;
-const MAX_ZOOM = 400;   /* a 250 m-wide view of a 100 km block */
+/* Web Mercator. The map that came before this one spanned 90 km and could get
+   away with equirectangular and a single cos(lat) squeeze; these birds run from
+   the Baltic to the Cape, 91 degrees of latitude, where one squeeze factor is
+   wrong at both ends. Mercator is conformal, so shapes hold everywhere, and it
+   is the projection the satellite and elevation tiles are already cut in.
 
-/* Equirectangular, with the longitude axis squeezed by cos(lat) so the block
-   keeps its shape at this latitude. */
+   Longitude maps straight through; latitude goes through the Mercator y, and
+   both are held in the same world units so a square on screen is a square on
+   the ground. Area inflates towards the poles -- unavoidable in Mercator, and
+   the scale bar is re-measured at the centre of the view to compensate. */
+const R_KM = 6371.0088;
+const DEG = Math.PI / 180;
+const merY = lat => Math.log(Math.tan(Math.PI/4 + Math.max(-85, Math.min(85, lat)) * DEG/2));
+const latOfY = y => (Math.atan(Math.exp(y)) * 2 - Math.PI/2) / DEG;
+
+/* HOME is the whole selection framed; CAM is where the viewer has moved to.
+   Both are a centre plus a longitude span, so the aspect correction lives in
+   one place. */
+let HOME = null, CAM = null, BOX = null;
+const MAX_ZOOM = 2000;  /* a ~4 km-wide view of a continental frame */
+
 function boxOf(cam){
-  const spanLat = cam.spanLon * kLat / (W / H);
+  const spanX = cam.spanLon * DEG;
+  const spanY = spanX / (W / H);
+  const yC = merY(cam.latC);
+  const y0 = yC - spanY/2, y1 = yC + spanY/2;
   return {lon0: cam.lonC - cam.spanLon/2, lon1: cam.lonC + cam.spanLon/2,
-          lat0: cam.latC - spanLat/2,     lat1: cam.latC + spanLat/2};
+          y0, y1, lat0: latOfY(y0), lat1: latOfY(y1)};
 }
 const px = lon => (lon - BOX.lon0) / (BOX.lon1 - BOX.lon0) * W;
-const py = lat => (1 - (lat - BOX.lat0) / (BOX.lat1 - BOX.lat0)) * H;
+const py = lat => (1 - (merY(lat) - BOX.y0) / (BOX.y1 - BOX.y0)) * H;
 const lonAt = sx => BOX.lon0 + (sx / W) * (BOX.lon1 - BOX.lon0);
-const latAt = sy => BOX.lat1 - (sy / H) * (BOX.lat1 - BOX.lat0);
+const latAt = sy => latOfY(BOX.y1 - (sy / H) * (BOX.y1 - BOX.y0));
 const zoomLevel = () => HOME ? HOME.spanLon / CAM.spanLon : 1;
 
 function fitHome(keepCam){
   if (!BOUNDS) return;
-  const midLat = (BOUNDS.lat0 + BOUNDS.lat1) / 2;
-  kLat = Math.cos(midLat * Math.PI / 180);
   const dataLon = (BOUNDS.lon1 - BOUNDS.lon0) || 0.01;
-  const dataLat = (BOUNDS.lat1 - BOUNDS.lat0) || 0.01;
+  const y0 = merY(BOUNDS.lat0), y1 = merY(BOUNDS.lat1);
+  const dataY = (y1 - y0) || 0.0002;
   const pad = 1.08;
   /* Whichever axis is tighter against the canvas decides the span. */
-  const spanLon = Math.max(dataLon * pad,
-                           (dataLat * pad) * (W / H) / kLat);
-  HOME = {lonC:(BOUNDS.lon0 + BOUNDS.lon1)/2, latC:midLat, spanLon};
+  const spanLon = Math.max(dataLon * pad, (dataY * pad) * (W / H) / DEG);
+  HOME = {lonC:(BOUNDS.lon0 + BOUNDS.lon1)/2, latC:latOfY((y0 + y1)/2), spanLon};
   if (!CAM || !keepCam) CAM = Object.assign({}, HOME);
   clampCam();
   BOX = boxOf(CAM);
@@ -449,14 +425,16 @@ function clampCam(){
   if (!HOME) return;
   CAM.spanLon = Math.min(HOME.spanLon,
                          Math.max(HOME.spanLon / MAX_ZOOM, CAM.spanLon));
-  const spanLat = CAM.spanLon * kLat / (W / H);
-  const homeLat = HOME.spanLon * kLat / (W / H);
+  const spanY = CAM.spanLon * DEG / (W / H);
+  const homeY = HOME.spanLon * DEG / (W / H);
   const halfLon = Math.max(0, (HOME.spanLon - CAM.spanLon) / 2)
                 + CAM.spanLon * PAN_SLACK;
-  const halfLat = Math.max(0, (homeLat - spanLat) / 2)
-                + spanLat * PAN_SLACK;
+  const halfY = Math.max(0, (homeY - spanY) / 2) + spanY * PAN_SLACK;
   CAM.lonC = Math.min(HOME.lonC + halfLon, Math.max(HOME.lonC - halfLon, CAM.lonC));
-  CAM.latC = Math.min(HOME.latC + halfLat, Math.max(HOME.latC - halfLat, CAM.latC));
+  /* Clamping in Mercator y rather than in degrees, so the limit means the same
+     distance north and south of a frame that is not centred on the equator. */
+  const yC = merY(CAM.latC), homeYC = merY(HOME.latC);
+  CAM.latC = latOfY(Math.min(homeYC + halfY, Math.max(homeYC - halfY, yC)));
   BOX = boxOf(CAM);
 }
 
@@ -477,9 +455,9 @@ function zoomAround(sx, sy, factor){
   CAM.spanLon = CAM.spanLon / factor;
   clampCam();
   /* Put the point that was under the pointer back under the pointer. */
-  const spanLat = CAM.spanLon * kLat / (W / H);
+  const spanY = CAM.spanLon * DEG / (W / H);
   CAM.lonC = lon - (sx / W - 0.5) * CAM.spanLon;
-  CAM.latC = lat + (sy / H - 0.5) * spanLat;
+  CAM.latC = latOfY(merY(lat) + (sy / H - 0.5) * spanY);
   clampCam();
   commitCam(before);
   updateZoomUI();
@@ -489,7 +467,7 @@ function panBy(dx, dy){
   if (!CAM) return;
   const before = Object.assign({}, CAM);
   CAM.lonC -= (dx / W) * (BOX.lon1 - BOX.lon0);
-  CAM.latC += (dy / H) * (BOX.lat1 - BOX.lat0);
+  CAM.latC = latOfY(merY(CAM.latC) + (dy / H) * (BOX.y1 - BOX.y0));
   clampCam();
   commitCam(before);
 }
@@ -531,10 +509,9 @@ function renderBase(){
   b.fillRect(0,0,W,H);
   if (!BOUNDS){ baseReady = true; return; }
 
-  if (sel.imagery === "terrain") drawTerrain(b);
+  if (sel.imagery === "basemap") drawBasemap(b);
   else if (sel.imagery === "sat") drawTiles(b);
-  if (sel.layer === "cougar") drawCougarUse(b);
-  else if (sel.layer === "shift") drawYearShift(b);
+  if (sel.layer === "routes") drawRoutes(b);
 
   drawScale(b);
   baseReady = true;
@@ -605,9 +582,9 @@ function updateAttrib(){
   if (!el) return;
   if (sel.imagery === "off"){ el.hidden = true; return; }
   el.hidden = false;
-  if (sel.imagery === "terrain"){
-    /* The hillshade is carried inside the page, so it has no failure state. */
-    el.textContent = TERRAIN ? TERRAIN.attribution : "elevation layer unavailable";
+  if (sel.imagery === "basemap"){
+    /* Carried inside the page, so it has no failure state. */
+    el.textContent = BASEMAP ? BASEMAP.attribution : "basemap unavailable";
     return;
   }
   el.textContent = (tileLoads === 0 && tileFails > 0)
@@ -615,102 +592,20 @@ function updateAttrib(){
     : TILES.attribution;
 }
 
-/* Relief, computed once by scripts/build_terrain.py and carried in the page as
-   a greyscale PNG. It arrives already reprojected out of Mercator into this
-   map's frame, so drawing it is one drawImage into the region rectangle -- no
-   per-tile projection, and no requests at view time. */
-let terrainCv = null;
-function tintTerrain(img){
-  const cv = document.createElement("canvas");
-  cv.width = TERRAIN.width; cv.height = TERRAIN.height;
-  const c = cv.getContext("2d");
-  /* lit colour x shade, which is the ramp from black to lit. Done here once
-     rather than per pixel in the draw loop. */
-  c.fillStyle = pick("terrain-lit");
-  c.fillRect(0, 0, cv.width, cv.height);
-  c.globalCompositeOperation = "multiply";
-  c.drawImage(img, 0, 0, cv.width, cv.height);
-  terrainCv = cv;
-  baseReady = false;
-}
+/* Land and sea, computed once by scripts/build_basemap.py and carried in the
+   page as a quantised PNG. It is already in Web Mercator, the same projection
+   this map draws in, so placing it is one drawImage into its own rectangle --
+   no per-tile projection, and no requests at view time. Without it there is no
+   coastline, and a map of birds that will not cross open water needs one. */
+let basemapImg = null;
 
-function drawTerrain(b){
-  if (!terrainCv || !TERRAIN) return;
-  const R = TERRAIN.bounds;
+function drawBasemap(b){
+  if (!basemapImg || !BASEMAP) return;
+  const R = BASEMAP.bounds;
   b.save();
   b.imageSmoothingEnabled = true;
-  b.globalAlpha = 0.92;
-  b.drawImage(terrainCv, px(R.lon0), py(R.lat1),
+  b.drawImage(basemapImg, px(R.lon0), py(R.lat1),
               px(R.lon1) - px(R.lon0), py(R.lat0) - py(R.lat1));
-  b.restore();
-}
-
-const shiftCv = document.createElement("canvas");
-/* January-to-May occupancy in 2019 against 2020, for the 96 animals collared in
-   both years. Restricting it to those animals is what makes it a comparison of
-   behaviour rather than of who happened to be wearing a collar -- and it is a
-   map of where they went, not of snow or forage. */
-function drawYearShift(b){
-  if (!SHIFT) return;
-  const {nx, ny, cells} = SHIFT;
-  if (shiftCv.width !== nx || shiftCv.height !== ny){
-    shiftCv.width = nx; shiftCv.height = ny;
-  }
-  const sc = shiftCv.getContext("2d");
-  const img = sc.createImageData(nx, ny);
-  const aCol = hexRGB(pick("y2019")), bCol = hexRGB(pick("y2020"));
-  for (let iy = 0; iy < ny; iy++){
-    for (let ix = 0; ix < nx; ix++){
-      const v = cells[iy*nx + ix];
-      const o = ((ny-1-iy)*nx + ix) * 4;
-      if (!v){ img.data[o+3] = 0; continue; }
-      const col = v > 0 ? aCol : bCol;
-      img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2];
-      /* Kept well under the cougar layer's weight: this one covers the whole
-         block, and the animals have to stay the brightest thing on it. */
-      img.data[o+3] = Math.round(Math.min(1, Math.abs(v)/100) * 115);
-    }
-  }
-  sc.putImageData(img, 0, 0);
-  const R = SHIFT.bounds;
-  b.save();
-  b.imageSmoothingEnabled = true;
-  b.globalAlpha = 0.9;
-  b.drawImage(shiftCv, px(R.lon0), py(R.lat1),
-              px(R.lon1) - px(R.lon0), py(R.lat0) - py(R.lat1));
-  b.restore();
-}
-
-let riskCv = document.createElement("canvas");
-/* Where the collared cougars actually were this season. Unlike the Okavango
-   range layers this is an observation, so it does not switch between an active
-   and an inactive state -- there is only one place a cougar was. */
-function drawCougarUse(b){
-  if (!USE) return;
-  const surf = USE.surfaces[sel.season];
-  if (!surf) return;
-  const {nx, ny} = USE;
-  if (riskCv.width !== nx || riskCv.height !== ny){ riskCv.width = nx; riskCv.height = ny; }
-  const rc = riskCv.getContext("2d");
-  const img = rc.createImageData(nx, ny);
-  const col = hexRGB(pick("cougar"));
-  for (let iy = 0; iy < ny; iy++){
-    for (let ix = 0; ix < nx; ix++){
-      const v = surf.cells[iy*nx + ix];
-      /* rows run south to north in the grid, top to bottom on screen */
-      const o = ((ny-1-iy)*nx + ix) * 4;
-      img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2];
-      img.data[o+3] = Math.round(Math.pow(v/255, 0.75) * 150);
-    }
-  }
-  rc.putImageData(img, 0, 0);
-
-  const R = USE.bounds;
-  const x0 = px(R.lon0), x1 = px(R.lon1), y0 = py(R.lat1), y1 = py(R.lat0);
-  b.save();
-  b.imageSmoothingEnabled = true;
-  b.globalAlpha = 0.85;
-  b.drawImage(riskCv, x0, y0, x1-x0, y1-y0);
   b.restore();
 }
 
@@ -718,7 +613,10 @@ function drawScale(b){
   if (!BOX) return;
   /* A round-numbered bar, re-chosen as the view zooms so it always spans a
      usable fraction of the canvas. */
-  const pxPerKm = H / ((BOX.lat1 - BOX.lat0) * 110.574);
+  /* Mercator stretches with latitude, so a bar drawn from the frame's height
+     would be wrong everywhere except one parallel. Measure it where the viewer
+     is actually looking: at the centre of the view. */
+  const pxPerKm = H / ((BOX.y1 - BOX.y0) * R_KM * Math.cos(CAM.latC * DEG));
 
   /* The legend holds the bottom-left corner and the controls the bottom-right.
      Measure the gap they actually leave and sit the bar in the middle of it,
@@ -742,8 +640,8 @@ function drawScale(b){
   const room = bandR - bandL;
   if (room < 60 || y < 40) return;
 
-  let km = 100;
-  for (const cand of [500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
+  let km = 2000;
+  for (const cand of [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.2, 0.1]){
     km = cand;
     if (cand * pxPerKm <= room - 40) break;
   }
@@ -770,20 +668,18 @@ function drawScale(b){
 
 /* --------------------------------------------------------------- playback */
 
-let simT = 0;                  /* two-hour slots since the season's first fix */
-let slotsPerSecond = 6;        /* 6 slots = half a day per second */
+let simT = 0;                  /* hourly slots since the deposit's first fix */
+let slotsPerSecond = 96;       /* four days a second: a full run in ~2.5 min */
 let playing = true;
 let lastFrame = performance.now();
-let nearestNow = null;         /* metres to the closest measured encounter on screen */
+let flyingNow = 0;             /* birds covering ground at this hour */
 
-const MS_PER_SLOT = 2 * 3600 * 1000;
-const clockDate = () => new Date((SEASON ? SEASON.epoch : 0) + simT * MS_PER_SLOT);
-const hourOfDay = () => clockDate().getUTCHours();
-const cougarActive = h => COUGAR_HOURS.has(h);
+const MS_PER_SLOT = 3600 * 1000;
+const clockDate = () => new Date((DATA ? DATA.epoch : 0) + simT * MS_PER_SLOT);
 
 /* Position at a fractional slot, or null inside a gap / outside the track.
-   Slots inside a segment are consecutive, so a step of more than one slot is
-   a silence and nothing is drawn across it. */
+   Slots inside a segment are consecutive, so a step of more than one is a
+   silence and nothing is drawn across it. */
 function posAt(t, at){
   if (at < t.t0 || at > t.t1) return null;
   const slots = t.slots;
@@ -792,157 +688,147 @@ function posAt(t, at){
     const mid = (lo + hi + 1) >> 1;
     if (slots[mid] <= at) lo = mid; else hi = mid - 1;
   }
-  if (lo === t.n - 1) return [px(t.lons[lo]), py(t.lats[lo]), lo, t.lons[lo], t.lats[lo]];
+  if (lo === t.n - 1) return [px(t.lons[lo]), py(t.lats[lo]), lo];
+  /* Only a segment boundary breaks the line. A skipped hour inside a segment is
+     a sleeping bird, and the builder has already established it did not move. */
+  if (t.brk[lo+1]) return null;
   const ta = slots[lo], tb = slots[lo+1];
-  if (tb - ta > 1 || t.brk[lo+1]) return null;
   const f = (at - ta) / (tb - ta);
-  const lon = t.lons[lo] + (t.lons[lo+1]-t.lons[lo])*f;
-  const lat = t.lats[lo] + (t.lats[lo+1]-t.lats[lo])*f;
-  return [px(lon), py(lat), lo, lon, lat];
+  return [px(t.lons[lo] + (t.lons[lo+1]-t.lons[lo])*f),
+          py(t.lats[lo] + (t.lats[lo+1]-t.lats[lo])*f), lo];
 }
 
-const DOT_R = 2.1;
-const TRAIL_STEPS = 8;
-const TRAIL_SLOTS = 12;        /* a full day of trail behind each animal */
+/* Ground covered in the hour ending at index i, in km. On migration a stork
+   soars at 40-60 km/h; sitting on a rubbish tip it covers almost nothing. */
+function stepKm(t, i){
+  if (i < 1 || t.brk[i]) return 0;
+  const hours = t.slots[i] - t.slots[i-1];
+  if (hours < 1) return 0;
+  const dLon = (t.lons[i]-t.lons[i-1]) * Math.cos(t.lats[i] * DEG) * 111.32;
+  const dLat = (t.lats[i]-t.lats[i-1]) * 110.574;
+  return Math.hypot(dLon, dLat) / hours;      /* km per hour, not per step */
+}
+
+const FLYING_KMH = 12;         /* above this the bird is travelling, not foraging */
+const DOT_R = 2.0;
+const TRAIL_STEPS = 10;
+const TRAIL_SLOTS = 48;        /* two days of trail, so a migrating bird draws a line */
+
+/* Every track at once, faint, as the ground the live birds move over. Drawn
+   into the base layer so it costs nothing per frame. */
+function drawRoutes(b){
+  b.save();
+  b.lineWidth = Math.max(0.5/DPR, 0.6);
+  for (const t of TRACKS){
+    const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
+    b.strokeStyle = rgba(col, 0.32);
+    b.beginPath();
+    let pen = false;
+    for (let i = 0; i < t.n; i++){
+      if (t.brk[i]){ pen = false; }
+      const x = px(t.lons[i]), y = py(t.lats[i]);
+      if (!pen){ b.moveTo(x, y); pen = true; } else { b.lineTo(x, y); }
+    }
+    b.stroke();
+  }
+  b.restore();
+}
 
 function draw(){
   if (!baseReady) renderBase();
   ctx.drawImage(base, 0, 0, W, H);
   if (!BOUNDS) return;
 
-  const unit = SEASON ? SEASON.meta.distUnitM : 20;
-  const cap  = SEASON ? SEASON.meta.distCap : 255;
-  const z = Math.min(3, Math.sqrt(zoomLevel()));   /* marks grow, but sublinearly */
+  const z = Math.min(3, Math.sqrt(zoomLevel()));
+  let flying = 0;
 
-  /* One pass to place everyone, so prey can be linked to the cougar the
-     builder measured them against. */
-  const heads = [], cougars = [];
   for (const t of TRACKS){
+    /* A tag that stopped because the bird died leaves a mark where it stopped.
+       Twenty-three of these birds did not live to migrate twice, and a track
+       that simply vanishes would read as a coverage gap instead. */
+    if (t.died !== null && simT > t.died){
+      const gx = px(t.lons[t.n-1]), gy = py(t.lats[t.n-1]);
+      const r = 2.6 * z;
+      ctx.strokeStyle = rgba(hexRGB(pick("ink-3")), 0.5);
+      ctx.lineWidth = Math.max(1/DPR, 1);
+      ctx.beginPath();
+      ctx.moveTo(gx-r, gy-r); ctx.lineTo(gx+r, gy+r);
+      ctx.moveTo(gx+r, gy-r); ctx.lineTo(gx-r, gy+r);
+      ctx.stroke();
+      continue;
+    }
+
     const head = posAt(t, simT);
     if (!head) continue;
-    const rec = {t, head};
-    heads.push(rec);
-    if (SPECIES[t.species].guild === "predator") cougars.push(rec);
-  }
+    const col = hexRGB(pick(POPS[t.pop] ? POPS[t.pop].role : "ink-3"));
+    const kmh = stepKm(t, head[2]);
+    if (kmh > FLYING_KMH) flying++;
 
-  /* Trails and dots. Prey first, so a cougar is never hidden under one. */
-  heads.sort((a,b) => (SPECIES[a.t.species].guild === "predator") -
-                      (SPECIES[b.t.species].guild === "predator"));
-  for (const {t, head} of heads){
-    const col = hexRGB(pick(SPECIES[t.species].role));
-    const pred = SPECIES[t.species].guild === "predator";
-
+    /* The trail brightens when the bird is travelling, so a migration reads as
+       a streak and a winter on the ground reads as a point. */
+    const heat = Math.min(1, kmh / 45);
     let cx = head[0], cy = head[1];
     for (let k = 1; k <= TRAIL_STEPS; k++){
       const back = posAt(t, simT - (TRAIL_SLOTS/TRAIL_STEPS)*k);
       if (!back) break;
-      const a = (1 - k/TRAIL_STEPS) * (pred ? 0.72 : 0.55);
+      const a = (1 - k/TRAIL_STEPS) * (0.30 + heat * 0.55);
       if (a <= 0.02) break;
       ctx.beginPath();
       ctx.moveTo(cx, cy); ctx.lineTo(back[0], back[1]);
       ctx.strokeStyle = rgba(col, a);
-      ctx.lineWidth = Math.max(1/DPR, (pred ? 3.0 : 2.4) * z * (1 - k/(TRAIL_STEPS+3)));
+      ctx.lineWidth = Math.max(1/DPR, (1.6 + heat * 1.4) * z * (1 - k/(TRAIL_STEPS+3)));
       ctx.lineCap = "round";
       ctx.stroke();
       cx = back[0]; cy = back[1];
     }
 
-    ctx.beginPath(); ctx.arc(head[0], head[1], (pred ? 5.4 : 4.0)*z, 0, 6.2832);
-    ctx.fillStyle = rgba(col, pred ? 0.20 : 0.15); ctx.fill();
-    ctx.beginPath(); ctx.arc(head[0], head[1], (pred ? DOT_R*1.45 : DOT_R)*z, 0, 6.2832);
+    ctx.beginPath(); ctx.arc(head[0], head[1], (3.2 + heat*2) * z, 0, 6.2832);
+    ctx.fillStyle = rgba(col, 0.14); ctx.fill();
+    ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R * z, 0, 6.2832);
     ctx.fillStyle = rgba(col, 0.98); ctx.fill();
-    if (pred){    /* an open ring marks the hunters apart from the hunted */
-      ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R*2.5*z, 0, 6.2832);
-      ctx.strokeStyle = rgba(col, 0.7);
-      ctx.lineWidth = Math.max(1/DPR, 1.1);
-      ctx.stroke();
-    }
   }
-
-  /* Proximity. The distance is measured, precomputed per fix against every
-     collared animal of the other guild at that same hour -- not an overlap
-     with a modelled range. The hairline points at the cougar responsible, so
-     the number on the clock has something to look at. */
-  const nearCol = hexRGB(pick("near"));
-  let nearest = null;
-  for (const {t, head} of heads){
-    if (SPECIES[t.species].guild === "predator") continue;
-    const raw = t.dist[head[2]];
-    if (raw >= cap) continue;                 /* no collared cougar that hour */
-    const m = raw * unit;
-    if (m > NEAR_M) continue;
-    if (nearest === null || m < nearest) nearest = m;
-
-    const closeness = 1 - m/NEAR_M;
-    let best = null, bestD = Infinity;
-    for (const c of cougars){
-      const d = Math.hypot(c.head[0]-head[0], c.head[1]-head[1]);
-      if (d < bestD){ bestD = d; best = c; }
-    }
-    if (best){
-      ctx.beginPath();
-      ctx.moveTo(head[0], head[1]); ctx.lineTo(best.head[0], best.head[1]);
-      ctx.strokeStyle = rgba(nearCol, 0.10 + closeness * 0.45);
-      ctx.lineWidth = Math.max(1/DPR, 0.9);
-      ctx.stroke();
-    }
-    const phase = (simT % 1);
-    ctx.beginPath();
-    ctx.arc(head[0], head[1], (DOT_R + 2 + phase * 9) * z, 0, 6.2832);
-    ctx.strokeStyle = rgba(nearCol, (1 - phase) * (0.25 + closeness * 0.55));
-    ctx.lineWidth = Math.max(1/DPR, 1.2);
-    ctx.stroke();
-  }
-  nearestNow = nearest;
+  flyingNow = flying;
 }
 
 /* ------------------------------------------------------------------- chrome */
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const SLOTS_PER_DAY = 12;
+const SLOTS_PER_DAY = 24;
 
 function buildLegend(){
   const rows = document.getElementById("legendRows");
   rows.innerHTML = "";
   const counts = new Map();
   for (const t of TRACKS){
-    const c = counts.get(t.species) || {inds:0, fixes:0};
-    c.inds += 1; c.fixes += t.n;
-    counts.set(t.species, c);
+    const c = counts.get(t.pop) || {birds:0, fixes:0};
+    c.birds += 1; c.fixes += t.n;
+    counts.set(t.pop, c);
   }
-  for (const sp of SPECIES_ORDER){
-    if (!counts.has(sp)) continue;
-    const c = counts.get(sp);
+  for (const pop of POP_ORDER){
+    if (!counts.has(pop)) continue;
+    const c = counts.get(pop);
     const el = document.createElement("div");
     el.className = "lg";
-    el.innerHTML = `<span class="sw" style="background:${pick(SPECIES[sp].role)}"></span>`
-      + `<span class="nm">${SPECIES[sp].label}</span>`
-      + `<span class="ct">${c.inds} collars · ${c.fixes.toLocaleString()} fixes</span>`;
-    rows.appendChild(el);
-  }
-  const key = {
-    cougar: [["cougar", "Where the collared cougars were"]],
-    shift:  [["y2019", "Used more in 2019"], ["y2020", "Used more in 2020"]],
-  }[sel.layer];
-  for (const [token, label] of key || []){
-    const el = document.createElement("div");
-    el.className = "lg";
-    el.innerHTML = `<span class="sw" style="background:${pick(token)};opacity:0.75"></span>`
-      + `<span class="nm" style="color:var(--ink-2)">${label}</span>`;
+    el.innerHTML = `<span class="sw" style="background:${pick(POPS[pop].role)}"></span>`
+      + `<span class="nm">${POPS[pop].label}</span>`
+      + `<span class="ct">${c.birds} ${c.birds === 1 ? "bird" : "birds"} · ${c.fixes.toLocaleString()} fixes</span>`;
     rows.appendChild(el);
   }
 
-  const days = Math.ceil(SPAN / SLOTS_PER_DAY);
-  document.getElementById("legendFoot").textContent = TRACKS.length
-    ? `${sel.season} · ${days} days on one calendar clock, 1 January to mid-May · `
-      + `a ring and its hairline mark a prey animal within ${NEAR_M} m of a collared `
-      + `cougar at that hour — a measured distance, not a modelled range.`
-    : "No collars for this combination.";
+  const died = TRACKS.filter(t => t.died !== null).length;
+  const routes = DATA ? DATA.meta.routes : null;
+  document.getElementById("legendFoot").innerHTML = TRACKS.length
+    ? `${TRACKS.length} birds on screen, ${died} of whose tags stopped when the bird `
+      + `died &mdash; those are the crosses. `
+      + (routes ? `Of all 72: ${routes.west} crossed at Gibraltar, ${routes.central} `
+                + `through the central Mediterranean, ${routes.east} by the Levant, and `
+                + `${routes.stayed} never went south of 36&deg;N at all.` : "")
+    : "No birds for this combination.";
 }
 
-/* The strip under the scrubber is the season, not the day: mean distance
-   covered per two-hour step, averaged over every animal on screen, one bar per
-   day. Spring shows up in it -- the bars climb as the herds start moving. */
+/* The strip under the scrubber is the whole deposit: kilometres covered per
+   bird per day, averaged over everyone on screen. Migration is not something
+   you have to look for in it -- it is the two spikes. */
 const prof = document.getElementById("profcv");
 const profBase = document.createElement("canvas");
 let profW = 0, profH = 0;
@@ -959,11 +845,10 @@ function buildProfile(){
   const sums = new Float64Array(days), n = new Float64Array(days);
   for (const t of TRACKS){
     for (let i = 1; i < t.n; i++){
-      if (t.slots[i] - t.slots[i-1] !== 1 || t.brk[i]) continue;
-      const dLon = (t.lons[i]-t.lons[i-1]) * kLat * 111.32;
-      const dLat = (t.lats[i]-t.lats[i-1]) * 110.574;
+      const hours = t.slots[i] - t.slots[i-1];
+      if (t.brk[i] || hours < 1) continue;
       const d = Math.floor(t.slots[i-1] / SLOTS_PER_DAY);
-      sums[d] += Math.hypot(dLon, dLat) * 1000; n[d] += 1;
+      if (d >= 0 && d < days){ sums[d] += stepKm(t, i) * hours; n[d] += hours; }
     }
   }
 
@@ -971,31 +856,33 @@ function buildProfile(){
   c.setTransform(DPR,0,0,DPR,0,0);
   c.clearRect(0,0,profW,profH);
   let peak = 1;
-  for (let i=0;i<days;i++) if (n[i] && sums[i]/n[i] > peak) peak = sums[i]/n[i];
+  for (let i=0;i<days;i++) if (n[i] && sums[i]/n[i]*24 > peak) peak = sums[i]/n[i]*24;
 
   const bw = profW/days;
-  const epoch = SEASON ? SEASON.epoch : 0;
+  const epoch = DATA ? DATA.epoch : 0;
   for (let i=0;i<days;i++){
-    const v = n[i] ? sums[i]/n[i] : 0;
+    const v = n[i] ? sums[i]/n[i]*24 : 0;      /* km per bird per day */
     const hgt = (v/peak) * (profH - 12);
-    /* Alternate the months so the strip reads as a calendar rather than a
-       featureless run of bars. */
     const month = new Date(epoch + i*SLOTS_PER_DAY*MS_PER_SLOT).getUTCMonth();
-    c.fillStyle = rgba(hexRGB(pick("ink-3")), month % 2 ? 0.46 : 0.30);
-    c.fillRect(i*bw, profH - 8 - hgt, Math.max(0.7, bw - 0.4), hgt);
+    c.fillStyle = rgba(hexRGB(pick("ink-3")), month % 2 ? 0.5 : 0.32);
+    c.fillRect(i*bw, profH - 8 - hgt, Math.max(0.7, bw - 0.3), hgt);
   }
-  c.fillStyle = pick("ink-3");
+  /* A tick at each new year, and month initials where they fit. */
   c.font = '300 8px "IBM Plex Mono",monospace';
-  for (let m = 0; m < 12; m++){
-    const first = Date.UTC(new Date(epoch).getUTCFullYear(), m, 1);
-    const day = Math.round((first - epoch) / (SLOTS_PER_DAY*MS_PER_SLOT));
-    if (day < 1 || day >= days) continue;
-    const x = day*bw;
-    c.fillStyle = rgba(hexRGB(pick("rule")), 1);
-    c.fillRect(x, 2, 0.6, profH - 12);
-    c.fillStyle = pick("ink-3");
-    c.textAlign = "left";
-    c.fillText(MONTHS[m], x + 2, profH - 1);
+  let last = -1;
+  for (let i=0;i<days;i++){
+    const d = new Date(epoch + i*SLOTS_PER_DAY*MS_PER_SLOT);
+    if (d.getUTCDate() !== 1 || d.getUTCMonth() === last) continue;
+    last = d.getUTCMonth();
+    const x = i*bw;
+    const newYear = d.getUTCMonth() === 0;
+    c.fillStyle = rgba(hexRGB(pick(newYear ? "ink-2" : "rule")), 1);
+    c.fillRect(x, 2, newYear ? 1 : 0.6, profH - 12);
+    if (bw * 3 > 14){
+      c.fillStyle = pick("ink-3");
+      c.textAlign = "left";
+      c.fillText(newYear ? String(d.getUTCFullYear()) : MONTHS[d.getUTCMonth()][0], x + 2, profH - 1);
+    }
   }
   c.textAlign = "left";
   drawProfile();
@@ -1016,21 +903,18 @@ function drawProfile(){
 function updateClock(){
   const d = clockDate();
   const hh = String(d.getUTCHours()).padStart(2,"0");
-  const mm = String(d.getUTCMinutes()).padStart(2,"0");
   document.getElementById("clock").innerHTML =
-    `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
-    + `<span class="mins"> ${hh}:${mm}</span>`;
+    `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+    + `<span class="mins"> ${hh}:00</span>`;
   document.getElementById("day").textContent =
-    `${d.getUTCFullYear()} · day ${Math.floor(simT/SLOTS_PER_DAY) + 1}`
-    + ` of ${Math.max(1, Math.ceil(SPAN/SLOTS_PER_DAY))}`;
+    `day ${Math.floor(simT/SLOTS_PER_DAY) + 1} of ${Math.max(1, Math.ceil(SPAN/SLOTS_PER_DAY))}`;
 
-  document.getElementById("lampCoug").dataset.on = cougarActive(d.getUTCHours());
-  const near = document.getElementById("nearest");
-  near.textContent = nearestNow === null
-    ? "nearest cougar —"
-    : `nearest cougar ${nearestNow < 1000 ? Math.round(nearestNow/10)*10 + " m"
-                                          : (nearestNow/1000).toFixed(1) + " km"}`;
-  near.dataset.close = String(nearestNow !== null && nearestNow < NEAR_M/2);
+  const lamp = document.getElementById("lampCoug");
+  lamp.dataset.on = String(flyingNow > 0);
+  lamp.textContent = flyingNow === 1 ? "1 bird travelling" : `${flyingNow} birds travelling`;
+  const aloft = document.getElementById("nearest");
+  const live = TRACKS.filter(t => (t.died === null || simT <= t.died) && posAt(t, simT)).length;
+  aloft.textContent = `${live} tags reporting`;
 }
 
 /* ------------------------------------------------------------------ loop */
@@ -1070,28 +954,26 @@ function pillRow(rowId, items, isOn, onPick){
 
 function wireControls(){
   pillRow("spRow",
-    SPECIES_ORDER.map(k => ({key:k, label:SPECIES[k].label})),
-    k => sel.species.has(k),
+    POP_ORDER.map(k => ({key:k, label:POPS[k].label})),
+    k => sel.pops.has(k),
     async k => {
-      if (sel.species.has(k)){ if (sel.species.size > 1) sel.species.delete(k); }
-      else sel.species.add(k);
-      TRACKS = SEASON.individuals.filter(t => sel.species.has(t.species));
-      buildLegend(); buildProfile(); syncSpeciesPills();
+      if (sel.pops.has(k)){ if (sel.pops.size > 1) sel.pops.delete(k); }
+      else sel.pops.add(k);
+      rebuild();
     });
 
   pillRow("seRow",
-    SEASON_ORDER.map(k => ({key:k, label:k})),
-    k => sel.season === k,
-    async k => { sel.season = k; simT = 0; await rebuild(); });
+    Object.keys(ROUTES).map(k => ({key:k, label:ROUTES[k].label})),
+    k => sel.route === k,
+    async k => { sel.route = k; rebuild(); });
 
   pillRow("prRow",
-    [{key:"none",label:"None"},{key:"cougar",label:"Cougar range"},
-     {key:"shift",label:"Year shift"}],
+    [{key:"none",label:"None"},{key:"routes",label:"Routes"}],
     k => sel.layer === k,
     async k => { sel.layer = k; baseReady = false; buildLegend(); });
 
   pillRow("imRow",
-    [{key:"off",label:"Off"},{key:"terrain",label:"Terrain"},{key:"sat",label:"Satellite"}],
+    [{key:"off",label:"Off"},{key:"basemap",label:"Land & sea"},{key:"sat",label:"Satellite"}],
     k => sel.imagery === k,
     async k => { sel.imagery = k; baseReady = false; updateAttrib(); });
 
@@ -1103,9 +985,9 @@ function wireControls(){
   });
 
   const spd = document.getElementById("spd");
-  for (const v of [3, 6, 12, 24]){
+  for (const v of [24, 48, 96, 192]){
     const b = document.createElement("button");
-    b.textContent = (v/6) + "\u00d7";
+    b.textContent = (v/24) + "\u00d7";
     b.setAttribute("aria-pressed", String(v === slotsPerSecond));
     b.addEventListener("click", () => {
       slotsPerSecond = v;
@@ -1210,97 +1092,80 @@ function wireMapGestures(){
 function buildNotes(){
   document.getElementById("notesBody").innerHTML = `
     <p>Every position on this map is a real GPS fix with a real timestamp.
-    Nothing was reconstructed. The animation between fixes is straight-line
-    interpolation across one two-hour step.</p>
+    Nothing was reconstructed. The tags recorded every five minutes; this is
+    thinned to hourly, and the animation between fixes is straight-line
+    interpolation across one hour.</p>
 
-    <h3>Where this is</h3>
-    <p>The northern Wasatch and Cache Valley, Utah &mdash; a 100 &times; 91 km
-    block chosen because it is where the two guilds actually share ground.
-    Across the whole state 80% of cougar fixes fall in cells that ungulates
-    also used; this block holds the densest overlap of that.</p>
-    <p class="sub"><strong>2019</strong>: 8 cougars, 74 elk, 83 mule deer &mdash;
-    143,445 fixes. <strong>2020</strong>: 11 cougars, 85 elk, 89 mule deer
-    &mdash; 188,688 fixes.</p>
+    <h3>Who these birds are</h3>
+    <p>Seventy-two juvenile white storks (<em>Ciconia ciconia</em>) tagged in
+    2012 and 2013 across nine sites &mdash; Spain, Germany, Tunisia, Poland,
+    Greece, Russia, Armenia, Uzbekistan and one bird in South Africa &mdash;
+    and followed to July 2014. 180,814 hourly fixes, from 55&deg;N in the
+    Baltic to 34&deg;S at the Cape, and from Senegal east to Uzbekistan.</p>
 
-    <h3>Why the year stops in May</h3>
-    <p>Both deposits cover <strong>1 January to 16 May, in 2019 and again in
-    2020</strong>, and nothing in between: this is winter and spring range
-    monitoring, so there is no June-to-December data at all. Rather than run a
-    calendar clock across seven empty months, the two windows are offered as
-    two seasons &mdash; the same months, a year apart, which is what makes the
-    year-shift layer a comparison rather than a coincidence.</p>
+    <h3>Why the Mediterranean is crossed at its ends</h3>
+    <p>Storks are soaring birds. They climb in thermals and glide between them,
+    which costs a fraction of what flapping costs &mdash; and thermals form
+    over warm land, not over water. So the sea is crossed where it is narrow:
+    at Gibraltar in the west, or round the eastern end through the Levant. The
+    <strong>Crossing</strong> filter is derived from the data rather than
+    assumed: for each bird, the longitude at which it first got south of
+    36&deg;N. Of the 72, 14 crossed at Gibraltar, 11 through the central
+    Mediterranean, 24 by the Levant, and 23 never went south of 36&deg;N at
+    all.</p>
+    <p class="sub">That last group is not a failure of the data. Some are
+    Spanish birds that no longer migrate &mdash; they winter on rubbish tips
+    within a few hundred kilometres of the nest &mdash; and some are birds that
+    died before their first autumn.</p>
 
-    <h3>The ring is a measurement</h3>
-    <p>Because both guilds are on the same two-hour schedule, the distance from
-    every prey fix to the nearest collared cougar <em>at that same hour</em>
-    could be computed directly. A ring and its hairline appear when that
-    distance is under 1 km, brightening as it closes; the readout under the
-    clock gives the closest one on screen.</p>
-    <p><strong>No ring is not no cougar.</strong> Only 8 to 11 cougars wore
-    collars here. An unringed animal means no <em>collared</em> cougar was
-    within a kilometre at that hour, which is a much weaker statement than
-    safety. Distances above 5.1 km are stored as "far" and never drawn.</p>
+    <h3>The crosses</h3>
+    <p>Thirty of the 72 tags stopped because the bird died, which the deposit
+    records. Where that happens the track does not simply vanish: a cross stays
+    at the last position. A juvenile's first migration is the most dangerous
+    journey of its life, and a track that disappeared silently would read as a
+    gap in coverage instead of what it was.</p>
 
-    <h3>The landscape layers</h3>
-    <p><strong>Cougar range</strong> is where the collared cougars actually
-    were that season, smoothed &mdash; an observation, not a model. It has no
-    active and inactive state, because there is only one place a cougar was.
-    Blank ground means no collar recorded a cougar there.</p>
-    <p><strong>Year shift</strong> is January-to-May occupancy in 2019 against
-    2020 for the 96 animals collared in <em>both</em> years (54 elk, 40 mule
-    deer, 2 cougars; 223,011 fixes). Restricting it to animals present in both
-    is what makes it a comparison of behaviour rather than of who happened to
-    be wearing a collar. It is a map of where these animals went, not of snow
-    or forage.</p>
-    <p><strong>Terrain</strong> is the relief of the block, and it is the
-    backdrop this map is built around: in the Wasatch the mountain front is
-    most of the reason the animals are where they are. Elevation comes from
-    USGS 3DEP, by way of the Terrain Tiles set on AWS Open Data, and runs from
-    1,279 m on the valley floor to 3,028 m on the ridge. The hillshade is
-    computed once when the data is built &mdash; lit from the north-west, 42&deg;
-    above the horizon &mdash; reprojected out of Web Mercator into this map's
-    frame, and carried inside the page. That is why it is the one backdrop that
-    still works with no connection at all, and the only one in the
+    <h3>The strip under the scrubber</h3>
+    <p>Kilometres covered per bird per day, averaged over everyone on screen,
+    one bar per day across the whole deposit. Migration is not something you
+    have to look for in it: it is the spikes. Between them the birds are on
+    wintering or breeding grounds, covering a tenth as much.</p>
+
+    <h3>The ground</h3>
+    <p><strong>Land &amp; sea</strong> is elevation and bathymetry from the
+    Terrain Tiles set on AWS Open Data &mdash; SRTM and GMTED on land, ETOPO1
+    and other surveys at sea. One raster gives both the hillshade and every
+    coastline, which a map about birds that will not cross open water needs.
+    It is computed once when the data is built, in the same Web Mercator this
+    page draws in, and carried inside the page &mdash; so it is the one
+    backdrop that works with no connection, and the only one in the
     self-contained build.</p>
-    <p><strong>Satellite</strong> is Esri World Imagery, fetched as tiles when
-    you switch it on. Nothing is bundled with the page, so it needs a host that
-    permits outbound requests; where they are blocked the tiles do not arrive,
-    the dark ground stays, and the attribution line says so. It is absent from
-    the self-contained build for the same reason. Tiles are Web Mercator while
-    this map is equirectangular, so each is drawn into the rectangle its own
-    corners project to. The imagery is a mosaic of mixed dates and is not
-    2019&ndash;2020 &mdash; unlike relief, which does not change between
-    winters.</p>
-
-    <h3>What the lamp means</h3>
-    <p>Cougars are in this data as positions, so their activity did not have to
-    be assumed: <strong>cougars moving</strong> lights in the hours where the
-    collared cougars' own median step length runs above their daily median.
-    It is measured from these tracks, not taken from a stated hunting window.</p>
-    <p class="sub">What it finds, in 2019: the median cougar step peaks at
-    03:00 (245 m per two hours) and 05:00 (178 m), falls to about 20 m through
-    the evening, and shows a second smaller bump in the early afternoon. The
-    lamp is lit for roughly 23:00&ndash;08:00 and again around midday. The
-    collars fire every second hour, so each figure describes the whole
-    two-hour step it ends, and the lamp is lit across that step rather than
-    at the single sampled hour.</p>
+    <p><strong>Satellite</strong> is Esri World Imagery, fetched as tiles at
+    view time. It needs a host that permits outbound requests; where they are
+    blocked the tiles do not arrive and the attribution line says so.</p>
+    <p><strong>Routes</strong> draws every track at once, faintly, as the
+    ground the live birds move over. It is the same data, not a model.</p>
 
     <h3>What is missing</h3>
-    <p><strong>Gaps are drawn as absence.</strong> A track segment holds
-    consecutive fixes only &mdash; a single missed fix ends it, and nothing is
-    ever drawn across the silence. An animal simply is not there until its
-    collar reports again.</p>
-    <p><strong>These are the collared animals, not the population.</strong>
-    2,694 ungulates were collared statewide and 165 to 185 animals fall inside
-    this block. Empty ground is where no collar was, not where no animal was.</p>
+    <p><strong>Gaps are drawn as absence.</strong> A segment holds consecutive
+    hours only &mdash; a single missed fix ends it, and nothing is drawn across
+    the silence. Solar-charged tags report less in winter and under cloud, so a
+    bird can be missing for days while perfectly alive.</p>
+    <p><strong>These are 72 birds, not the population.</strong> Roughly half a
+    million white storks migrate along these flyways. Empty sky is where no tag
+    was.</p>
+    <p><strong>The map is Web Mercator</strong>, so area inflates towards the
+    poles: the Baltic is drawn larger than the Sahel for the same ground. The
+    scale bar is re-measured at the centre of the view for that reason, and
+    changes as you pan north or south.</p>
     <p><strong>Positions are rounded</strong> to 10<sup>-5</sup> degrees, about
-    a metre, which is well under the collars' own error.</p>
+    a metre, well under the tags' own error.</p>
 
     <h3>Source</h3>
-    <p class="sub">Utah Division of Wildlife Resources. <em>GPS tracking of
-    cougars in Utah by UDWR (2019-2020)</em>, <code>doi:10.5441/001/1.712</code>,
-    and <em>GPS tracking of ungulates in Utah by UDWR (2019-2020)</em>,
-    <code>doi:10.5441/001/1.711</code>. Movebank Data Repository, both CC0.</p>`;
+    <p class="sub">Flack, A., Fiedler, W., Blas, J., et al. (2016).
+    <em>Costs of migratory decisions: a comparison across eight white stork
+    populations.</em> Science Advances 2:e1500931. Data:
+    <code>doi:10.5441/001/1.78152p3q</code>, Movebank Data Repository, CC0.</p>`;
 }
 
 /* ------------------------------------------------------------------- boot */
@@ -1309,16 +1174,15 @@ function buildNotes(){
   try {
     buildNotes();
     wireControls();
-    USE     = await loadJSON("cougar-use").catch(() => null);
-    SHIFT   = await loadJSON("year-shift").catch(() => null);
-    TERRAIN = await loadJSON("terrain").catch(() => null);
-    if (TERRAIN){
+    BASEMAP = await loadJSON("basemap").catch(() => null);
+    if (BASEMAP){
       const img = new Image();
-      img.onload = () => tintTerrain(img);
-      img.src = TERRAIN.png;
+      img.onload = () => { basemapImg = img; baseReady = false; };
+      img.src = BASEMAP.png;
     }
     updateAttrib();
-    await rebuild();
+    DATA = await loadStorks();
+    rebuild();
     document.getElementById("loading").hidden = true;
     lastFrame = performance.now();
     requestAnimationFrame(frame);

@@ -1,115 +1,104 @@
-# Cougars and their prey
+# Where the storks went
 
-Two-hourly GPS tracks of cougars, elk and mule deer in the northern Wasatch,
-Utah, played on one calendar clock. Every dot is a collared animal and every
-position is a real fix at a real date and hour. When a prey animal comes within
-a kilometre of a collared cougar, a ring and a hairline appear — and that is a
-distance that was measured, not a modelled range it happens to be standing in.
+Seventy-two white storks, tagged as juveniles in nine places between Spain and
+Uzbekistan, tracked hourly from the Baltic to the Cape. Every dot is a real bird
+at a real date and hour. Storks soar, and thermals do not form over open water —
+so the thing to watch is where they cross the Mediterranean, and where they
+refuse to.
 
 **Live: https://chillchamp1.github.io/Animal-movement/**
 
-Built from two deposits by the Utah Division of Wildlife Resources in the
-[Movebank Data Repository](https://datarepository.movebank.org/), both CC0:
-[`doi:10.5441/001/1.712`](https://doi.org/10.5441/001/1.712) (cougars) and
-[`doi:10.5441/001/1.711`](https://doi.org/10.5441/001/1.711) (ungulates).
+Built from Flack et al. (2016), *Costs of migratory decisions: a comparison
+across eight white stork populations*, Science Advances 2:e1500931 —
+[`doi:10.5441/001/1.78152p3q`](https://doi.org/10.5441/001/1.78152p3q) in the
+Movebank Data Repository, CC0.
 
 ## What is on screen
 
-| Species | Collars (2019 / 2020) | Fixes |
+| Origin | Birds | Fixes |
 |---|---|---|
-| **Mule deer** | 83 / 89 | 168,583 |
-| **Elk** | 74 / 85 | 144,049 |
-| **Cougar** | 8 / 11 | 19,012 |
+| **Germany** | 13 | 42,731 |
+| **Russia** | 10 | 34,700 |
+| **Armenia** | 8 | 19,761 |
+| **Tunisia** | 9 | 18,905 |
+| **Spain** | 11 | 17,438 |
+| **Greece** | 10 | 16,808 |
+| **Poland** | 4 | 15,442 |
+| **Uzbekistan** | 6 | 13,644 |
+| **South Africa** | 1 | 999 |
 
-331,644 fixes in a 100 × 91 km block, over two seasons. Both guilds ran on the
-same two-hour schedule, so predator and prey share the clock exactly.
+180,428 hourly fixes over 594 days, from 55°N to 34°S and from Senegal east to
+Uzbekistan. The tags recorded every five minutes; this is thinned to hourly.
 
-Three things move at once. The **clock** is a real calendar date and hour. The
-**lamp** under it lights in the hours when the collared cougars were actually
-covering ground — measured from their own step lengths, not from a stated
-hunting window. A **ring** and its hairline mark a prey animal within a
-kilometre of a cougar that was there at that hour, brightening as the distance
-closes; the readout gives the closest one on screen.
+The **clock** is a real calendar date and hour. Under it, two counts taken from
+the data at that hour: how many birds are covering ground, and how many tags are
+reporting at all. The strip behind the scrubber is kilometres per bird per day
+across the whole deposit — migration is not something you have to look for in
+it, it is the spikes.
 
-The strip behind the scrubber is the season rather than the day: mean distance
-covered per two-hour step, one bar per day, with the months marked. Spring
-shows up in it.
+Colours run west to east, warm to cool, so when the tracks fan out around the
+Mediterranean their colour already says which end of Europe each bird came from.
 
-Drag to pan, scroll or pinch to zoom (up to 400×), `0` or the **fit** button to
-reset. Zooming redraws at the new scale rather than magnifying, and the scale
-bar re-steps from 500 km down to 100 m. The legend folds away with a click on
-its heading.
+Drag to pan, scroll or pinch to zoom (up to 2000×), `0` or the **fit** button to
+reset. The scale bar re-steps from 5000 km down to 100 m, and is re-measured at
+the centre of the view because Mercator stretches with latitude.
 
-### Landscape layers
+## The two crossings
 
-- **Terrain** — the relief of the block, and the backdrop the map is built
-  around: in the Wasatch the mountain front is most of the reason the animals
-  are where they are. USGS 3DEP elevation by way of the Terrain Tiles set on
-  AWS Open Data, 1,279 m on the valley floor to 3,028 m on the ridge. The
-  hillshade is computed once at build time, reprojected out of Web Mercator
-  into the map's own frame, and carried inside the page — so it is the one
-  backdrop that works with no connection, and the only one in the
-  self-contained build.
-- **Satellite** — Esri World Imagery, fetched as tiles at view time. Nothing is
-  bundled, so it needs a host that permits outbound requests; where they are
-  blocked the tiles do not arrive, the dark ground stays and the attribution
-  line says so, and it is absent from the self-contained build. The imagery is
-  a mosaic of mixed dates, not 2019–2020 — unlike relief, which does not change
-  between winters.
-- **Cougar range** — where the collared cougars actually were that season,
-  smoothed. An observation, not a model, so it has no active and inactive
-  state: there is only one place a cougar was.
-- **Year shift** — January-to-May occupancy in 2019 against 2020, for the 96
-  animals collared in *both* years (54 elk, 40 mule deer, 2 cougars; 223,011
-  fixes). Restricting it to animals present in both is what makes it a
-  comparison of behaviour rather than of who happened to be wearing a collar.
+Storks climb in thermals and glide between them, which costs a fraction of what
+flapping costs — and thermals form over warm land, not over water. So the sea is
+crossed where it is narrow: at Gibraltar in the west, or round the eastern end
+through the Levant.
+
+The **Crossing** filter is derived from the data rather than assumed: for each
+bird, the longitude at which it first got south of 36°N. Of the 72, **14 crossed
+at Gibraltar, 11 through the central Mediterranean, 24 by the Levant, and 23
+never went south of 36°N at all.**
+
+That last group is not a gap in the data. Some are Spanish birds that no longer
+migrate — they winter on rubbish tips within a few hundred kilometres of the
+nest — and some are birds that died before their first autumn.
+
+## The crosses
+
+Thirty of the 72 tags stopped because the bird died, which the deposit records.
+Where that happens the track does not simply vanish: a cross stays at the last
+position. A juvenile's first migration is the most dangerous journey of its
+life, and a track that disappeared silently would read as a coverage gap
+instead of what it was.
 
 ## Why this deposit
 
-The map began on an Okavango Delta deposit that turned out to carry no predator
-positions at all — lions and wild dogs existed in it only as a utilisation
-surface and a set of activity windows, so a ring could mean exposure but never
-an encounter. Four candidate replacements on Dryad were audited against a
-single question: **does it hold coordinates *and* a timestamp, for predators as
-well as prey?** All four failed. Two of them had their coordinates removed
-deliberately, for animal safety.
+The map began on an Okavango Delta deposit with no predator positions in it,
+moved to Utah cougars and their prey, and ended here. The reason is in the
+numbers: across all 2,013 deposits in the Movebank Data Repository, large
+carnivores account for **1.1% of deposits and 0.5% of the fixes**. Open tracking
+data is overwhelmingly birds, and predator–prey interaction is close to the
+hardest thing to find in it. Migration is the opposite — it is what the archive
+is full of, and it is a story a map can actually tell.
 
-The pattern turned out to be structural, and it is what pointed the search at
-Movebank: a deposit carries what the analysis consumed, and modern movement
-analyses — resource-selection functions, hidden Markov models, step selection —
-consume *covariates extracted at locations* rather than the locations, so the
-coordinates drop out one step before publication. A tracking archive inverts
-that: there the deposit is the collar download.
-
-The full audit, the evidence for each verdict, and the profilers it was made
-with are in **[docs/dataset-audit.md](docs/dataset-audit.md)**.
+The audit that got here, including four Dryad deposits that all failed and the
+profilers that established it, is in
+**[docs/dataset-audit.md](docs/dataset-audit.md)**.
 
 ## What is missing
 
-**The year stops in May.** Both deposits cover 1 January to 16 May, in 2019 and
-again in 2020, and nothing in between — this is winter and spring range
-monitoring. Rather than run a calendar across seven empty months, the two
-windows are offered as two seasons: the same months, a year apart, which is
-what makes the year-shift layer a comparison rather than a coincidence.
+**Gaps are drawn as absence, mostly.** These are solar tags: they report through
+the day and fall silent overnight — at 21:00 UTC not one of the 72 is reporting.
+A rule of "consecutive hours only" would empty the map every night, so a gap is
+bridged when the bird cannot have gone anywhere across it, and broken when it
+could. A consecutive hour always connects, however fast the bird was flying;
+only gaps are tested, and only a gap the bird slept through is drawn across.
 
-**No ring is not no cougar.** Only 8 to 11 cougars wore collars in this block.
-An unringed animal means no *collared* cougar was within a kilometre at that
-hour, which is a much weaker statement than safety. Distances above 5.1 km are
-stored as "far" and never drawn.
+**These are 72 birds, not the population.** Roughly half a million white storks
+migrate along these flyways. Empty sky is where no tag was.
 
-**These are the collared animals, not the population.** Empty ground is where no
-collar was, not where no animal was.
+**The map is Web Mercator**, so area inflates towards the poles: the Baltic is
+drawn larger than the Sahel for the same ground. That is why the scale bar
+changes as you pan north or south.
 
-**Gaps are drawn as absence.** A track segment holds consecutive fixes only — a
-single missed fix ends it, and nothing is ever drawn across the silence. An
-animal is simply not there until its collar reports again.
-
-**Positions are rounded** to 10⁻⁵ degrees, about a metre, well under the
-collars' own error.
-
-**The block is a rectangle.** The 100 × 91 km clip is the region where the two
-guilds overlap most densely; its edges are a choice, not a boundary the animals
-respect.
+**Positions are rounded** to 10⁻⁵ degrees, about a metre, well under the tags'
+own error.
 
 ## Running it
 
@@ -121,31 +110,36 @@ python3 -m http.server 8000    # then open http://localhost:8000
 
 ## Rebuilding the data
 
-The data is **not kept in this repository** — neither the deposits nor anything
-derived from them. The Pages workflow rebuilds it on every deploy; to do the
-same locally:
+The data is **not kept in this repository**. The Pages workflow rebuilds it on
+every deploy; to do the same locally:
 
 ```sh
-python3 scripts/fetch_movebank.py --doi 10.5441/001/1.712   # cougars
-python3 scripts/fetch_movebank.py --doi 10.5441/001/1.711   # ungulates, 63 MB
-python3 scripts/build_utah.py                # -> data/processed/tracks-<year>.json
-python3 scripts/build_utah_layers.py         # -> cougar-use.json, year-shift.json
-python3 scripts/build_terrain.py             # -> terrain.json, the baked hillshade
-python3 scripts/build_standalone.py          # -> dist/, one self-contained file
+python3 scripts/fetch_movebank.py --doi 10.5441/001/1.78152p3q \
+    --match gps reference-data README --out data/raw/storks
+python3 scripts/build_storks.py         # -> data/processed/storks.json
+python3 scripts/build_basemap.py        # -> basemap.json, land and sea baked in
+python3 scripts/build_standalone.py     # -> dist/, one self-contained file
 ```
 
-`scripts/profile_rdata.R` and `scripts/profile_tables.py` are the two profilers
-from the audit: point either at a candidate deposit and it reports the columns,
-row counts, individuals per species, coordinate and time ranges, and median fix
-interval — enough to answer the question above without reading the files by eye.
+`--match` matters: the deposit ships 341 MB of accelerometer data that nothing
+here reads.
 
-The Okavango pipeline is still here — `fetch_dryad.py`, `build_tracks.py`,
-`build_risk.py`, `build_seasonal.py` — and still runs against
-`doi:10.5061/dryad.w0vt4b8zr`. It is the record of the reconstruction that made
-that map possible, and of what it could not overcome.
+`scripts/profile_rdata.R` and `scripts/profile_tables.py` are the audit's two
+profilers: point either at a candidate deposit and it reports columns, row
+counts, individuals per species, coordinate and time ranges, and median fix
+interval — enough to decide whether a deposit can carry a map at all.
+
+The two earlier pipelines are still here and still run: `build_utah.py` and
+`build_utah_layers.py` against the Utah cougar and ungulate deposits, and
+`fetch_dryad.py` with `build_tracks.py`, `build_risk.py` and `build_seasonal.py`
+against `doi:10.5061/dryad.w0vt4b8zr`, the Okavango reconstruction.
 
 ## Source
 
-Utah Division of Wildlife Resources. *GPS tracking of cougars in Utah by UDWR
-(2019-2020)*, `doi:10.5441/001/1.712`, and *GPS tracking of ungulates in Utah by
-UDWR (2019-2020)*, `doi:10.5441/001/1.711`. Movebank Data Repository, both CC0.
+Flack, A., Fiedler, W., Blas, J., et al. (2016). *Costs of migratory decisions:
+a comparison across eight white stork populations.* Science Advances 2:e1500931.
+Data: `doi:10.5441/001/1.78152p3q`, Movebank Data Repository, CC0.
+
+Backdrop: elevation and bathymetry from Terrain Tiles on AWS Open Data
+(Mapzen/Nextzen terrarium) — SRTM and GMTED on land, ETOPO1 and other surveys
+at sea.
