@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>A day in the Delta</title>
+<meta name="description" content="Hourly GPS tracks of impala, tsessebe, wildebeest and zebra in the Okavango Delta, animated against lion and wild dog activity.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+<style>
+  /* Like the rail maps, this page ignores the viewer's light/dark preference:
+     it is a night map at every hour, so the animals stay the brightest thing
+     on it. */
+  :root{
+    --bg-bot:#0a1018;
+    --ink:#e9eff7; --ink-2:#a7b3c4; --ink-3:#78859a;
+    --rule:rgba(39,51,63,0.7); --panel:rgba(13,20,30,0.82);
+    --zebra:#5aa9ff; --wildebeest:#b98cff; --tsessebe:#35d69a; --impala:#ffd93d;
+    --dog:#ff7a45; --lion:#ff8fd8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg-bot);
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    font-weight:300;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #stage{position:fixed;inset:0;overflow:hidden}
+  #map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+
+  /* ---- pickers --------------------------------------------------------- */
+  #picks{position:fixed;z-index:6;left:14px;top:14px;display:flex;flex-direction:column;gap:6px;max-width:calc(100vw - 40px)}
+  .row{display:flex;gap:4px;flex-wrap:wrap}
+  .row button{
+    padding:4px 10px;font-size:0.72rem;border:1px solid transparent;
+    color:var(--ink-3);background:transparent;border-radius:6px;cursor:pointer;
+    font:inherit;font-size:0.72rem;
+  }
+  .row button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
+  /* Impala were only collared in the dry season; the pill says so rather than
+     sitting lit with nothing behind it. */
+  .row button[data-unavailable="true"]{opacity:0.3;cursor:not-allowed}
+  .row button[data-unavailable="true"]::after{content:" —";letter-spacing:0.1em}
+  .row .lab{
+    font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--ink-3);align-self:center;padding-right:4px;min-width:52px;
+  }
+
+  /* ---- clock ----------------------------------------------------------- */
+  header{
+    position:absolute;z-index:3;left:50%;top:78px;
+    text-align:center;pointer-events:none;white-space:nowrap;
+    transform:translate(-50%,0);
+    text-shadow:0 0 10px var(--bg-bot), 0 0 4px var(--bg-bot);
+  }
+  #clock{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:300;
+    font-size:clamp(2rem,4.6vw,3rem);line-height:1;letter-spacing:-0.01em;
+    font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+  #clock .mins{opacity:0.6}
+  #day{margin-top:2px;font-size:0.68rem;letter-spacing:0.06em;color:var(--ink-3);
+       font-family:"IBM Plex Mono",monospace;}
+  /* Two lamps: which predator is in its active window right now. */
+  #lamps{margin-top:7px;display:flex;gap:14px;justify-content:center;font-size:0.63rem;
+         font-family:"IBM Plex Mono",monospace;letter-spacing:0.1em;text-transform:uppercase}
+  #lamps span{color:var(--ink-3);opacity:0.42;transition:opacity 0.25s,color 0.25s}
+  #lamps span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+                      background:currentColor;margin-right:5px;vertical-align:middle}
+  #lamps span[data-on="true"]{opacity:1}
+  #lampDog[data-on="true"]{color:var(--dog)}
+  #lampLion[data-on="true"]{color:var(--lion)}
+
+  /* ---- panels ---------------------------------------------------------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+    backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  }
+  #legend{position:fixed;z-index:3;left:20px;bottom:20px;padding:13px 15px 11px;min-width:238px;max-width:340px}
+  #legend h2,#notes h2{
+    font-size:0.62rem;letter-spacing:0.17em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:500;margin-bottom:9px;
+  }
+  .lg{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:0.83rem}
+  .sw{border-radius:50%;flex:0 0 auto;width:9px;height:9px;box-shadow:0 0 0 2px var(--panel)}
+  .lg .nm{flex:1 1 auto;color:var(--ink)}
+  .lg .ct{font-family:"IBM Plex Mono",monospace;font-size:0.76rem;color:var(--ink-2);
+          font-variant-numeric:tabular-nums}
+  #legend footer{margin-top:9px;padding-top:8px;border-top:1px solid var(--rule);
+                 font-size:0.66rem;line-height:1.45;color:var(--ink-3)}
+
+  #controls{position:fixed;z-index:3;right:20px;bottom:20px;padding:11px 14px;
+            display:flex;align-items:center;gap:12px}
+  button{
+    font:inherit;font-size:0.78rem;color:var(--ink);background:transparent;
+    border:1px solid var(--rule);border-radius:6px;padding:5px 11px;cursor:pointer;
+    transition:background 0.15s,border-color 0.15s;
+  }
+  button:hover{background:rgba(128,128,128,0.13)}
+  button[aria-pressed="true"]{border-color:currentColor}
+  #play{min-width:64px}
+  .spd{display:flex;gap:5px}
+  .spd button{padding:5px 8px;font-family:"IBM Plex Mono",monospace;font-size:0.72rem}
+  /* The scrubber is a transparent range input over the diel profile, so
+     pointer, touch and keyboard seeking all stay native. */
+  #profile{position:relative;width:268px;height:44px}
+  #profcv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #scrub{position:absolute;inset:0;margin:0;width:100%;height:100%;
+         -webkit-appearance:none;appearance:none;background:transparent;outline:none;cursor:pointer}
+  #scrub::-webkit-slider-runnable-track{background:transparent;height:100%}
+  #scrub::-moz-range-track{background:transparent;height:100%}
+  #scrub::-webkit-slider-thumb{-webkit-appearance:none;width:3px;height:44px;border-radius:1px;
+                               background:var(--ink);cursor:pointer}
+  #scrub::-moz-range-thumb{width:3px;height:44px;border:0;border-radius:1px;background:var(--ink);cursor:pointer}
+  #scrub:focus-visible{outline:1px solid var(--ink-3);outline-offset:2px}
+
+  #meta{position:absolute;z-index:3;left:14px;top:106px;max-width:252px;
+        font-size:0.68rem;line-height:1.5;color:var(--ink-3);
+        background:rgba(5,8,14,.62);padding:9px 12px;border-radius:8px}
+  #meta strong{color:var(--ink-2);font-weight:500}
+  #notesbtn{position:fixed;z-index:4;right:20px;top:20px}
+  #notes{position:fixed;z-index:3;right:20px;top:60px;padding:14px 16px;max-width:352px;
+         display:none;max-height:calc(100vh - 160px);overflow-y:auto}
+  #notes[data-open="true"]{display:block}
+  #notes p{font-size:0.72rem;line-height:1.55;color:var(--ink-2);margin-bottom:9px}
+  #notes p.sub{color:var(--ink-3);font-size:0.68rem}
+  #notes code{font-family:"IBM Plex Mono",monospace;font-size:0.68rem;color:var(--ink)}
+  #notes h3{font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;
+            color:var(--ink-3);font-weight:500;margin:13px 0 6px}
+
+  #loading{position:fixed;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;
+           background:var(--bg-bot);font-family:"IBM Plex Mono",monospace;font-size:0.8rem;
+           color:var(--ink-3);letter-spacing:0.08em}
+  #loading[hidden]{display:none}
+
+  @media (max-width:820px){
+    #legend{left:12px;right:12px;bottom:96px;max-width:none;min-width:0}
+    #controls{left:12px;right:12px;bottom:20px;justify-content:space-between;gap:8px}
+    #profile{width:auto;flex:1 1 auto}
+    #meta{display:none}
+    header{top:120px}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="map"></canvas>
+
+  <div id="picks">
+    <div class="row" id="spRow"><span class="lab">Species</span></div>
+    <div class="row" id="seRow"><span class="lab">Season</span></div>
+    <div class="row" id="prRow"><span class="lab">Risk</span></div>
+  </div>
+
+  <header>
+    <div id="clock">00<span class="mins">:00</span></div>
+    <div id="day">day 1</div>
+    <div id="lamps">
+      <span id="lampDog" data-on="false">wild dog</span>
+      <span id="lampLion" data-on="false">lion</span>
+    </div>
+  </header>
+
+  <div id="meta">
+    <strong>Okavango Delta, Botswana</strong><br>
+    Hourly GPS fixes reconstructed from Bennitt et al. (2024).
+    Positions are real; calendar dates are not in the deposit, so days count
+    from each collar's first fix.
+  </div>
+
+  <button id="notesbtn" aria-expanded="false">Data notes &amp; gaps</button>
+  <div id="notes" class="panel"><h2>Data notes &amp; gaps</h2><div id="notesBody"></div></div>
+
+  <div id="legend" class="panel">
+    <h2>On screen</h2>
+    <div id="legendRows"></div>
+    <footer id="legendFoot"></footer>
+  </div>
+
+  <div id="controls" class="panel">
+    <button id="play" aria-pressed="true">Pause</button>
+    <div class="spd" id="spd"></div>
+    <div id="profile"><canvas id="profcv"></canvas><input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek"></div>
+  </div>
+</div>
+
+<div id="loading">loading tracks…</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ model */
+
+const SPECIES = {
+  zebra:      {label:"Zebra",      role:"zebra",      seasons:["dry","rainy"]},
+  wildebeest: {label:"Wildebeest", role:"wildebeest", seasons:["dry","rainy"]},
+  tsessebe:   {label:"Tsessebe",   role:"tsessebe",   seasons:["dry","rainy"]},
+  impala:     {label:"Impala",     role:"impala",     seasons:["dry"]},
+};
+const SPECIES_ORDER = ["zebra","wildebeest","tsessebe","impala"];
+
+/* Predator activity is a function of hour-of-day. These windows are the ones
+   the deposit itself encodes, recovered while de-interleaving the tables. */
+const DOG_HOURS  = new Set([4,5,6,7,8,17,18,19]);
+const LION_HOURS = new Set([18,19,20,21,22,23,0,1,2,3,4,5,6,7]);
+const dogActive  = h => DOG_HOURS.has(h);
+const lionActive = h => LION_HOURS.has(h);
+
+const pick = name => getComputedStyle(document.documentElement)
+  .getPropertyValue("--" + name).trim();
+const hexRGB = hex => {
+  const h = hex.replace("#","");
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+};
+const rgba = (c,a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+let sel = {species:new Set(["zebra"]), season:"dry", risk:"none"};
+let TRACKS = [];          /* flattened, currently displayed */
+let RISK = null;          /* predator-risk.json */
+let SPAN = 1;             /* total hours on the clock */
+let BOUNDS = null;        /* {lon0,lat0,lon1,lat1} of the current selection */
+const CACHE = new Map();
+
+/* ------------------------------------------------------------------ load */
+
+async function loadSpeciesSeason(sp, season){
+  const key = sp + "-" + season;
+  if (CACHE.has(key)) return CACHE.get(key);
+  const res = await fetch(`data/processed/${key}.json`);
+  if (!res.ok) throw new Error(`cannot load ${key}: ${res.status}`);
+  const raw = await res.json();
+
+  /* Build one continuous hourly timeline per individual. Inside a segment the
+     step is one hour. Across a gap the deposit cannot say how many hours were
+     lost, only the hour-of-day on either side, so the gap is taken as the
+     smallest positive number of hours consistent with both -- which keeps every
+     animal's diel phase exact and never invents a longer absence than the data
+     requires. */
+  const inds = raw.individuals.map(ind => {
+    let n = 0;
+    for (const s of ind.segments) n += s.coords.length;
+    const times = new Int32Array(n);
+    const lons  = new Float32Array(n);
+    const lats  = new Float32Array(n);
+    const uiDog = new Float32Array(n);
+    const uiLion= new Float32Array(n);
+    /* Marks the first fix of a segment. The collar could have been silent for
+       days, and the hours on either side cannot tell us how many; nothing is
+       ever drawn across one of these, however small the inferred gap. */
+    const brk   = new Uint8Array(n);
+
+    let i = 0, t = 0, prevHour = null;
+    for (const seg of ind.segments){
+      if (prevHour === null) t = seg.startHour;
+      else {
+        const gap = (seg.startHour - prevHour + 24) % 24;
+        t += (gap === 0 ? 24 : gap);
+        brk[i] = 1;
+      }
+      for (let j = 0; j < seg.coords.length; j++){
+        const c = seg.coords[j];
+        times[i] = t; lons[i] = c[0]; lats[i] = c[1];
+        uiDog[i] = c[2]; uiLion[i] = c[3];
+        i++; if (j < seg.coords.length - 1) t += 1;
+      }
+      prevHour = (seg.startHour + seg.coords.length - 1) % 24;
+    }
+    return {id:ind.id, species:sp, n, times, lons, lats, uiDog, uiLion, brk,
+            t0:times[0], t1:times[n-1]};
+  });
+
+  const out = {meta:raw, individuals:inds};
+  CACHE.set(key, out);
+  return out;
+}
+
+/* A fix counts as high-exposure when the predator's utilisation there sits in
+   the top decile of everything that animal experienced. */
+function exposureThresholds(inds){
+  const gather = f => {
+    const all = [];
+    for (const ind of inds) for (let i = 0; i < ind.n; i++) all.push(f(ind, i));
+    all.sort((a,b)=>a-b);
+    return all.length ? all[Math.floor(all.length * 0.9)] : Infinity;
+  };
+  return {
+    dog:  gather((ind,i)=>ind.uiDog[i]),
+    lion: gather((ind,i)=>ind.uiLion[i]),
+  };
+}
+
+async function rebuild(){
+  const wanted = [];
+  for (const sp of SPECIES_ORDER){
+    if (!sel.species.has(sp)) continue;
+    if (!SPECIES[sp].seasons.includes(sel.season)) continue;
+    wanted.push(sp);
+  }
+  const loaded = await Promise.all(wanted.map(sp => loadSpeciesSeason(sp, sel.season)));
+
+  TRACKS = [];
+  for (const set of loaded){
+    const th = exposureThresholds(set.individuals);
+    for (const ind of set.individuals) TRACKS.push(Object.assign({th}, ind));
+  }
+
+  SPAN = 1;
+  let lo0 = Infinity, la0 = Infinity, lo1 = -Infinity, la1 = -Infinity;
+  for (const t of TRACKS){
+    if (t.t1 + 1 > SPAN) SPAN = t.t1 + 1;
+    for (let i = 0; i < t.n; i++){
+      if (t.lons[i] < lo0) lo0 = t.lons[i];
+      if (t.lons[i] > lo1) lo1 = t.lons[i];
+      if (t.lats[i] < la0) la0 = t.lats[i];
+      if (t.lats[i] > la1) la1 = t.lats[i];
+    }
+  }
+  BOUNDS = TRACKS.length ? {lon0:lo0, lat0:la0, lon1:lo1, lat1:la1} : null;
+  if (simH > SPAN) simH = 0;
+
+  resize();
+  buildLegend();
+  buildProfile();
+  syncSpeciesPills();
+  baseReady = false;
+}
+
+function syncSpeciesPills(){
+  for (const b of document.querySelectorAll("#spRow button")){
+    const ok = SPECIES[b.dataset.key].seasons.includes(sel.season);
+    b.dataset.unavailable = String(!ok);
+    b.setAttribute("aria-pressed", String(ok && sel.species.has(b.dataset.key)));
+  }
+}
+
+/* ------------------------------------------------------------- projection */
+
+let W=0, H=0, DPR=1, OX=0, OY=0, SX=1, SY=1, kLat=1;
+const map = document.getElementById("map");
+const ctx = map.getContext("2d", {alpha:false});
+const base = document.createElement("canvas");
+let baseReady = false;
+
+const ux = lon => (lon - BOUNDS.lon0) / (BOUNDS.lon1 - BOUNDS.lon0);
+const uy = lat => 1 - (lat - BOUNDS.lat0) / (BOUNDS.lat1 - BOUNDS.lat0);
+const px = lon => OX + ux(lon) * SX;
+const py = lat => OY + uy(lat) * SY;
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  map.width = Math.round(W*DPR); map.height = Math.round(H*DPR);
+  map.style.width = W+"px"; map.style.height = H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  base.width = map.width; base.height = map.height;
+
+  if (!BOUNDS) return;
+  /* Equirectangular, with the longitude axis squeezed by cos(lat) so the
+     delta keeps its shape. */
+  const midLat = (BOUNDS.lat0 + BOUNDS.lat1) / 2;
+  kLat = Math.cos(midLat * Math.PI / 180);
+  const dataW = (BOUNDS.lon1 - BOUNDS.lon0) * kLat;
+  const dataH = (BOUNDS.lat1 - BOUNDS.lat0);
+  const pad = 64;
+  const availW = W - pad*2, availH = H - pad*2;
+  const scale = Math.min(availW / dataW, availH / dataH);
+  SX = dataW * scale; SY = dataH * scale;
+  OX = (W - SX) / 2; OY = (H - SY) / 2;
+  baseReady = false;
+}
+
+/* ------------------------------------------------------------- base layer */
+
+/* The deposit ships no coastline or river geometry and this page fetches no
+   basemap, so the landscape is drawn from the data itself: every fix in the
+   current selection as a dim speck. What you see is exactly where these
+   animals went, and nothing that they did not. */
+function renderBase(){
+  const b = base.getContext("2d");
+  b.setTransform(DPR,0,0,DPR,0,0);
+  b.fillStyle = pick("bg-bot");
+  b.fillRect(0,0,W,H);
+  if (!BOUNDS){ baseReady = true; return; }
+
+  if (sel.risk !== "none" && RISK) drawRisk(b);
+
+  for (const t of TRACKS){
+    b.fillStyle = rgba(hexRGB(pick(SPECIES[t.species].role)), 0.14);
+    for (let i = 0; i < t.n; i++){
+      b.fillRect(px(t.lons[i]) - 0.5, py(t.lats[i]) - 0.5, 1, 1);
+    }
+  }
+  drawScale(b);
+  baseReady = true;
+}
+
+let riskCv = document.createElement("canvas");
+function drawRisk(b){
+  const state = riskState();
+  const surf = RISK.surfaces[sel.risk + "-" + state];
+  if (!surf) return;
+  const {nx, ny} = RISK;
+  if (riskCv.width !== nx || riskCv.height !== ny){ riskCv.width = nx; riskCv.height = ny; }
+  const rc = riskCv.getContext("2d");
+  const img = rc.createImageData(nx, ny);
+  const col = hexRGB(pick(sel.risk));
+  for (let iy = 0; iy < ny; iy++){
+    for (let ix = 0; ix < nx; ix++){
+      const v = surf.cells[iy*nx + ix];
+      /* rows run south to north in the grid, top to bottom on screen */
+      const o = ((ny-1-iy)*nx + ix) * 4;
+      img.data[o] = col[0]; img.data[o+1] = col[1]; img.data[o+2] = col[2];
+      img.data[o+3] = Math.round(Math.pow(v/255, 0.75) * 150);
+    }
+  }
+  rc.putImageData(img, 0, 0);
+
+  const R = RISK.bounds;
+  const x0 = px(R.lon0), x1 = px(R.lon1), y0 = py(R.lat1), y1 = py(R.lat0);
+  b.save();
+  b.imageSmoothingEnabled = true;
+  b.globalAlpha = 0.85;
+  b.drawImage(riskCv, x0, y0, x1-x0, y1-y0);
+  b.restore();
+}
+
+function drawScale(b){
+  if (!BOUNDS) return;
+  /* 10 km bar, sized from the current projection. */
+  const kmPerDegLat = 110.574;
+  const pxPerKm = SY / ((BOUNDS.lat1 - BOUNDS.lat0) * kmPerDegLat);
+  const len = pxPerKm * 10;
+  if (!isFinite(len) || len < 20 || len > W*0.5) return;
+  const x = W - len - 26, y = H - 30;
+  b.strokeStyle = pick("ink-3"); b.lineWidth = 1;
+  b.beginPath(); b.moveTo(x, y); b.lineTo(x+len, y);
+  b.moveTo(x, y-3); b.lineTo(x, y+3); b.moveTo(x+len, y-3); b.lineTo(x+len, y+3);
+  b.stroke();
+  b.fillStyle = pick("ink-3");
+  b.font = '300 10px "IBM Plex Mono",monospace';
+  b.textAlign = "center";
+  b.fillText("10 km", x + len/2, y - 7);
+  b.textAlign = "left";
+}
+
+/* --------------------------------------------------------------- playback */
+
+let simH = 0;                  /* hours since the clock's zero */
+let hoursPerSecond = 6;
+let playing = true;
+let lastFrame = performance.now();
+
+const hourOfDay = () => ((Math.floor(simH) % 24) + 24) % 24;
+const riskState = () => {
+  const h = hourOfDay();
+  return (sel.risk === "dog" ? dogActive(h) : lionActive(h)) ? "high" : "low";
+};
+
+/* Position at a fractional hour, or null inside a gap / outside the track. */
+function posAt(t, h){
+  if (h < t.t0 || h > t.t1) return null;
+  const times = t.times;
+  let lo = 0, hi = t.n - 1;
+  while (lo < hi){
+    const mid = (lo + hi + 1) >> 1;
+    if (times[mid] <= h) lo = mid; else hi = mid - 1;
+  }
+  if (lo === t.n - 1) return [px(t.lons[lo]), py(t.lats[lo]), lo];
+  const ta = times[lo], tb = times[lo+1];
+  if (tb - ta > 1 || t.brk[lo+1]) return null;   /* inside a gap: draw nothing */
+  const f = (h - ta) / (tb - ta);
+  return [px(t.lons[lo] + (t.lons[lo+1]-t.lons[lo])*f),
+          py(t.lats[lo] + (t.lats[lo+1]-t.lats[lo])*f), lo];
+}
+
+const DOT_R = 2.1;
+const TRAIL_STEPS = 8;
+const TRAIL_HOURS = 10;
+
+function draw(){
+  if (!baseReady) renderBase();
+  ctx.drawImage(base, 0, 0, W, H);
+  if (!BOUNDS) return;
+
+  const h = hourOfDay();
+  const dogOn = dogActive(h), lionOn = lionActive(h);
+
+  for (const t of TRACKS){
+    const head = posAt(t, simH);
+    if (!head) continue;
+    const col = hexRGB(pick(SPECIES[t.species].role));
+
+    /* comet trail, sampled backwards along the track */
+    let cx = head[0], cy = head[1];
+    for (let k = 1; k <= TRAIL_STEPS; k++){
+      const back = posAt(t, simH - (TRAIL_HOURS/TRAIL_STEPS)*k);
+      if (!back) break;
+      const a = (1 - k/TRAIL_STEPS) * 0.55;
+      if (a <= 0.02) break;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy); ctx.lineTo(back[0], back[1]);
+      ctx.strokeStyle = rgba(col, a);
+      ctx.lineWidth = Math.max(1/DPR, 2.4 * (1 - k/(TRAIL_STEPS+3)));
+      ctx.lineCap = "round";
+      ctx.stroke();
+      cx = back[0]; cy = back[1];
+    }
+
+    /* halo + dot */
+    ctx.beginPath(); ctx.arc(head[0], head[1], 4.0, 0, 6.2832);
+    ctx.fillStyle = rgba(col, 0.15); ctx.fill();
+    ctx.beginPath(); ctx.arc(head[0], head[1], DOT_R, 0, 6.2832);
+    ctx.fillStyle = rgba(col, 0.98); ctx.fill();
+
+    /* Exposure ring: this animal is standing in the top decile of a
+       predator's range while that predator is in its active window. */
+    const i = head[2];
+    const exposed = (dogOn && t.uiDog[i] >= t.th.dog) ? "dog"
+                  : (lionOn && t.uiLion[i] >= t.th.lion) ? "lion" : null;
+    if (exposed){
+      const phase = (simH % 1);
+      const r = DOT_R + 2 + phase * 9;
+      ctx.beginPath(); ctx.arc(head[0], head[1], r, 0, 6.2832);
+      ctx.strokeStyle = rgba(hexRGB(pick(exposed)), (1 - phase) * 0.55);
+      ctx.lineWidth = Math.max(1/DPR, 1.2);
+      ctx.stroke();
+    }
+  }
+}
+
+/* ------------------------------------------------------------------- chrome */
+
+function buildLegend(){
+  const rows = document.getElementById("legendRows");
+  rows.innerHTML = "";
+  const counts = new Map();
+  for (const t of TRACKS){
+    const c = counts.get(t.species) || {inds:0, fixes:0};
+    c.inds += 1; c.fixes += t.n;
+    counts.set(t.species, c);
+  }
+  for (const sp of SPECIES_ORDER){
+    if (!counts.has(sp)) continue;
+    const c = counts.get(sp);
+    const el = document.createElement("div");
+    el.className = "lg";
+    el.innerHTML = `<span class="sw" style="background:${pick(SPECIES[sp].role)}"></span>`
+      + `<span class="nm">${SPECIES[sp].label}</span>`
+      + `<span class="ct">${c.inds} collars · ${c.fixes.toLocaleString()} fixes</span>`;
+    rows.appendChild(el);
+  }
+  const days = Math.ceil(SPAN/24);
+  document.getElementById("legendFoot").textContent = TRACKS.length
+    ? `${sel.season === "dry" ? "Dry" : "Rainy"} season · ${days} days of hourly fixes · `
+      + `rings mark an animal in the top decile of a predator's range while that predator is active.`
+    : "No collars for this combination.";
+}
+
+/* The profile is the real thing the paper is about: how far these animals move
+   in each hour of the day. */
+const prof = document.getElementById("profcv");
+const profBase = document.createElement("canvas");
+let profW = 0, profH = 0;
+
+function buildProfile(){
+  const r = prof.parentElement.getBoundingClientRect();
+  profW = Math.max(120, Math.round(r.width)); profH = Math.round(r.height);
+  for (const cv of [prof, profBase]){
+    cv.width = Math.round(profW*DPR); cv.height = Math.round(profH*DPR);
+  }
+  prof.style.width = profW+"px"; prof.style.height = profH+"px";
+
+  const sums = new Float64Array(24), n = new Float64Array(24);
+  for (const t of TRACKS){
+    for (let i = 1; i < t.n; i++){
+      if (t.times[i] - t.times[i-1] !== 1 || t.brk[i]) continue;
+      const dLon = (t.lons[i]-t.lons[i-1]) * kLat * 111.32;
+      const dLat = (t.lats[i]-t.lats[i-1]) * 110.574;
+      const hh = ((t.times[i-1] % 24) + 24) % 24;
+      sums[hh] += Math.hypot(dLon, dLat) * 1000; n[hh] += 1;
+    }
+  }
+  const c = profBase.getContext("2d");
+  c.setTransform(DPR,0,0,DPR,0,0);
+  c.clearRect(0,0,profW,profH);
+  let peak = 1;
+  for (let i=0;i<24;i++) if (n[i] && sums[i]/n[i] > peak) peak = sums[i]/n[i];
+
+  const bw = profW/24;
+  for (let i=0;i<24;i++){
+    const v = n[i] ? sums[i]/n[i] : 0;
+    const hgt = (v/peak) * (profH - 12);
+    const dog = dogActive(i), lion = lionActive(i);
+    c.fillStyle = dog ? rgba(hexRGB(pick("dog")), 0.55)
+                : lion ? rgba(hexRGB(pick("lion")), 0.30)
+                : rgba(hexRGB(pick("ink-3")), 0.34);
+    c.fillRect(i*bw + 0.5, profH - 8 - hgt, bw - 1, hgt);
+  }
+  c.fillStyle = pick("ink-3");
+  c.font = '300 8px "IBM Plex Mono",monospace';
+  c.textAlign = "left";  c.fillText("00", 1, profH - 1);
+  c.textAlign = "center";c.fillText("12", profW/2, profH - 1);
+  c.textAlign = "right"; c.fillText("24", profW - 1, profH - 1);
+  c.textAlign = "left";
+  drawProfile();
+}
+
+function drawProfile(){
+  if (!profW) return;
+  const c = prof.getContext("2d");
+  c.setTransform(DPR,0,0,DPR,0,0);
+  c.clearRect(0,0,profW,profH);
+  c.drawImage(profBase, 0, 0, profW, profH);
+  const x = (hourOfDay() + (simH % 1)) / 24 * profW;
+  c.strokeStyle = pick("ink");
+  c.lineWidth = 1;
+  c.beginPath(); c.moveTo(x, 0); c.lineTo(x, profH - 9); c.stroke();
+}
+
+function updateClock(){
+  const h = hourOfDay();
+  const m = Math.floor((simH % 1) * 60);
+  document.getElementById("clock").innerHTML =
+    String(h).padStart(2,"0") + '<span class="mins">:' + String(m).padStart(2,"0") + '</span>';
+  document.getElementById("day").textContent = "day " + (Math.floor(simH/24) + 1)
+    + " of " + Math.max(1, Math.ceil(SPAN/24));
+  document.getElementById("lampDog").dataset.on = dogActive(h);
+  document.getElementById("lampLion").dataset.on = lionActive(h);
+}
+
+/* ------------------------------------------------------------------ loop */
+
+function frame(now){
+  const dt = Math.min(0.25, (now - lastFrame)/1000);
+  lastFrame = now;
+  if (playing && TRACKS.length){
+    simH += dt * hoursPerSecond;
+    if (simH >= SPAN) simH = 0;
+    const s = document.getElementById("scrub");
+    if (document.activeElement !== s) s.value = Math.round(simH/SPAN*1000);
+  }
+  draw();
+  updateClock();
+  drawProfile();
+  requestAnimationFrame(frame);
+}
+
+/* --------------------------------------------------------------- controls */
+
+function pillRow(rowId, items, isOn, onPick){
+  const row = document.getElementById(rowId);
+  for (const it of items){
+    const b = document.createElement("button");
+    b.textContent = it.label;
+    b.dataset.key = it.key;
+    b.setAttribute("aria-pressed", String(isOn(it.key)));
+    b.addEventListener("click", async () => {
+      await onPick(it.key);
+      for (const btn of row.querySelectorAll("button"))
+        btn.setAttribute("aria-pressed", String(isOn(btn.dataset.key)));
+    });
+    row.appendChild(b);
+  }
+}
+
+function wireControls(){
+  pillRow("spRow",
+    SPECIES_ORDER.map(k => ({key:k, label:SPECIES[k].label})),
+    k => sel.species.has(k) && SPECIES[k].seasons.includes(sel.season),
+    async k => {
+      if (!SPECIES[k].seasons.includes(sel.season)) return;
+      if (sel.species.has(k)){ if (sel.species.size > 1) sel.species.delete(k); }
+      else sel.species.add(k);
+      await rebuild();
+    });
+
+  pillRow("seRow",
+    [{key:"dry",label:"Dry"},{key:"rainy",label:"Rainy"}],
+    k => sel.season === k,
+    async k => { sel.season = k; simH = 0; await rebuild(); });
+
+  pillRow("prRow",
+    [{key:"none",label:"None"},{key:"dog",label:"Wild dog"},{key:"lion",label:"Lion"}],
+    k => sel.risk === k,
+    async k => { sel.risk = k; baseReady = false; });
+
+  const play = document.getElementById("play");
+  play.addEventListener("click", () => {
+    playing = !playing;
+    play.textContent = playing ? "Pause" : "Play";
+    play.setAttribute("aria-pressed", String(playing));
+  });
+
+  const spd = document.getElementById("spd");
+  for (const v of [3, 6, 12, 24]){
+    const b = document.createElement("button");
+    b.textContent = (v/6) + "×";
+    b.setAttribute("aria-pressed", String(v === hoursPerSecond));
+    b.addEventListener("click", () => {
+      hoursPerSecond = v;
+      for (const x of spd.querySelectorAll("button"))
+        x.setAttribute("aria-pressed", String(x === b));
+    });
+    spd.appendChild(b);
+  }
+
+  const scrub = document.getElementById("scrub");
+  scrub.addEventListener("input", () => { simH = scrub.value/1000 * SPAN; });
+
+  const nb = document.getElementById("notesbtn"), notes = document.getElementById("notes");
+  nb.addEventListener("click", () => {
+    const open = notes.dataset.open !== "true";
+    notes.dataset.open = String(open);
+    nb.setAttribute("aria-expanded", String(open));
+  });
+
+  addEventListener("resize", () => { resize(); buildProfile(); });
+  addEventListener("keydown", e => {
+    if (e.key === " "){ e.preventDefault(); play.click(); }
+  });
+}
+
+function buildNotes(){
+  document.getElementById("notesBody").innerHTML = `
+    <p>Every position on this map is a real GPS fix. The animation between
+    fixes is straight-line interpolation across one hour.</p>
+
+    <h3>How the tracks were recovered</h3>
+    <p>The Dryad deposit ships analysis tables, not raw collar downloads. The
+    coordinates live in the resource-selection tables, sorted by predator
+    activity state; the chronological order lives in a second set of tables that
+    carry hour-of-day but no coordinates. Because predator activity is a
+    function of hour-of-day, that sort is invertible, and walking the hour
+    sequence recovers the original track.</p>
+    <p class="sub">Every reconstruction is scored against the authors' own
+    step-length column: all seven species-seasons reproduce it at 98.8&ndash;100%
+    within 40 m, median error 5&ndash;7 m. Individuals where the two tables
+    disagree about a fix are left out rather than shown unverified.</p>
+
+    <h3>What is missing</h3>
+    <p><strong>No calendar dates.</strong> The deposit records hour-of-day but
+    never a date, so the clock is real and the day counter is only elapsed time
+    from each collar's first fix. Animals are aligned by time of day, not by
+    date &mdash; two dots side by side were not necessarily there in the same
+    week.</p>
+    <p><strong>No predator positions.</strong> Lions and wild dogs were collared,
+    but the deposit contains none of their coordinates. They appear here only as
+    their activity windows (the lamps under the clock) and as a utilisation
+    surface sampled at prey locations (the risk layer). A ring means an animal
+    sits in the top decile of a predator's range while that predator is active
+    &mdash; a measure of exposure, not an observed encounter.</p>
+    <p><strong>Positions are quantised.</strong> Coordinates are snapped to the
+    25 m habitat raster used in the original analysis, so fine-scale detail is
+    not real detail.</p>
+    <p><strong>Gaps are drawn as absence.</strong> Where the collar missed
+    hours the animal is simply not drawn. Gap length is taken as the shortest
+    span consistent with the hours on either side, so long absences are
+    understated.</p>
+
+    <h3>Source</h3>
+    <p class="sub">Bennitt, E. et al. (2024). <em>Proactive cursorial and ambush
+    predation risk avoidance in four African herbivore species.</em> Ecology and
+    Evolution. Data: <code>doi:10.5061/dryad.w0vt4b8zr</code>. Collared in the
+    Okavango Delta, Botswana, 2014&ndash;2016.</p>`;
+}
+
+/* ------------------------------------------------------------------- boot */
+
+(async function boot(){
+  try {
+    buildNotes();
+    wireControls();
+    RISK = await fetch("data/processed/predator-risk.json").then(r => r.ok ? r.json() : null);
+    await rebuild();
+    document.getElementById("loading").hidden = true;
+    lastFrame = performance.now();
+    requestAnimationFrame(frame);
+  } catch (err){
+    document.getElementById("loading").textContent =
+      "could not load tracks — this page needs http(s), not file://";
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
