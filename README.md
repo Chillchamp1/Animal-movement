@@ -127,6 +127,58 @@ The obvious larger option was the LifeTrack series — 7 studies, 326 birds,
 
 LifeTrack deserves its own map. It is not an addition to this one.
 
+## The globe
+
+`globe.html` is a second page and a different question. The map above shows many
+birds at once on a fixed frame; the globe follows **one** bird, turning under it
+so the animal stays in the middle of the view — which is the only honest way to
+show a journey that crosses the date line or most of a hemisphere.
+
+Two journeys, both real, both CC0, chosen by `scripts/build_globe.py`:
+
+| | Bird | Journey |
+|---|---|---|
+| **Hudsonian godwit** (*Limosa haemastica*) | KHE | Off the Chilean coast to the Texas Gulf coast — **7,931 km in 5.9 days**, averaging 56 km/h the whole way. 77 GPS fixes, one every ~1.8 h. |
+| **Grey-headed albatross** (*Thalassarche chrysostoma*) | 89518 | One foraging trip from Campbell Island out across the antimeridian and back — **12,285 km over 21.9 days**, ending **2 km from where it began**. 5,959 GPS fixes, one every 5 min. |
+
+### Two birds this is not
+
+The page was asked for the bar-tailed godwit `4BBRW` of the record
+Alaska–New Zealand flight, and for a wandering albatross. Neither is open data,
+so rather than fake them the page shows the nearest real thing and says so.
+
+- **Bar-tailed godwit.** The one deposit in the archive,
+  `doi:10.5441/001/1.327`, is geolocator work: 18 birds and **103 fixes in
+  total**, a median of six per bird, with explicit `lat-lower`/`lat-upper` error
+  columns because that is what geolocators give. An eleven-day flight would be
+  two or three points, each uncertain by a hundred kilometres.
+- **Wandering albatross.** No deposit at all. Procellariiform tracking lives in
+  BirdLife International's Seabird Tracking Database, which releases data per
+  request and per data owner, not by open download.
+
+### What was thrown away
+
+173 of the 3,548 godwit GPS rows — 4.9% — carry impossible coordinates, latitude
+−213 among them, and they are almost all **unflagged**:
+`manually-marked-outlier` is empty for 171 of them and the tag calls 158 of them
+good 3D fixes. They have to be caught on the coordinate range, not the quality
+flag. Inside the valid range a forward pass drops any fix that could only be
+reached faster than the bird can fly, anchored on the last *accepted* fix.
+Distance is only ever summed inside a continuous run: a four-day silence spans
+thousands of kilometres at a plausible average speed, and counting it inflated
+one bird's total to 458,000 km before that rule went in.
+
+### Rendering
+
+globe.gl (MIT, bundles three.js) over NASA's Blue Marble Next Generation, with a
+global elevation map as a bump layer. All of it is checked into `vendor/` rather
+than fetched from a CDN — see `vendor/README.md` for provenance and how to
+refresh it — so the page works on a host that permits no outbound requests.
+
+The camera eases toward the bird on a time constant rather than a fixed
+fraction per frame, so the lag does not depend on the frame rate: measured 50 km
+steady-state, 117 km worst case, on a software renderer.
+
 ## The ground under them
 
 **Satellite** — Esri World Imagery, fetched as tiles at view time — is the
@@ -220,6 +272,11 @@ python3 scripts/build_storks.py         # -> data/processed/storks.json
 python3 scripts/build_storks.py --raw data/raw/storks-ages \
     --out-name storks-ages.json --from-date 2013-08-01 --to-date 2013-11-01 \
     --exclude --source "Rotics et al. 2016, doi:10.5441/001/1.hn1bd23k (CC0)"
+python3 scripts/fetch_movebank.py --doi 10.5441/001/1.t81488n5 \
+    --match gps reference-data README --out data/raw/godwit-hud
+python3 scripts/fetch_movebank.py --doi 10.5441/001/1.694p666h \
+    --match Torres README --out data/raw/albatross
+python3 scripts/build_globe.py          # -> globe-tracks.json, one journey per species
 python3 scripts/build_landcover.py      # -> water and greenness, ~15 min, cached
 python3 scripts/build_basemap.py        # -> basemap.json, the whole backdrop baked in
 python3 scripts/build_standalone.py     # -> dist/, one self-contained file
@@ -248,6 +305,16 @@ Rotics, S., Kaatz, M., Resheff, Y. S., et al. (2016). *The challenges of the
 first migration: movement and behavior of juvenile versus adult white storks
 with insights regarding juvenile mortality.* Journal of Animal Ecology
 85:938–947. Data: `doi:10.5441/001/1.hn1bd23k`, Movebank Data Repository, CC0.
+
+For the globe:
+
+Senner, N. R., Stager, M., Verhoeven, M. A., et al. *Compensation for wind drift
+prevails for a shorebird on a long-distance, transoceanic flight.* Data:
+`doi:10.5441/001/1.t81488n5`, Movebank Data Repository, CC0.
+
+Torres, L. G., Orben, R. A., Tolkova, I., Thompson, D. R. *Classification of
+animal movement behavior through residence in space and time.* Data:
+`doi:10.5441/001/1.694p666h`, Movebank Data Repository, CC0.
 
 Backdrop, from two measured sources:
 

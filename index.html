@@ -149,6 +149,16 @@
         background:rgba(5,8,14,.62);padding:9px 12px;border-radius:8px}
   #meta strong{color:var(--ink-2);font-weight:500}
   #notesbtn{position:fixed;z-index:4;right:20px;top:20px}
+  /* A second page, not a second layer: the globe follows one bird at a time and
+     turns under it, which a flat map cannot do. */
+  #globelink{
+    position:fixed;z-index:4;right:150px;top:20px;
+    font-size:0.68rem;color:var(--ink-3);text-decoration:none;
+    border:1px solid var(--rule);border-radius:6px;padding:5px 11px;
+    background:rgba(5,8,14,.62);
+  }
+  #globelink:hover{color:var(--ink)}
+  body[data-bare="true"] #globelink{display:none}
   #notes{position:fixed;z-index:3;right:20px;top:60px;padding:14px 16px;max-width:352px;
          display:none;max-height:calc(100vh - 160px);overflow-y:auto}
   #notes[data-open="true"]{display:block}
@@ -210,6 +220,8 @@
     #day{font-size:0.6rem}
     #meta{display:none}
     #notesbtn{top:calc(8px + env(safe-area-inset-top,0px));right:auto;left:8px;display:none}
+    #globelink{top:auto;right:8px;
+               bottom:calc(80px + env(safe-area-inset-bottom,0px));font-size:0.6rem}
     #notes{left:8px;right:8px;top:auto;bottom:calc(96px + env(safe-area-inset-bottom,0px));
            max-width:none;max-height:52vh}
     /* Collapsed by default here: the map is the scarce thing on a phone. */
@@ -255,6 +267,7 @@
 
   <div id="meta"></div>
 
+  <a id="globelink" href="globe.html">Globe &rarr;</a>
   <button id="notesbtn" aria-expanded="false">Data notes &amp; gaps</button>
   <div id="notes" class="panel"><h2>Data notes &amp; gaps</h2><div id="notesBody"></div></div>
 

@@ -41,6 +41,12 @@ jobs:
             --match gps reference-data README --out data/raw/storks
           python3 scripts/fetch_movebank.py --doi 10.5441/001/1.hn1bd23k \
             --match gps reference-data README --out data/raw/storks-ages
+          # The two the globe runs on. See scripts/build_globe.py for why these
+          # species and not the two the globe was first asked for.
+          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.t81488n5 \
+            --match gps reference-data README --out data/raw/godwit-hud
+          python3 scripts/fetch_movebank.py --doi 10.5441/001/1.694p666h \
+            --match Torres README --out data/raw/albatross
 
       - name: Build the tracks and the backdrop
         run: |
@@ -51,6 +57,8 @@ jobs:
             --out-name storks-ages.json \
             --from-date 2013-08-01 --to-date 2013-11-01 --exclude \
             --source "Rotics et al. 2016, doi:10.5441/001/1.hn1bd23k (CC0)"
+          # One journey per species for globe.html.
+          python3 scripts/build_globe.py
           # Reads 959 WorldCover tiles at their coarsest overview: about fifteen
           # minutes, and the reason a deploy is not instant.
           python3 scripts/build_landcover.py
