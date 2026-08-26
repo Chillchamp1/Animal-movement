@@ -7,13 +7,15 @@ prey**, or only the analysis tables that were derived from them?
 The Okavango deposit ([doi:10.5061/dryad.w0vt4b8zr]) failed that test on the
 predator side: it shipped herbivore coordinates but no lion or wild dog
 positions, only their activity windows and a utilisation polygon. Four
-candidate replacements were audited. **All four fail it too**, and this is
-what they contain instead.
+candidate Dryad replacements were audited. **All four fail it too.** The
+Movebank Data Repository, searched afterwards, answers it: section 5 below.
 
 Reproduce with:
 
 ```sh
-python3 scripts/fetch_dryad.py --doi <DOI> --out data/raw/<slug>
+python3 scripts/fetch_dryad.py    --doi <DOI> --out data/raw/<slug>
+python3 scripts/fetch_movebank.py --doi <DOI> --out data/raw/movebank
+python3 scripts/fetch_movebank.py --search "predator prey"    # browse the archive
 Rscript  scripts/profile_rdata.R  data/raw/<slug>/*.RData     # .RData / .RDS
 python3  scripts/profile_tables.py data/raw/<slug>/*.csv      # .csv / .xlsx
 ```
@@ -24,6 +26,7 @@ python3  scripts/profile_tables.py data/raw/<slug>/*.csv      # .csv / .xlsx
 | 2 | [`kh1893292`] eastern Washington, 5 species | coordinates removed | coordinates removed | season label only | **No** — depositors stripped the coordinates |
 | 3 | [`51c59zwkg`] cougar + mule deer | no | coordinates removed | yes | **No** — depositors stripped the coordinates |
 | 4 | [`4xgxd257z`] wolves, ambush sites | no | no | date only | **No** — attribute table, no geometry |
+| 5 | [Movebank] Utah UDWR, cougars + 4 ungulates | **yes** | **yes** | **yes, 2 h** | **Yes** — verified below |
 
 ---
 
@@ -184,33 +187,87 @@ fix time. Nothing here is mappable as movement.
 
 ---
 
+## 5. Movebank Data Repository — the search that worked
+
+Dryad is a general-purpose repository: what gets deposited there is whatever a
+paper's reviewers needed. The [Movebank Data Repository] is a tracking archive,
+and what gets deposited is the collar download — one row per fix, with
+`location-long`, `location-lat` and `timestamp`, published under a DOI and an
+open licence. Its DSpace API is open: no account, no licence click-through.
+
+All 2,013 deposits were harvested and filtered for a predator taxon and a prey
+taxon (`scripts/fetch_movebank.py --search`). Three deposits carry both guilds
+in one file; several authors hold one of each. The best fit is a pair.
+
+### Utah, 2019–2020 — cougars and four ungulates, both CC0
+
+| | cougars | ungulates |
+|---|---|---|
+| DOI | [10.5441/001/1.712] | [10.5441/001/1.711] |
+| licence | CC0 1.0 | CC0 1.0 |
+| individuals | 40 | 2,694 |
+| fixes | 47,777 | 4,916,617 |
+| span | 2019-01-01 → 2020-05-16 | 2019-01-01 → 2020-05-16 |
+| fix interval | median 2.00 h, 95% within 10% | median 2.00 h, 94% within 10% |
+| missing coordinates | none | none |
+
+Both deposits come from the same agency, on the same two-hour schedule, over
+the *same* window to the day. The ungulate side is mule deer (3,234,515 fixes
+/ 1,771 animals), bighorn (686,698 / 352), elk (610,062 / 349) and pronghorn
+(385,342 / 222).
+
+They also share ground. Binned to roughly 5 km cells, cougars and ungulates
+share 275 cells; **80% of all cougar fixes fall in cells ungulates also used**,
+and 34 of the 40 cougars overlap 627 individual ungulates — 423 mule deer, 195
+elk. There are **2,168 cell-days on which a cougar and an ungulate were in the
+same cell on the same day**.
+
+That is the thing Okavango could only approximate. There, a ring round an
+animal meant "this animal is sitting in the top decile of a predator's
+*modelled range* while that predator's *activity window* is open" — exposure,
+inferred. Here both animals are on the same calendar clock with real
+positions, so a ring can mean a measured distance to a predator that was
+actually there, at that hour.
+
+### Also viable
+
+- **Illinois white-tailed deer and predators** — [10.5441/001/1.649], one
+  deposit, three species: white-tailed deer (111,126 fixes / 45), coyote
+  (44,142 / 25), bobcat (13,055 / 9), 2019-02-23 → 2021-11-13. Mixed guilds in
+  a single file, but the schedule is ragged (median 1.99 h, only 30% of gaps
+  within 10% of it, 95th percentile 6 h) and CC BY-NC rather than CC0.
+- **Utah coyote and puma** — [10.5441/001/1.7d8301h2], 18 animals, 198,705
+  fixes, CC0. A second predator layer for the same state.
+- **Hebblewhite Alberta–BC** — wolves ([10.5441/001/1.662], 68 animals,
+  174,443 fixes, CC BY 4.0) alongside Ya Ha Tinda elk
+  ([10.5441/001/1.5g4h5t6c], 175 animals, 1,585,456 fixes, CC0). A classic
+  wolf–elk system, but the two deposits have to be checked for a common window
+  before they can share a clock.
+
+---
+
 ## What this leaves
 
-**All four fail.** Three of them — deposits 2, 3 and 4 — hold per-fix rows
-with covariates, behaviour metrics or attributes but no geometry; deposit 1
-holds monthly means. Two of the four had their coordinates removed
-deliberately, for animal safety, which is a decision to respect rather than a
-problem to solve.
+**All four Dryad deposits fail; Movebank answers.** Of the Dryad four, three —
+deposits 2, 3 and 4 — hold per-fix rows with covariates, behaviour metrics or
+attributes but no geometry; deposit 1 holds monthly means. Two of them had
+their coordinates removed deliberately, for animal safety, which is a decision
+to respect rather than a problem to solve.
 
-The pattern is worth naming, because it will recur: what gets deposited is
-what the analysis consumed, and modern movement analyses — RSFs, HMMs, step
-selection — consume *covariates extracted at locations*, not the locations.
-The coordinates drop out one step before publication. Okavango was the
-exception only because its RSF tables happened to keep the projected
-coordinates in order to be reproducible.
+The pattern is worth naming, because it explains the whole search: **a deposit
+carries what the analysis consumed.** Modern movement analyses — RSFs, HMMs,
+step selection — consume *covariates extracted at locations*, not the
+locations, so the coordinates drop out one step before publication. Okavango
+was the exception only because its RSF tables kept the projected coordinates in
+order to be reproducible. A tracking archive inverts this: there the deposit is
+the collar download, and coordinates are the point rather than an intermediate.
 
-So the search criterion for the next candidate is not "predator-prey study
-with GPS collars". It is a deposit whose files carry a coordinate pair and a
-timestamp per row, for both guilds. Sources where that is the norm rather than
-the exception — Movebank studies published under an open licence, where the
-deposit *is* the collar download rather than an analysis table — are the place
-to look next.
-
-If a deposit ever does check out, the map's time model has to change: these
-are real calendar dates, so the de-interleaving, the per-collar day loop and
-the "day N of M" counter all come out and are replaced by a calendar clock,
-predators become a second set of moving points, and the proximity rings can
-show measured distance instead of range overlap.
+The Utah pair changes what the map can be. The Okavango time model exists
+entirely to work around a missing calendar — the de-interleaving, the per-collar
+loop, the "day N of M" counter. All of it comes out. In its place: a real
+calendar clock over sixteen months, predators as a second set of moving points
+rather than a static surface, and rings that show measured distance instead of
+range overlap.
 
 [doi:10.5061/dryad.w0vt4b8zr]: https://doi.org/10.5061/dryad.w0vt4b8zr
 [`63xsj3v81`]: https://doi.org/10.5061/dryad.63xsj3v81
@@ -225,3 +282,10 @@ show measured distance instead of range overlap.
 [10.1002/ecy.4448]: https://doi.org/10.1002/ecy.4448
 [10.1002/ecog.07626]: https://doi.org/10.1002/ecog.07626
 [10.1093/beheco/araa147]: https://doi.org/10.1093/beheco/araa147
+[Movebank Data Repository]: https://datarepository.movebank.org/
+[10.5441/001/1.712]: https://doi.org/10.5441/001/1.712
+[10.5441/001/1.711]: https://doi.org/10.5441/001/1.711
+[10.5441/001/1.649]: https://doi.org/10.5441/001/1.649
+[10.5441/001/1.7d8301h2]: https://doi.org/10.5441/001/1.7d8301h2
+[10.5441/001/1.662]: https://doi.org/10.5441/001/1.662
+[10.5441/001/1.5g4h5t6c]: https://doi.org/10.5441/001/1.5g4h5t6c

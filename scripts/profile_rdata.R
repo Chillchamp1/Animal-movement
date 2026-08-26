@@ -10,9 +10,14 @@ suppressWarnings(suppressMessages({
   options(stringsAsFactors = FALSE, width = 200)
 }))
 
-COORD <- "^(x|y|lon|long|longitude|lat|latitude|utm[._]?[xy]|easting|northing|mu\\.[xy]|coords?\\.[xy][0-9]?)$"
+COORD <- paste0("^(x|y|lon|long|longitude|lat|latitude|utm[._-]?[xy]|easting|northing|",
+                "mu\\.[xy]|coords?\\.[xy][0-9]?|location[._-](lon|long|longitude|lat|latitude)|",
+                "(utm|gps)[._-](easting|northing))$")
 TIME  <- "(time|date|timestamp|datetime|fixtime|acquisition|dt)"
-IDCOL <- "^(id|animal|animalid|animal_id|indiv|individual|collar|collarid|collar_id|uniqueid|tag)"
+IDCOL <- "^(id|animal|animalid|animal[._-]id|indiv|individual|collar|collarid|collar[._-]id|uniqueid|tag)"
+# A taxon column starts with "individual" too, so rank the local identifier first
+# and keep species columns out of the identifier candidates.
+ID_PREFERRED <- "(local[._-]identifier|animal[._-]?id|individual[._-]id)$"
 SPP   <- "(species|spp|taxa|taxon)"
 
 fmt_num <- function(x) formatC(x, format = "d", big.mark = ",")
@@ -59,7 +64,8 @@ describe_frame <- function(df, label) {
 
   coord_cols <- matching(cols, COORD)
   time_cols  <- matching(cols, TIME)
-  id_cols    <- matching(cols, IDCOL)
+  id_cols    <- setdiff(matching(cols, IDCOL), matching(cols, SPP))
+  id_cols    <- id_cols[order(!grepl(ID_PREFERRED, tolower(id_cols)))]
   spp_cols   <- matching(cols, SPP)
   cat(sprintf("\n  VERDICT INPUTS  coords=[%s]  time=[%s]  id=[%s]  species=[%s]\n",
               paste(coord_cols, collapse = ","), paste(time_cols, collapse = ","),
