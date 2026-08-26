@@ -75,7 +75,12 @@ def download(files: list[dict], out_dir: Path) -> list[Path]:
     written: list[Path] = []
     for rec in files:
         name = rec.get("path") or rec.get("filename")
-        href = rec.get("_links", {}).get("stash:file-download", {}).get("href")
+        links = rec.get("_links", {})
+        # Dryad has used both link relations for the download URL over time.
+        href = (
+            links.get("stash:download", {}).get("href")
+            or links.get("stash:file-download", {}).get("href")
+        )
         if not name or not href:
             print(f"  ! skipping malformed file record: {rec.get('path', rec)}")
             continue
