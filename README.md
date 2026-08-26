@@ -134,12 +134,35 @@ birds at once on a fixed frame; the globe follows **one** bird, turning under it
 so the animal stays in the middle of the view — which is the only honest way to
 show a journey that crosses the date line or most of a hemisphere.
 
-Two journeys, both real, both CC0, chosen by `scripts/build_globe.py`:
+Three journeys, all real, all CC0, chosen by `scripts/build_globe.py`:
 
 | | Bird | Journey |
 |---|---|---|
+| **White stork** (*Ciconia ciconia*) | DER AR445 | Western Russia to Sudan on its first autumn — **14,835 km over 136 days**, ending 6,596 km from the nest. Coloured by tagging site, with the other 58 birds of the deposit flying the same weeks. |
 | **Hudsonian godwit** (*Limosa haemastica*) | KHE | Off the Chilean coast to the Texas Gulf coast — **7,931 km in 5.9 days**, averaging 56 km/h the whole way. 77 GPS fixes, one every ~1.8 h. |
 | **Grey-headed albatross** (*Thalassarche chrysostoma*) | 89518 | One foraging trip from Campbell Island out across the antimeridian and back — **12,285 km over 21.9 days**, ending **2 km from where it began**. 5,959 GPS fixes, one every 5 min. |
+
+### Turning it, and following
+
+The globe starts holding one bird. Drag it and the camera lets go; **tap any
+bird** — the followed one or any of the faint company — and the camera takes
+that one instead, with a tap near it counting too, since a dot is a couple of
+pixels and a fingertip is not. **Follow** re-attaches to the view's own bird.
+Pinching to zoom deliberately does *not* let go: wanting a closer look at a bird
+is not the same as wanting to stop watching it, and the two gestures are told
+apart by whether the globe actually rotated between pointer-down and up.
+
+### Scoring a journey
+
+"Best" is not one thing. An albatross foraging trip is a loop that ends where it
+began, so what makes it the good one is distance flown. A migration is the
+opposite: scored on distance flown, the stork deposit's winner is a bird that
+pottered about for a year — 78,932 fixes at 4.4 km/h. So storks are scored on
+**displacement**, how far the bird actually got, over an autumn window.
+
+The stork track is also thinned to one fix per 30 minutes; the read-out's
+kilometres are measured along the drawn track, so they omit the thermal circling
+that thinning removes (14,835 km against 17,598 at full resolution).
 
 ### The rest of the deposit
 

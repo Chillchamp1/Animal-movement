@@ -75,7 +75,8 @@
   #speeds{display:flex;gap:4px}
   #speeds button{padding:6px 9px;border-color:transparent}
   #speeds button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
-  #others[aria-pressed="false"]{color:var(--ink-3);border-color:transparent}
+  #others[aria-pressed="false"],
+  #refollow[aria-pressed="false"]{color:var(--ink-3);border-color:transparent}
   #scrub{
     flex:1 1 auto;min-width:60px;height:26px;-webkit-appearance:none;appearance:none;
     background:transparent;cursor:pointer;outline:none;
@@ -177,6 +178,7 @@
     <dt>lat</dt><dd id="lat">&mdash;</dd>
     <dt>lon</dt><dd id="lon">&mdash;</dd>
     <dt>others</dt><dd id="nother">&mdash;</dd>
+    <dt>following</dt><dd id="follow">&mdash;</dd>
   </dl>
 </div>
 
@@ -185,6 +187,7 @@
   <div id="speeds"></div>
   <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek along the journey">
   <button id="others" aria-pressed="true" title="Show the rest of the deposit on the same clock">Flock</button>
+  <button id="refollow" aria-pressed="true" title="Hold the camera on this bird again (drag the globe to let go, tap any bird to follow it)">Follow</button>
   <button id="replay" title="Back to the start">Restart</button>
 </div>
 
@@ -206,7 +209,19 @@
    page adds is interpolation between consecutive fixes, so the marker slides
    rather than jumping -- which is why the read-out reports the fix interval.  */
 
-const SPECIES_COLOUR = {godwit: "#ffb03a", albatross: "#46d8ff"};
+const SPECIES_COLOUR = {stork: "#ff8a3d", godwit: "#ffb03a", albatross: "#46d8ff"};
+
+/* The stork deposit's whole point is which colony a bird came from, so those
+   birds are coloured by tagging site instead of by species -- the same
+   west-to-east warm-to-cool ramp the flat map uses. There is deliberately no
+   key for it on this page: nine swatches would cost more room than the globe
+   can spare, and the fan of colour reads as geography without being labelled. */
+const POPS = {
+  Spain:   "#ffc247", Germany: "#ff8a3d", Tunisia: "#ff5470",
+  Poland:  "#e070ff", Greece:  "#8f7dff", Russia:  "#3fa9ff",
+  Armenia: "#2ee0b8", Uzbekistan: "#9aa7bd", "South Africa": "#7ee08a",
+};
+const popColour = pop => POPS[pop] || "#c9d6ea";
 
 /* The trail is drawn as a gradient from cold at the start to the species
    colour at the bird, so how far along the journey is has a colour. */
@@ -215,14 +230,26 @@ const TRAIL_COLD = "#1b3a6b";
 /* The rest of the deposit, on the same clock. They are dimmed and given short
    tails rather than full histories: the point is company and context, and
    nineteen complete tracks would bury the bird the camera is following. */
-const OTHERS_TAIL_MIN = 10 * 60;   /* how much of a companion's past to show */
+/* How much of a companion's past to draw. A fixed span cannot serve both: ten
+   hours is a fifth of a day on the albatross's three-week trip and 0.3% of the
+   stork's four-month migration, where it renders as a dot with no direction.
+   So it scales with the journey, floored so a short one still shows a streak. */
+const OTHERS_TAIL_FRAC = 0.022;
+const OTHERS_TAIL_FLOOR = 8 * 60;
+function tailMinutes(){
+  return Math.max(OTHERS_TAIL_FLOOR, OTHERS_TAIL_FRAC * T.min[T.min.length - 1]);
+}
 const OTHERS_DIM = "rgba(196,220,252,0.52)";
 const OTHERS_DOT = "rgba(226,240,255,0.9)";
 let showOthers = true;
 
+/* Which journeys the page offers, in the order they appear under View. */
+const ORDER = ["stork", "godwit", "albatross"];
+const FILES = {stork: "globe-tracks", godwit: "globe-tracks", albatross: "globe-tracks"};
+
 let TRACKS = null;          /* key -> payload from globe-tracks.json */
 let T = null;               /* the active track */
-let key = "godwit";
+let key = "stork";
 
 let globe = null;
 let playing = true;
@@ -234,6 +261,54 @@ let speed = 8;              /* animation speed: journey-hours per real second */
    through 180 in wrapped degrees would spin the globe the long way round. */
 let camLat = 0, camLng = 0, camAlt = 1.5, camReady = false;
 let targetAlt = 1.5, lastSetAlt = -1;
+
+/* Who the camera is holding. FOCAL is the view's own bird; a string id is one
+   of the company; null means nobody, and the globe is the viewer's to turn.
+   Spinning it by hand hands control over -- tapping a bird takes it back. */
+const FOCAL = "\u0000focal";
+let followId = FOCAL;
+let grabbing = false;      /* a pointer is on the globe right now */
+
+function followTarget(){
+  if (!followId) return null;
+  if (followId === FOCAL) return at(T, simMin);
+  const o = (T.others || []).find(x => x.id === followId);
+  return o ? otherAt(o, simMin) : null;
+}
+
+function followLabel(){
+  if (!followId) return "free";
+  return followId === FOCAL ? T.individual : followId;
+}
+
+/* The bird closest to a point on the globe, if one is close enough to have
+   plausibly been aimed at. */
+function nearestBird(lat, lng){
+  const tol = Math.max(1.2, 3.4 * camAlt);      /* degrees, widening as you zoom out */
+  let best = null, bestD = Infinity;
+  const consider = (id, a, o) => {
+    const dLat = a - lat;
+    const dLng = (((o - lng) + 540) % 360 - 180) * Math.cos(lat * Math.PI / 180);
+    const d = Math.hypot(dLat, dLng);
+    if (d < bestD){ bestD = d; best = id; }
+  };
+  const f = at(T, simMin);
+  consider(FOCAL, f.lat, wrapLng(f.lng));
+  if (showOthers && T.others){
+    for (const o of T.others){
+      const h = otherAt(o, simMin);
+      if (h) consider(o.id, h.lat, wrapLng(h.lng));
+    }
+  }
+  return bestD <= tol ? best : null;
+}
+
+function setFollow(id){
+  followId = id;
+  if (id) camReady = false;          /* land on it rather than drifting over */
+  const b = document.getElementById("refollow");
+  if (b) b.setAttribute("aria-pressed", String(!!id));
+}
 
 const $ = id => document.getElementById(id);
 
@@ -306,7 +381,7 @@ function otherAt(o, m){
 /* A companion's recent past, cut at the same silences. */
 function otherTail(o, m, here){
   const pts = [];
-  const from = m - OTHERS_TAIL_MIN;
+  const from = m - tailMinutes();
   const tol = T.othersTolMin || (T.othersStepMin || 20) * 3;
   for (let j = here.i; j >= 0; j--){
     if (o.min[j] < from) break;
@@ -338,17 +413,35 @@ function trailUpTo(t, m){
   return pts;
 }
 
+/* The followed bird's colour: its colony where the deposit records one, the
+   species colour otherwise. */
+function focalColour(){
+  return T && T.colourBy === "population" && T.population
+    ? popColour(T.population) : SPECIES_COLOUR[key];
+}
+
+/* A companion's, dimmed. Storks keep their colony colour so the fan reads as
+   geography; everyone else is uniform pale, because there is nothing to tell
+   apart. */
+function otherColour(o){
+  if (T.colourBy !== "population") return OTHERS_DIM;
+  const c = popColour(o.pop);
+  return `rgba(${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},`
+       + `${parseInt(c.slice(5,7),16)},0.62)`;
+}
+
 /* One layer carries both, so the followed bird is always drawn last and sits
    over the company rather than under it. */
 function pathsAt(m){
-  const col = SPECIES_COLOUR[key];
+  const col = focalColour();
   const paths = [];
   if (showOthers && T.others){
     for (const o of T.others){
       const here = otherAt(o, m);
       if (!here) continue;
       const pts = otherTail(o, m, here);
-      if (pts.length > 1) paths.push({pts, cols:[OTHERS_DIM, OTHERS_DIM], w:1.3});
+      const oc = otherColour(o);
+      if (pts.length > 1) paths.push({pts, cols:[oc, oc], w:1.3, id:o.id});
     }
   }
   paths.push({pts: trailUpTo(T, m), cols:[TRAIL_COLD, col], w:2.2});
@@ -378,13 +471,24 @@ function paint(force, dt){
     targetAlt = pov.altitude;
     camAlt = pov.altitude;
   }
-  const k = camReady ? 1 - Math.exp(-Math.max(0, dt || 0) / CAM_TAU) : 1;
-  camLat += (p.lat - camLat) * k;
-  camLng += (p.lng - camLng) * k;
-  camAlt += (targetAlt - camAlt) * k;
-  camReady = true;
-  lastSetAlt = camAlt;
-  globe.pointOfView({lat: camLat, lng: wrapLng(camLng), altitude: camAlt}, 0);
+  /* Nobody followed, a hand currently on the globe, or the followed bird not
+     reporting just now: the camera is left exactly where the viewer put it.
+     Calling pointOfView here is what would fight the drag -- and did: the
+     first version snapped back every frame, so by pointer-up the globe had
+     not moved at all and a rotate was indistinguishable from a tap. */
+  const tgt = grabbing ? null : followTarget();
+  if (tgt){
+    const k = camReady ? 1 - Math.exp(-Math.max(0, dt || 0) / CAM_TAU) : 1;
+    camLat += (tgt.lat - camLat) * k;
+    camLng += (tgt.lng - camLng) * k;
+    camAlt += (targetAlt - camAlt) * k;
+    camReady = true;
+    lastSetAlt = camAlt;
+    globe.pointOfView({lat: camLat, lng: wrapLng(camLng), altitude: camAlt}, 0);
+  } else {
+    camLat = pov.lat; camLng = pov.lng; camAlt = pov.altitude;
+    lastSetAlt = camAlt;
+  }
 
   const now = performance.now();
   const stamp = key + "|" + T.min.length + "|" + showOthers;
@@ -404,13 +508,14 @@ function paint(force, dt){
   if (showOthers && T.others){
     for (const o of T.others){
       const here = otherAt(o, simMin);
-      if (here) marks.push({lat:here.lat, lng:here.lng, c:OTHERS_DOT,
+      if (here) marks.push({lat:here.lat, lng:here.lng,
+                            c: T.colourBy === "population"
+                               ? popColour(o.pop) : OTHERS_DOT,
                             r:0.22, alt:0.015, id:o.id});
     }
   }
-  marks.push({lat:p.lat, lng:p.lng, c:"#ffffff", r:0.30, alt:0.02});
+  marks.push({lat:p.lat, lng:p.lng, c:"#ffffff", r:0.42, alt:0.022, id:FOCAL});
   globe.pointsData(marks);
-  globe.ringsData([{lat:p.lat, lng:p.lng}]);
 
   updateReadout(p);
 }
@@ -434,6 +539,7 @@ function updateReadout(p){
     ? T.others.reduce((n, o) => n + (otherAt(o, simMin) ? 1 : 0), 0) : 0;
   $("nother").textContent = showOthers
     ? `${seen} of ${T.others ? T.others.length : 0}` : "off";
+  $("follow").textContent = followLabel();
   const s = $("scrub");
   if (document.activeElement !== s) s.value = String(Math.round(simMin / T.min[T.min.length-1] * 1000));
   $("when").title = `day ${day} of ${Math.ceil(T.hours/24)}`;
@@ -474,9 +580,8 @@ function setSpecies(k, initial){
   camReady = false;
   playing = true;
 
-  const col = SPECIES_COLOUR[k];
-  globe.pathColor(d => d.cols)
-       .ringColor(() => (t => `rgba(255,255,255,${1 - t})`));
+  const col = focalColour();
+  globe.pathColor(d => d.cols);
 
   for (const b of document.querySelectorAll("#birdRow button"))
     b.setAttribute("aria-pressed", String(b.dataset.key === k));
@@ -490,6 +595,8 @@ function setSpecies(k, initial){
         : (T.medianGapMin/60).toFixed(1) + " h"}`
     + `<br>${T.others ? T.others.length : 0} more birds of the same study were `
     + `aloft in the same days, shown faint on the same clock`
+    + (T.colourBy === "population"
+        ? `<br>colour is where each bird hatched, west to east` : "")
     + `<br>${T.source}</span>`;
 
   syncPlay();
@@ -500,6 +607,7 @@ function setSpecies(k, initial){
      is just the easing above being given a distant target and left to run; on
      first load there is nothing to fly from, so it snaps. */
   targetAlt = altitudeFor(T);
+  setFollow(FOCAL);
   if (initial){
     camLat = T.lat[0]; camLng = T.lon[0]; camAlt = targetAlt;
     camReady = false; lastSetAlt = -1;
@@ -534,6 +642,31 @@ function buildNotes(){
     interpolates, which is why the panel names the fix interval: at five
     minutes the line is close to the flight, at two hours it is a straight
     chord across whatever the bird actually did.</p>
+
+    <h3>Turning it, and following</h3>
+    <p>The globe starts holding the bird named under <strong>following</strong>.
+    Drag it and the camera lets go &mdash; it is yours to turn from then on.
+    <strong>Tap any bird</strong>, the followed one or any of the faint company,
+    and the camera takes that one instead; you do not have to hit the dot, the
+    nearest bird within a few degrees will do. <strong>Follow</strong> puts the
+    camera back on the view's own bird. Pinching to zoom does <em>not</em> let
+    go, because wanting a closer look at a bird is not the same as wanting to
+    stop watching it.</p>
+
+    <h3>The storks</h3>
+    <p>Fifty-nine juveniles ringed at the nest across eight tagging sites, on
+    their first autumn migration. The followed bird is the one that got
+    furthest: from western Russia to Sudan, ending 6,596&nbsp;km from where it
+    started. <strong>Colour is where each bird hatched</strong>, running warm in
+    the west to cool in the east &mdash; there is deliberately no key for it,
+    because eight swatches would cost more of the globe than the answer is
+    worth, and the fan reads as geography without being labelled.</p>
+    <p class="sub">This track is thinned to one fix every thirty minutes: the
+    deposit records every five, which is 29,395 fixes across four months and far
+    more detail than a line on a globe can show. The kilometres in the read-out
+    are measured along the drawn track, so they leave out the thermal circling
+    that thinning removes &mdash; 14,835&nbsp;km here against 17,598 at full
+    resolution. The other two birds are drawn at their full recorded cadence.</p>
 
     <h3>Two birds this is <em>not</em></h3>
     <p>The brief for this page asked for the bar-tailed godwit <code>4BBRW</code>,
@@ -572,7 +705,8 @@ function buildNotes(){
     read-out counts how many are being heard at that instant.</p>
     <p>The godwit deposit has three others aloft in those six days, and you can
     watch all four work up the Pacific in the same week. The albatross deposit
-    has nineteen, six of them audible at a typical moment.</p>
+    has nineteen, six of them audible at a typical moment. The stork deposit has
+    fifty-eight, and in late August around thirty are moving at once.</p>
     <p class="sub">They are drawn as short tails rather than full tracks, and
     sampled coarser than the followed bird &mdash; nineteen complete histories
     would bury the animal the camera is holding. A companion is dropped from
@@ -618,7 +752,7 @@ function buildNotes(){
 
 function wire(){
   const row = $("birdRow");
-  for (const k of ["godwit", "albatross"]){
+  for (const k of ORDER){
     const t = TRACKS[k];
     const b = document.createElement("button");
     b.dataset.key = k;
@@ -646,6 +780,10 @@ function wire(){
     const end = T.min[T.min.length - 1];
     if (!playing && simMin >= end) simMin = 0;
     playing = !playing; syncPlay();
+  });
+  $("refollow").addEventListener("click", () => {
+    setFollow(followId ? null : FOCAL);
+    paint(true, 1e3);
   });
   $("others").addEventListener("click", e => {
     showOthers = !showOthers;
@@ -707,7 +845,6 @@ function wire(){
       .pathResolution(2)
       .pointLat(d => d.lat).pointLng(d => d.lng)
       .pointColor(d => d.c).pointRadius(d => d.r).pointAltitude(d => d.alt)
-      .ringMaxRadius(2.6).ringPropagationSpeed(1.4).ringRepeatPeriod(900)
       (document.getElementById("globe"));
 
     /* Blue Marble is a daylight composite, so a low-angle sun is not realism
@@ -721,12 +858,43 @@ function wire(){
     }
     globe.lights(lights);
 
-    /* Let the pointer drag and pinch, but not spin on its own -- the bird
-       drives the rotation here. */
     const c = globe.controls();
     c.enableDamping = true;
     c.dampingFactor = 0.12;
     c.autoRotate = false;
+
+    /* Turning the globe by hand releases the camera; pinching to zoom does
+       not, because wanting a closer look at the bird you are following is not
+       the same as wanting to stop following it. OrbitControls does not say
+       which gesture happened, so the two are told apart by what actually
+       moved between pointer-down and pointer-up. */
+    let grabbed = null;
+    c.addEventListener("start", () => {
+      const v = globe.pointOfView();
+      grabbed = {lat: v.lat, lng: v.lng};
+      grabbing = true;          /* hands off the camera until they let go */
+    });
+    c.addEventListener("end", () => {
+      grabbing = false;
+      if (!grabbed || !followId) { grabbed = null; return; }
+      const v = globe.pointOfView();
+      const dLng = Math.abs(((v.lng - grabbed.lng) + 540) % 360 - 180);
+      if (Math.abs(v.lat - grabbed.lat) > 0.25 || dLng > 0.25) setFollow(null);
+      else camReady = false;    /* a zoom: re-land on the bird, do not drift */
+      grabbed = null;
+    });
+
+    /* Tapping any bird hands the camera to it -- the followed one, or any of
+       the company. An exact hit on the dot works, but a dot is a couple of
+       pixels and a fingertip is not, so a tap on the globe near one counts as
+       well: the nearest bird within a few degrees takes the camera. The
+       threshold follows the zoom, so it stays about the same distance on
+       screen however close in you are. */
+    globe.onPointClick(d => { if (d && d.id) setFollow(d.id); });
+    globe.onGlobeClick(({lat, lng}) => {
+      const near = nearestBird(lat, lng);
+      if (near) setFollow(near);
+    });
 
     wire();
     setSpecies(key, true);
