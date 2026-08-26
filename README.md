@@ -139,9 +139,13 @@ python3 -m http.server 8000    # then open http://localhost:8000
 
 ## Rebuilding the data
 
+The data is **not kept in this repository** — neither the Dryad deposit nor
+anything derived from it. The live site and the local page both need
+`data/processed/` to exist, so run these first:
+
 ```sh
 python3 scripts/fetch_dryad.py                 # needs access to datadryad.org
-unzip -o '*.zip' -d data/raw/                  # or use the committed zips
+unzip -o 'data/raw/*.zip' -d data/raw/
 python3 scripts/build_tracks.py                # -> data/processed/<species>-<season>.json
 python3 scripts/build_risk.py                  # -> data/processed/predator-risk.json
 python3 scripts/build_seasonal.py              # -> data/processed/seasonal-shift.json

@@ -1204,8 +1204,11 @@ function buildNotes(){
     lastFrame = performance.now();
     requestAnimationFrame(frame);
   } catch (err){
+    /* Two ways this fails: opened over file://, or the processed tracks are
+       not there. The data is not kept in the repository -- see the README for
+       the four commands that rebuild it. */
     document.getElementById("loading").textContent =
-      "could not load tracks \u2014 this page needs http(s), not file://";
+      "no tracks to load \u2014 rebuild data/processed (see README), and serve over http(s)";
     console.error(err);
   }
 })();

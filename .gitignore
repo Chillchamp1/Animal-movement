@@ -1,9 +1,10 @@
-# Extracted from the committed Dryad zips; regenerate with:
-#   unzip -o '*.zip' -d data/raw/
+# Source data is not kept in the repository. Fetch it, then rebuild:
+#   python3 scripts/fetch_dryad.py
+#   unzip -o 'data/raw/*.zip' -d data/raw/
+#   python3 scripts/build_tracks.py && python3 scripts/build_risk.py
+#   python3 scripts/build_seasonal.py && python3 scripts/build_standalone.py
 data/raw/
-
-# Single-file build; regenerate with:
-#   python3 scripts/build_standalone.py
+data/processed/
 dist/
-
+*.zip
 __pycache__/
