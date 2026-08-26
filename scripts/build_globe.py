@@ -88,6 +88,7 @@ SPECIES = {
         "vmax_kmh": 120.0,
         "max_gap_h": 12.0,
         "min_fixes": 40,
+        "companion_step_min": 20,
         "note": "A spring migration leg up the Pacific. The bar-tailed godwit "
                 "of the record Alaska-New Zealand flight is not open data; "
                 "this is the same journey in a species that is.",
@@ -105,6 +106,7 @@ SPECIES = {
         "vmax_kmh": 150.0,
         "max_gap_h": 6.0,
         "min_fixes": 200,
+        "companion_step_min": 25,
         "note": "One foraging trip from Campbell Island and back. Not the "
                 "wandering albatross, whose tracking data is not open; this is "
                 "its neighbour over the same ocean.",
@@ -206,7 +208,71 @@ def best_journey(df: pd.DataFrame, cfg: dict) -> dict:
     return best
 
 
-def payload(key: str, cfg: dict, seg: dict) -> dict:
+def companions(df: pd.DataFrame, cfg: dict, seg: dict) -> list[dict]:
+    """The rest of the deposit, over the focal bird's own window.
+
+    On the real clock, not a shared start: these birds did not set off
+    together, and pretending they did would be the one dishonest thing this
+    page could do. A companion appears when its tag was reporting and vanishes
+    when it was not, which is why several are absent for stretches.
+
+    Sampled coarser than the focal bird -- the page draws them as short tails
+    rather than full histories, so five-minute detail would be paid for and
+    never seen.
+    """
+    t0, t1 = seg["t"][0], seg["t"][-1]
+    step = np.timedelta64(int(cfg["companion_step_min"]), "m")
+    out = []
+    for bird, g in df.groupby("id"):
+        if str(bird) == seg["id"]:
+            continue
+        lat, lon = g.lat.to_numpy(), g.lon.to_numpy()
+        t = g.timestamp.to_numpy()
+        keep = speed_filter(lat, lon, t, cfg["vmax_kmh"])
+        lat, lon, t = lat[keep], lon[keep], t[keep]
+        inwin = (t >= t0) & (t <= t1)
+        if inwin.sum() < 8:
+            continue
+        lat, lon, t = lat[inwin], lon[inwin], t[inwin]
+
+        # Thin by time rather than by index, so a burst of fixes does not buy
+        # more resolution than a quiet stretch.
+        pick = [0]
+        for i in range(1, len(t)):
+            if t[i] - t[pick[-1]] >= step:
+                pick.append(i)
+        pick = np.array(pick)
+        lat, lon, t = lat[pick], lon[pick], t[pick]
+        minutes = ((t - t0) / np.timedelta64(1, "m")).astype(float)
+        lon_u = np.degrees(np.unwrap(np.radians(lon)))
+        out.append({
+            "id": str(bird),
+            "lat": [round(float(v), 4) for v in lat],
+            "lon": [round(float(v), 4) for v in lon_u],
+            "min": [round(float(v), 1) for v in minutes],
+        })
+    out.sort(key=lambda d: -len(d["min"]))
+    return out
+
+
+def companion_tolerance(others: list[dict], cfg: dict) -> float:
+    """How long a companion may go unheard before the page stops drawing it.
+
+    Derived from the cadence these tags actually achieved, not from the
+    interval asked for: the godwit tags report roughly every two hours, so a
+    tolerance guessed from the requested twenty-minute step would have called
+    91% of ordinary sampling a silence and left the companions invisible for
+    almost the whole flight.
+    """
+    gaps = np.concatenate([np.diff(o["min"]) for o in others if len(o["min"]) > 1]) \
+        if others else np.array([])
+    gaps = gaps[gaps > 0]
+    if not len(gaps):
+        return float(cfg["companion_step_min"] * 3)
+    return float(round(max(2.5 * np.median(gaps), cfg["companion_step_min"] * 2), 1))
+
+
+def payload(key: str, cfg: dict, seg: dict, others: list[dict]) -> dict:
     lat, lon, t = seg["lat"], seg["lon"], seg["t"]
     minutes = ((t - t[0]) / np.timedelta64(1, "m")).astype(float)
     step = np.concatenate([[0.0], haversine(lat[:-1], lon[:-1], lat[1:], lon[1:])])
@@ -239,6 +305,9 @@ def payload(key: str, cfg: dict, seg: dict) -> dict:
         "lon": [round(float(v), 5) for v in lon_unwrapped],
         "min": [round(float(v), 1) for v in minutes],
         "cum": [round(float(v), 2) for v in cum],
+        "others": others,
+        "othersStepMin": cfg["companion_step_min"],
+        "othersTolMin": companion_tolerance(others, cfg),
     }
 
 
@@ -251,14 +320,20 @@ def main() -> int:
     tracks = {}
     for key, cfg in SPECIES.items():
         print(f"{cfg['label']} ({cfg['scientific']})")
-        seg = best_journey(read_fixes(cfg), cfg)
-        p = payload(key, cfg, seg)
+        df = read_fixes(cfg)
+        seg = best_journey(df, cfg)
+        others = companions(df, cfg, seg)
+        p = payload(key, cfg, seg, others)
         tracks[key] = p
         print(f"    chosen: {p['individual']} -- {p['fixes']:,} fixes, "
               f"{p['km']:,.0f} km over {p['hours']/24:.1f} days, "
               f"{p['km']/p['hours']:.1f} km/h mean")
         print(f"    median gap {p['medianGapMin']:.0f} min; ends "
-              f"{p['returnKm']:,.0f} km from where it began\n")
+              f"{p['returnKm']:,.0f} km from where it began")
+        pts = sum(len(o["min"]) for o in others)
+        print(f"    {len(others)} other birds of the deposit were reporting in "
+              f"that window, {pts:,} points at {cfg['companion_step_min']} min; "
+              f"drawn while heard within {p['othersTolMin']:.0f} min\n")
 
     args.out.mkdir(parents=True, exist_ok=True)
     target = args.out / "globe-tracks.json"
