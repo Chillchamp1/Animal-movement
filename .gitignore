@@ -1,0 +1,4 @@
+# Extracted from the committed Dryad zips; regenerate with:
+#   unzip -o '*.zip' -d data/raw/
+data/raw/
+__pycache__/
