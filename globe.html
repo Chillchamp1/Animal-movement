@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Two ocean crossings, on a turning globe</title>
-<meta name="description" content="A Hudsonian godwit crossing from Chile to Texas, and a grey-headed albatross looping the Southern Ocean, on a globe that turns to keep the bird in the middle.">
+<title>Four journeys, on a turning globe</title>
+<meta name="description" content="A stork's first migration, a godwit up the Pacific and an albatross round the Southern Ocean — tracked, on a globe that turns to keep the animal in the middle — and a schematic of the European eel's Sargasso Sea life cycle.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -9,7 +9,7 @@
   :root{
     --bg:#04070d; --ink:#eef3fb; --ink-2:#a9b6cc; --ink-3:#6b7a93;
     --panel:rgba(9,14,24,.76); --rule:rgba(150,175,215,.22);
-    --godwit:#ffb03a; --albatross:#46d8ff;
+    --godwit:#ffb03a; --albatross:#46d8ff; --eel:#ffd166;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -28,7 +28,9 @@
 
   /* ---------------------------------------------------------- bird picker */
   #birds{position:fixed;z-index:3;left:16px;top:calc(16px + env(safe-area-inset-top,0px));
-         display:flex;flex-direction:column;gap:7px;max-width:min(400px,calc(100vw - 32px))}
+         display:flex;flex-direction:column;gap:7px;max-width:min(400px,calc(100vw - 32px));
+         max-height:calc(100vh - 84px - env(safe-area-inset-top,0px)
+                              - env(safe-area-inset-bottom,0px))}
   #birdRow{display:flex;gap:6px;padding:5px;align-items:stretch}
   #birdRow button{
     flex:1 1 0;min-width:0;font:inherit;font-size:.76rem;font-weight:500;
@@ -36,18 +38,30 @@
     background:transparent;color:var(--ink-3);transition:color .15s,border-color .15s;
     display:flex;flex-direction:column;gap:2px;text-align:left;line-height:1.25;
   }
-  #birdRow button{flex-direction:row;align-items:center;gap:8px}
-  #birdRow button .nm{min-width:0;line-height:1.2}
+  /* The silhouette sits above the name rather than beside it. With three
+     views the row layout fitted; with four it does not at any width -- at
+     1440px each button is 93px wide and the word "Hudsonian" needs 118, so
+     the label overran the panel on desktop and phone alike. Stacked, the
+     name gets the button's full width. */
+  #birdRow button{flex-direction:column;align-items:center;gap:3px;text-align:center}
+  #birdRow button .nm{min-width:0;line-height:1.2;overflow-wrap:break-word}
   #blurb .sci{font-style:italic;font-weight:400;opacity:.7;font-size:.7rem}
   /* The silhouette takes the button's own colour, so it lights up with the
      label when its view is the one on screen. */
-  #birdRow button .sil{flex:0 0 auto;display:block;width:34px;height:24px;opacity:.65}
+  #birdRow button .sil{flex:0 0 auto;display:block;width:32px;height:23px;opacity:.65}
   #birdRow button[aria-pressed="true"] .sil{opacity:1}
   #birdRow button .sil svg{width:100%;height:100%;display:block;fill:currentColor}
   #birdRow button:hover{color:var(--ink-2)}
   #birdRow button[aria-pressed="true"]{color:var(--ink);border-color:currentColor}
   #birdRow button[data-key="godwit"][aria-pressed="true"]{color:var(--godwit)}
   #birdRow button[data-key="albatross"][aria-pressed="true"]{color:var(--albatross)}
+  #birdRow button[data-key="eel"][aria-pressed="true"]{color:var(--eel)}
+  /* The one view that is not a track says so on its own button, always, not
+     only once it has been opened. */
+  #birdRow button .sch{
+    display:block;font-style:normal;font-size:.52rem;letter-spacing:.06em;
+    text-transform:uppercase;opacity:.72;margin-top:1px;
+  }
 
   #blurb{padding:11px 13px;font-size:.72rem;line-height:1.5;color:var(--ink-2)}
   #blurb strong{color:var(--ink);font-weight:600;display:block;margin-bottom:3px;font-size:.76rem}
@@ -118,6 +132,96 @@
   #notes .sub{color:var(--ink-3);font-size:.7rem}
   #notes a{color:var(--ink-2)}
 
+  /* -------------------------------------------------------------- eels
+
+     The eel view is a schematic and has to look like one at a glance, so it
+     gets its own furniture: a swarm drawn on a 2-D canvas over the globe, a
+     chapter card, place labels pinned to the sphere, and a badge that never
+     leaves the screen while the view is up. */
+  #swarm{position:fixed;inset:0;z-index:1;pointer-events:none;display:none}
+  body[data-mode="swarm"] #swarm{display:block}
+  body[data-mode="swarm"] #others,
+  body[data-mode="swarm"] #refollow{display:none}
+  #density{display:none}
+  body[data-mode="swarm"] #density{display:block}
+  #density[aria-pressed="true"]{color:#ff5470;border-color:rgba(255,84,112,.5)}
+
+  #schematic{
+    display:none;align-self:flex-start;
+    font-family:"IBM Plex Mono",monospace;font-size:.58rem;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--eel);
+    background:rgba(50,34,4,.82);border:1px solid rgba(255,209,102,.45);
+    border-radius:999px;padding:4px 12px;white-space:nowrap;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+  body[data-mode="swarm"] #schematic{display:block}
+
+  /* In the column with the picker rather than floating beside it: the card
+     runs to four paragraphs on the last chapter, and a fixed-position box
+     that long will sooner or later land on top of the blurb. Here it simply
+     takes what room is left and scrolls inside itself. */
+  /* Shown only while the swarm is thinned to today's recruitment, because a
+     number that large should not live only in a button's tooltip. */
+  #dnote{
+    display:none;flex:0 0 auto;padding:9px 12px;font-size:.68rem;line-height:1.5;
+    color:var(--ink-2);border-color:rgba(255,84,112,.4);
+  }
+  body[data-mode="swarm"][data-density="now"] #dnote{display:block}
+  #dnote b{color:#ff8fa3;font-weight:600}
+
+  #chapter{
+    display:none;flex:0 1 auto;min-height:0;overflow-y:auto;
+    padding:14px 16px;font-size:.735rem;line-height:1.6;color:var(--ink-2);
+  }
+  body[data-mode="swarm"] #chapter{display:block}
+  #chapter .ph{
+    font-family:"IBM Plex Mono",monospace;font-size:.6rem;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;
+  }
+  #chapter h3{font-size:.95rem;color:var(--ink);font-weight:600;margin-bottom:2px;line-height:1.25}
+  #chapter .lead{color:#ffd166;font-size:.72rem;margin-bottom:8px}
+  #chapter p{margin-bottom:7px}
+  #chapter p:last-child{margin-bottom:0}
+  #chapter strong{color:var(--ink)}
+  #chapter em{color:var(--ink-3);font-style:italic}
+
+  /* Place labels. They sit on the sphere and are hidden when the place turns
+     away from the camera, which is the one thing that makes a label on a
+     globe read as attached to it rather than floating over it. */
+  #callouts{position:fixed;inset:0;z-index:2;pointer-events:none;display:none}
+  body[data-mode="swarm"] #callouts{display:block}
+  #callouts .co{
+    position:absolute;transform:translate(9px,-50%);white-space:nowrap;
+    font-family:"IBM Plex Mono",monospace;font-size:.62rem;line-height:1.35;
+    color:var(--ink);text-shadow:0 1px 5px rgba(2,5,11,.95),0 0 12px rgba(2,5,11,.85);
+    opacity:0;transition:opacity .5s;
+  }
+  #callouts .co[data-on="true"]{opacity:1}
+  #callouts .co b{font-weight:500;display:block}
+  #callouts .co span{color:var(--ink-3);font-size:.58rem}
+  #callouts .co::before{
+    content:"";position:absolute;left:-9px;top:50%;width:5px;height:5px;
+    margin:-2.5px 0 0 -2.5px;border-radius:50%;
+    background:#ffd166;box-shadow:0 0 7px rgba(255,209,102,.9);
+  }
+
+  /* The stage key doubles as the life-cycle clock: the active stage lights up
+     as the swarm passes through it. */
+  #stages{
+    position:fixed;z-index:4;display:none;
+    right:16px;top:calc(184px + env(safe-area-inset-top,0px));
+    padding:9px 11px;font-family:"IBM Plex Mono",monospace;font-size:.62rem;
+  }
+  body[data-mode="swarm"] #stages{display:block}
+  #stages div{display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--ink-3);
+              transition:color .3s}
+  #stages div[data-on="true"]{color:var(--ink)}
+  #stages i{width:7px;height:7px;border-radius:50%;background:currentColor;
+            flex:0 0 auto;opacity:.45;transition:opacity .3s}
+  #stages div[data-on="true"] i{opacity:1;box-shadow:0 0 8px currentColor}
+  #stages b{font-weight:400;margin-left:auto;padding-left:12px;opacity:.75;
+            font-variant-numeric:tabular-nums}
+
   #maplink{
     position:fixed;z-index:3;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
     font-size:.68rem;color:var(--ink-3);text-decoration:none;background:var(--panel);
@@ -136,22 +240,53 @@
   /* On a phone the globe is the scarce thing: the blurb folds away, the
      read-out keeps only what changes, and the controls span the width. */
   @media (max-width:820px){
-    #birds{left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));max-width:none}
-    #birdRow button{font-size:.72rem;padding:6px 8px;gap:6px}
+    #birds{left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));max-width:none;
+           max-height:calc(100vh - 10px - var(--stack,150px))}
+    #birdRow button{font-size:.68rem;padding:6px 4px;gap:2px}
     #birdRow button .sil{width:26px;height:19px}
     #blurb{display:none}
+    /* --ctrl-h is the control bar's measured height: below 520px it wraps to
+       two rows, and a fixed 64px offset put the read-out underneath it. */
     #readout{right:10px;top:auto;left:10px;
-             bottom:calc(64px + env(safe-area-inset-bottom,0px));min-width:0;
+             bottom:calc(var(--ctrl-h,54px) + 18px + env(safe-area-inset-bottom,0px));
+             min-width:0;
              display:flex;align-items:baseline;gap:12px;padding:8px 11px;flex-wrap:wrap}
     #readout .when{margin-bottom:0;font-size:.84rem}
     #readout dl{grid-template-columns:auto auto auto auto;gap:2px 8px;font-size:.64rem}
     #readout dd{text-align:left}
     #controls{left:10px;right:10px;transform:none;width:auto;
               bottom:calc(10px + env(safe-area-inset-bottom,0px))}
-    #notesbtn{right:10px;bottom:auto;top:calc(74px + env(safe-area-inset-top,0px))}
-    #maplink{left:10px;bottom:auto;top:calc(74px + env(safe-area-inset-top,0px))}
+    #notesbtn{right:10px;bottom:auto;
+              top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px))}
+    #maplink{left:10px;bottom:auto;
+             top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px))}
     #notes{right:10px;left:10px;width:auto;top:auto;
-           bottom:calc(64px + env(safe-area-inset-bottom,0px));max-height:56vh}
+           bottom:calc(var(--ctrl-h,54px) + 18px + env(safe-area-inset-bottom,0px));
+           max-height:56vh}
+  }
+  @media (max-width:820px){
+    /* The badge takes the middle of the row the back-link and notes button
+       share, so it is never stacked on either. On a phone the blurb is hidden
+       as it is on the bird views, and this badge carries the disclaimer on
+       its own -- which is why it cannot be allowed to collide with anything. */
+    #schematic{
+      position:fixed;z-index:4;left:50%;transform:translateX(-50%);
+      top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px));
+      font-size:.5rem;padding:4px 9px;letter-spacing:.05em;
+    }
+    /* At 320px the full badge reaches both the back-link and the notes
+       button; the first word is the load-bearing one. */
+    @media (max-width:420px){ #schematic .long{display:none} }
+    #stages{right:10px;top:auto;padding:7px 9px;font-size:.58rem;
+            bottom:calc(var(--ctrl-h,54px) + 26px + var(--ro-h,116px)
+                        + env(safe-area-inset-bottom,0px))}
+    #stages b{display:none}
+    /* The badge, the back-link and the notes button share a strip under the
+       picker; the chapter card starts below it rather than through it. */
+    #chapter{max-height:30vh;font-size:.7rem;padding:11px 13px;margin-top:32px}
+    #chapter h3{font-size:.85rem}
+    #callouts .co{font-size:.58rem}
+    #callouts .co span{display:none}
   }
   @media (max-width:520px){
     #speeds button[data-v="0.5"]{display:none}
@@ -172,22 +307,27 @@
 </style>
 
 <div id="globe"></div>
+<canvas id="swarm"></canvas>
+<div id="callouts"></div>
 
 <div id="birds">
   <div id="birdRow" class="panel"></div>
+  <div id="schematic" title="Nothing on this view is a tracked animal">schematic<span class="long"> &middot; not tracked animals</span></div>
+  <div id="dnote" class="panel"></div>
   <div id="blurb" class="panel"></div>
+  <div id="chapter" class="panel"></div>
 </div>
 
 <div id="readout" class="panel">
   <div class="when" id="when">&mdash;</div>
   <dl>
-    <dt>flown</dt><dd id="dist">0 km</dd>
-    <dt>speed</dt><dd id="speed">0 km/h</dd>
-    <dt>lat</dt><dd id="lat">&mdash;</dd>
-    <dt>lon</dt><dd id="lon">&mdash;</dd>
-    <dt>others</dt><dd id="nother">&mdash;</dd>
-    <dt>day</dt><dd id="day">&mdash;</dd>
-    <dt>following</dt><dd id="follow">&mdash;</dd>
+    <dt id="l-dist">flown</dt><dd id="dist">0 km</dd>
+    <dt id="l-speed">speed</dt><dd id="speed">0 km/h</dd>
+    <dt id="l-lat">lat</dt><dd id="lat">&mdash;</dd>
+    <dt id="l-lon">lon</dt><dd id="lon">&mdash;</dd>
+    <dt id="l-nother">others</dt><dd id="nother">&mdash;</dd>
+    <dt id="l-day">day</dt><dd id="day">&mdash;</dd>
+    <dt id="l-follow">following</dt><dd id="follow">&mdash;</dd>
   </dl>
 </div>
 
@@ -196,9 +336,12 @@
   <div id="speeds"></div>
   <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek along the journey">
   <button id="others" aria-pressed="true" title="Show the rest of the deposit on the same clock">Flock</button>
+  <button id="density" aria-pressed="false" title="Draw the swarm at today's glass eel recruitment instead of the 1960&ndash;79 baseline">1960s</button>
   <button id="refollow" aria-pressed="true" title="Hold the camera on this bird again (drag the globe to let go, tap any bird to follow it)">Follow</button>
   <button id="replay" title="Back to the start">Restart</button>
 </div>
+
+<div id="stages" class="panel"></div>
 
 <a id="maplink" href="index.html">&larr; Stork map</a>
 <button id="notesbtn" aria-expanded="false">Data notes</button>
@@ -265,6 +408,10 @@ const SILHOUETTE = {
         1.4-1.4 3.7-2.9 6.9-4.6 3.1-1.6 5.9-2.7 8.2-3.2.2-1.8 1.2-3 3.1-3.5l.6-4.6
         c.1-.6.5-1 1.1-1z"/>
     </svg>`,
+  /* The eel is drawn from above too, mid-swimming-stroke: anguilliform, one
+     continuous fin down the back and round the tail, no paired fins worth
+     drawing at this size. */
+  eel: `<svg viewBox="0 0 48 34" aria-hidden="true" focusable="false"><path d="M2.7 19.9L4.5 20.6L6.4 21.2L8.5 21.5L10.6 21.4L12.6 20.9L14.5 20.1L16.2 19.1L17.9 18.1L19.4 17.2L20.7 16.6L21.8 16.2L22.9 16.1L24.1 16.3L25.7 16.8L27.4 17.7L29.3 18.8L31.2 20.0L33.0 21.2L34.9 21.9L36.8 22.1L38.7 21.5L40.5 20.3L42.2 18.7L43.9 16.9L45.5 15.1L44.5 14.1L42.8 15.9L41.1 17.7L39.5 19.1L38.0 20.1L36.5 20.4L35.2 20.3L33.7 19.6L32.2 18.6L30.8 17.0L29.3 15.4L27.7 13.8L25.9 12.5L23.9 11.8L21.6 11.6L19.4 12.1L17.4 12.9L15.5 14.0L13.9 14.9L12.3 15.7L10.8 16.2L9.6 16.5L8.3 16.5L7.0 16.4L5.6 16.0L4.1 15.6Z"/></svg>`,
   albatross: `<svg viewBox="0 0 48 34" aria-hidden="true" focusable="false">
       <path d="M24 10.4c1.6 0 2.6 1 2.9 2.9 3.4.1 7.4.4 11.9.9 3.6.4 6.1.9 7.5 1.4
         .9.3 1.3.8 1.2 1.3-.1.5-.7.8-1.7.9-1.6.2-4.1.2-7.6.1-4.4-.2-8.2-.5-11.4-.9
@@ -313,9 +460,15 @@ const OTHERS_FADE = "rgba(30,52,86,0.55)";
 const OTHERS_DOT = "rgba(226,240,255,0.9)";
 let showOthers = true;
 
-/* Which journeys the page offers, in the order they appear under View. */
-const ORDER = ["stork", "godwit", "albatross"];
-const FILES = {stork: "globe-tracks", godwit: "globe-tracks", albatross: "globe-tracks"};
+/* Which journeys the page offers, in the order they appear under View.
+
+   Three of them are tracks: a real animal's real fixes. The fourth is not,
+   and it is kept honestly separate rather than blended in -- see the eel
+   section below and the badge that sits over the globe while it is up. */
+const ORDER = ["stork", "godwit", "albatross", "eel"];
+const SCHEMATIC = new Set(["eel"]);
+const mode = k => (SCHEMATIC.has(k) ? "swarm" : "track");
+let MODE = "track";
 
 let TRACKS = null;          /* key -> payload from globe-tracks.json */
 let T = null;               /* the active track */
@@ -352,7 +505,7 @@ let followId = FOCAL;
 let grabbing = false;      /* a pointer is on the globe right now */
 
 function followTarget(){
-  if (!followId) return null;
+  if (!followId || MODE === "swarm") return null;
   if (followId === FOCAL) return at(T, simMin);
   const o = (T.others || []).find(x => x.id === followId);
   return o ? otherAt(o, simMin) : null;
@@ -366,6 +519,7 @@ function followLabel(){
 /* The bird closest to a point on the globe, if one is close enough to have
    plausibly been aimed at. */
 function nearestBird(lat, lng){
+  if (MODE === "swarm") return null;      /* there is no individual to follow */
   const tol = Math.max(1.2, 3.4 * camAlt);      /* degrees, widening as you zoom out */
   let best = null, bestD = Infinity;
   const consider = (id, a, o) => {
@@ -579,6 +733,7 @@ function pathsAt(m){
 const CAM_TAU = 0.22;
 
 function paint(force, dt){
+  if (MODE === "swarm") return paintSwarm(force, dt);
   const p = at(T, simMin);
 
   /* Camera: ease toward the bird so a jumpy fix does not jolt the globe.
@@ -675,6 +830,449 @@ function fmtDeg(v, axis){
   return `${Math.abs(v).toFixed(2)}° ${h}`;
 }
 
+/* =========================================================== the eel view
+
+   Everything above this line draws recorded positions. Nothing below it does,
+   and that difference is the reason this section is long.
+
+   There is no eel track to draw. No eel has been followed through a life that
+   lasts fifteen years and crosses the Atlantic twice; a pop-up satellite tag
+   runs for about a year and is far too big for anything smaller than a
+   full-grown silver eel. No eel egg and no spawning adult has ever been
+   lifted out of the Sargasso Sea, a century after Schmidt named it as the
+   breeding place. The larval drift has never been watched at all.
+
+   So this is a diagram that moves. The corridor follows the real current
+   system, the rivers are real rivers, the calendar and the speeds and the
+   depths are measured and cited -- but every dot is a particle, not an
+   animal, and the page says so in the picker, in the badge, in the read-out
+   and in the notes. scripts/build_eels.py keeps the two kinds of number
+   apart at the source. */
+
+let E = null;                /* the eel payload */
+let eelT = 0;                /* months since the cohort hatched */
+let eelDensity = 1;          /* 1 = the 1960s swarm, or the ICES index today */
+const EEL_ALT = 0.006;
+
+const STAGE = {
+  egg:    {label: "egg",           c: "#8ea8c8"},
+  lepto:  {label: "leptocephalus", c: "#7fe3ff"},
+  glass:  {label: "glass eel",     c: "#eaf4ff"},
+  elver:  {label: "elver",         c: "#ffb454"},
+  yellow: {label: "yellow eel",    c: "#ffd166"},
+  silver: {label: "silver eel",    c: "#dfe9f7"},
+};
+const STAGE_ORDER = ["egg", "lepto", "glass", "elver", "yellow", "silver"];
+const FATE_COLOUR = ["", "#ff5470", "#ff8a3d", "#6b7a93"];
+
+/* How wide the swarm spreads, in degrees, at each point of the life. Wide in
+   mid-ocean because the drift genuinely disperses; tight at an estuary mouth
+   because a catchment is a funnel. */
+const SPREAD_SEA = 3.4, SPREAD_RIVER = 0.16, SPREAD_BACK = 2.6;
+
+async function loadEels(){
+  const res = await fetch("data/processed/eel-migration.json");
+  if (!res.ok) throw new Error(`eel-migration.json: ${res.status}`);
+  const e = await res.json();
+  /* Stitch each region's outbound and homebound polylines once, so walking
+     them per frame is a lookup rather than a concatenation. */
+  for (const r of e.regions){
+    r._out = e.routes[r.trunk].concat(r.approach.slice(1));
+    r._home = r.back.concat(e.routes.back.slice(1));
+  }
+  let acc = 0;
+  for (const p of e.phases){ p.t0 = acc; acc += p.seconds; p.t1 = acc; }
+  e.totalSeconds = acc;
+  e.totalMonths = e.phases[e.phases.length - 1].m1;
+  return e;
+}
+
+/* Life-months and screen-seconds are not proportional and cannot be: six
+   thousand days in a river would be most of the animation if they were. Each
+   phase declares its own exchange rate, the read-out states it, and these two
+   functions convert between the clocks. */
+function eelSecondsOf(months){
+  const ph = E.phases;
+  if (months <= ph[0].m0) return 0;
+  for (const p of ph){
+    if (months <= p.m1)
+      return p.t0 + (months - p.m0) / (p.m1 - p.m0) * p.seconds;
+  }
+  return E.totalSeconds;
+}
+function eelMonthsOf(seconds){
+  const ph = E.phases;
+  for (const p of ph){
+    if (seconds <= p.t1)
+      return p.m0 + (seconds - p.t0) / p.seconds * (p.m1 - p.m0);
+  }
+  return E.totalMonths;
+}
+function eelPhase(months){
+  const ph = E.phases;
+  for (const p of ph) if (months <= p.m1) return p;
+  return ph[ph.length - 1];
+}
+/* Months of real time per second of watching, right now. */
+function eelRate(months){
+  const p = eelPhase(months);
+  return (p.m1 - p.m0) / p.seconds;
+}
+
+function along(path, u){
+  const n = path.length;
+  const x = Math.min(n - 1, Math.max(0, u * (n - 1)));
+  const i = Math.floor(x), f = x - i;
+  if (i >= n - 1) return path[n - 1];
+  const a = path[i], b = path[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+
+/* Where one particle is at month `t`, and what it is by then.
+
+   Returns null once it is gone for good; for a short window after it is
+   removed it returns `end`, so the renderer can show the removal happening
+   rather than having dots blink out of existence unaccountably. */
+const GONE_FLASH = 0.5;        /* months a removal stays visible */
+
+function eelAt(p, t){
+  const [ri, hatch, drift, linger, ascent, growth, descent, ret,
+         up, fate, jx, jy, sd] = p;
+  const R = E.regions[ri];
+  const tA = hatch + drift;              /* reaches the continental shelf */
+  const tL = tA + linger;                /* leaves the estuary            */
+  const tR = tL + ascent;                /* settles in the catchment      */
+  const tE = tR + growth;                /* silvers, and goes             */
+  const tM = tE + descent;               /* back at the mouth             */
+  const tS = tM + ret;                   /* reaches the breeding area     */
+
+  /* The three ways a drawn eel stops. Where each happens is real -- the
+     fishery is in the Biscay and Iberian estuaries, the turbines are on the
+     way back down, attrition happens across the growth years. How many is
+     not a rate and is never presented as one. */
+  let cut = -1, cutStage = "";
+  if (fate === 1){ cut = tA + linger * 0.55; cutStage = "glass"; }
+  else if (fate === 2){ cut = tE + descent * 0.45; cutStage = "silver"; }
+  else if (fate === 3){ cut = tR + growth * (0.2 + 0.55 * sd); cutStage = "yellow"; }
+
+  const gone = cut > 0 && t >= cut;
+  const tt = gone ? cut : t;
+  let lat, lng, stage;
+
+  if (tt < hatch){
+    const b = E.spawnBox;
+    lat = (b.lat0 + b.lat1) / 2 + jx * (b.lat1 - b.lat0) / 2;
+    lng = (b.lon0 + b.lon1) / 2 + jy * (b.lon1 - b.lon0) / 2;
+    stage = "egg";
+  } else if (tt < tA){
+    const u = (tt - hatch) / drift;
+    const q = along(R._out, u);
+    const amp = SPREAD_SEA * (0.22 + 0.78 * Math.sin(Math.PI * u));
+    lat = q[0] + jx * amp; lng = q[1] + jy * amp * 1.5;
+    /* Ease off the spawning scatter onto the corridor rather than snapping. */
+    if (u < 0.08){
+      const b = E.spawnBox, f = u / 0.08;
+      const sx = (b.lat0 + b.lat1) / 2 + jx * (b.lat1 - b.lat0) / 2;
+      const sy = (b.lon0 + b.lon1) / 2 + jy * (b.lon1 - b.lon0) / 2;
+      lat = sx + (lat - sx) * f; lng = sy + (lng - sy) * f;
+    }
+    stage = "lepto";
+  } else if (tt < tL){
+    const w = 0.55 + 0.45 * Math.sin((tt - tA) / Math.max(0.2, linger) * 6.3 + sd * 6.3);
+    lat = R.mouth[0] + jx * 0.42 * w; lng = R.mouth[1] + jy * 0.55 * w;
+    stage = "glass";
+  } else if (tt < tR){
+    const u = (tt - tL) / ascent;
+    const q = along(R.river, u * up);
+    lat = q[0] + jx * SPREAD_RIVER; lng = q[1] + jy * SPREAD_RIVER * 1.4;
+    stage = "elver";
+  } else if (tt < tE){
+    const q = along(R.river, up);
+    const w = Math.sin((tt - tR) * 0.35 + sd * 6.3);
+    lat = q[0] + jx * SPREAD_RIVER + w * 0.03;
+    lng = q[1] + jy * SPREAD_RIVER * 1.4 + w * 0.04;
+    stage = "yellow";
+  } else if (tt < tM){
+    const u = (tt - tE) / descent;
+    const q = along(R.river, up * (1 - u));
+    lat = q[0] + jx * SPREAD_RIVER; lng = q[1] + jy * SPREAD_RIVER * 1.4;
+    stage = "silver";
+  } else if (tt < tS){
+    const u = (tt - tM) / ret;
+    const q = along(R._home, u);
+    const amp = SPREAD_BACK * Math.sin(Math.PI * u);
+    lat = q[0] + jx * amp; lng = q[1] + jy * amp * 1.5;
+    stage = "silver";
+  } else {
+    return null;                          /* spawned, and dead: eels do both once */
+  }
+
+  if (gone){
+    if (t > cut + GONE_FLASH) return null;
+    return {lat, lng, stage: cutStage, end: (t - cut) / GONE_FLASH, fate};
+  }
+  return {lat, lng, stage, end: 0, fate: 0};
+}
+
+/* ------------------------------------------------------------ swarm canvas
+
+   The dots are drawn on a 2-D canvas over the globe rather than as globe.gl
+   points: nine hundred cylinders would be nine hundred meshes rebuilt every
+   frame, and this way the trails, the fading removals and the far-side
+   culling are all a few lines of arithmetic. */
+
+let swarmCv = null, swarmCtx = null, swarmDpr = 1;
+
+/* Everything stacked above the control bar is positioned off its real height
+   rather than a guess, because it wraps to two rows below 520px and the
+   read-out had been sitting under it by 25 pixels on a 390px phone. */
+function measureChrome(){
+  const h = id => {
+    const e = $(id);
+    if (!e || getComputedStyle(e).display === "none") return 0;
+    return e.getBoundingClientRect().height;
+  };
+  const ctrl = h("controls"), ro = h("readout");
+  const pick = h("birdRow"), stg = h("stages");
+  const s = document.documentElement.style;
+  s.setProperty("--ctrl-h", Math.round(ctrl) + "px");
+  s.setProperty("--ro-h", Math.round(ro) + "px");
+  s.setProperty("--pick-h", Math.round(pick) + "px");
+  s.setProperty("--stack", Math.round(ctrl + ro + stg + 54) + "px");
+}
+
+function sizeSwarm(){
+  const cv = $("swarm");
+  swarmDpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(innerWidth * swarmDpr);
+  cv.height = Math.round(innerHeight * swarmDpr);
+  cv.style.width = innerWidth + "px";
+  cv.style.height = innerHeight + "px";
+  swarmCv = cv; swarmCtx = cv.getContext("2d");
+}
+
+const DEG = Math.PI / 180;
+
+/* A point on the sphere is in view when it lies inside the cap the camera can
+   actually see, whose half-angle is acos(R/(R+h)). Without this the swarm
+   shows through the planet, which reads as a bug and destroys the illusion of
+   a sphere. */
+function frontFacing(lat, lng, cam, cosLim){
+  const a = lat * DEG, b = lng * DEG, c = cam.lat * DEG, d = cam.lng * DEG;
+  return Math.sin(a) * Math.sin(c)
+       + Math.cos(a) * Math.cos(c) * Math.cos(b - d) > cosLim;
+}
+
+const TRAIL_STEPS = 3;
+
+function drawSwarm(){
+  if (!swarmCtx) return;
+  const cv = swarmCv, ctx = swarmCtx;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.scale(swarmDpr, swarmDpr);
+
+  const cam = globe.pointOfView();
+  const cosLim = 1 / (1 + cam.altitude);
+  /* Dots shrink as you stand back, so the swarm keeps roughly the same
+     visual density whether you are looking at the whole Atlantic or at one
+     estuary. */
+  const r = Math.max(0.9, Math.min(2.6, 2.35 / (0.55 + cam.altitude)));
+  const step = eelRate(eelT) * 0.5;      /* trail spacing, in months */
+
+  const n = Math.max(1, Math.round(E.particles.length * eelDensity));
+  let shown = 0, byStage = {};
+  ctx.lineCap = "round";
+
+  for (let i = 0; i < n; i++){
+    const p = E.particles[i];
+    const now = eelAt(p, eelT);
+    if (!now) continue;
+    if (!frontFacing(now.lat, now.lng, cam, cosLim)) continue;
+    const s = globe.getScreenCoords(now.lat, now.lng, EEL_ALT);
+    if (!s || !isFinite(s.x)) continue;
+    shown++;
+    byStage[now.stage] = (byStage[now.stage] || 0) + 1;
+
+    if (now.end > 0){
+      /* A removal: a short bright flare that fades, in the colour of what
+         removed it. */
+      const a = 1 - now.end;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r * (1.4 + 2.6 * now.end), 0, 6.2832);
+      ctx.fillStyle = FATE_COLOUR[now.fate];
+      ctx.globalAlpha = a * 0.55;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    const col = STAGE[now.stage].c;
+    /* The trail is recomputed from the clock rather than remembered, so it
+       stays correct when the scrubber jumps and when the globe is turned. */
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    let ok = true;
+    for (let k = 1; k <= TRAIL_STEPS && ok; k++){
+      const b = eelAt(p, eelT - step * k);
+      if (!b || b.end > 0 || !frontFacing(b.lat, b.lng, cam, cosLim)){ ok = false; break; }
+      const q = globe.getScreenCoords(b.lat, b.lng, EEL_ALT);
+      if (!q || !isFinite(q.x)){ ok = false; break; }
+      ctx.lineTo(q.x, q.y);
+    }
+    ctx.strokeStyle = col;
+    ctx.globalAlpha = 0.34;
+    ctx.lineWidth = r * 0.85;
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.92;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, 6.2832);
+    ctx.fillStyle = col;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  return {shown, byStage};
+}
+
+/* ---------------------------------------------------------- chapter + key */
+
+let lastPhaseKey = "";
+
+function syncChapter(force){
+  const ph = eelPhase(eelT);
+  if (!force && ph.key === lastPhaseKey) return;
+  lastPhaseKey = ph.key;
+  requestAnimationFrame(measureChrome);
+  const i = E.phases.indexOf(ph) + 1;
+  $("chapter").innerHTML =
+    `<div class="ph">${i} of ${E.phases.length}</div>`
+    + `<h3>${ph.title}</h3>`
+    + `<div class="lead">${ph.lead}</div>`
+    + ph.body.map(t => `<p>${t}</p>`).join("");
+  $("chapter").scrollTop = 0;
+  syncCallouts(true);
+}
+
+function buildStageKey(){
+  $("stages").innerHTML = STAGE_ORDER.map(k =>
+    `<div data-k="${k}"><i style="color:${STAGE[k].c}"></i>`
+    + `<span>${STAGE[k].label}</span><b data-n="${k}">&mdash;</b></div>`).join("");
+}
+
+function syncStageKey(byStage){
+  for (const k of STAGE_ORDER){
+    const row = $("stages").querySelector(`div[data-k="${k}"]`);
+    const n = (byStage && byStage[k]) || 0;
+    row.dataset.on = String(n > 0);
+    row.querySelector("b").textContent = n ? String(n) : "—";
+  }
+}
+
+/* Place labels, pinned to the sphere and shown only while their chapter is
+   running and their place is facing the camera. */
+function buildCallouts(){
+  $("callouts").innerHTML = E.callouts.map((c, i) =>
+    `<div class="co" data-i="${i}"><b>${c.title}</b><span>${c.text}</span></div>`).join("");
+}
+
+function syncCallouts(){
+  const cam = globe.pointOfView();
+  const cosLim = 1 / (1 + cam.altitude);
+  const ph = lastPhaseKey;
+  const els = $("callouts").children;
+  for (let i = 0; i < E.callouts.length; i++){
+    const c = E.callouts[i], el = els[i];
+    const on = c.phase === ph && frontFacing(c.lat, c.lng, cam, cosLim);
+    if (on){
+      const s = globe.getScreenCoords(c.lat, c.lng, EEL_ALT);
+      if (s && isFinite(s.x)){ el.style.left = s.x + "px"; el.style.top = s.y + "px"; }
+    }
+    el.dataset.on = String(on);
+  }
+}
+
+/* ------------------------------------------------------------- eel paint */
+
+function paintSwarm(force, dt){
+  const ph = eelPhase(eelT);
+  /* A chapter change moves the camera in and out as well as around: the
+     spawning box wants the whole basin, an estuary wants one coast. A viewer
+     who has zoomed themselves keeps their own altitude until they let the
+     camera go and take it back. */
+  if (ph.key !== lastPhaseKey && followId) targetAlt = ph.cam.alt;
+  /* No animal to follow here, so the camera holds the chapter's viewpoint and
+     eases between them -- and lets go entirely the moment a hand is on the
+     globe, exactly as it does on the bird views. */
+  const pov = globe.pointOfView();
+  if (lastSetAlt >= 0 && Math.abs(pov.altitude - lastSetAlt) > 1e-4){
+    targetAlt = pov.altitude; camAlt = pov.altitude;
+  }
+  if (!grabbing && followId){
+    const k = camReady ? 1 - Math.exp(-Math.max(0, dt || 0) / CAM_TAU) : 1;
+    camLat += (ph.cam.lat - camLat) * k;
+    camLng += (ph.cam.lng - camLng) * k;
+    camAlt += (targetAlt - camAlt) * k;
+    camReady = true; lastSetAlt = camAlt;
+    globe.pointOfView({lat: camLat, lng: wrapLng(camLng), altitude: camAlt}, 0);
+  } else {
+    camLat = pov.lat; camLng = pov.lng; camAlt = pov.altitude;
+    lastSetAlt = camAlt;
+  }
+
+  syncChapter(force);
+  const stat = drawSwarm();
+  syncStageKey(stat && stat.byStage);
+  syncCallouts();
+  updateEelReadout(stat);
+}
+
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun",
+                      "Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/* The read-out's rows mean different things in the two modes, so they are
+   labelled for the mode rather than left saying "flown" over a number of
+   years. */
+const LABELS = {
+  track: {dist:"flown", speed:"speed", lat:"lat", lon:"lon",
+          nother:"others", day:"day", follow:"following"},
+  swarm: {dist:"age", speed:"clock", lat:"now", lon:"swarm",
+          nother:"drawn", day:"chapter", follow:"kind"},
+};
+function syncLabels(){
+  const L = LABELS[MODE];
+  for (const k in L) $("l-" + k).textContent = L[k];
+}
+
+function updateEelReadout(stat){
+  /* Month zero is the peak of spawning, mid-February, which is the one date
+     in this life cycle that larval surveys actually pin down. */
+  const m = eelT;
+  const monthIdx = Math.floor(((SPAWN_PEAK - 1) + m) % 12);
+  const yrs = Math.floor(m / 12), rem = Math.floor(m % 12);
+  $("when").textContent = yrs
+    ? `year ${yrs + 1}, ${MONTHS_SHORT[monthIdx]}`
+    : `${MONTHS_SHORT[monthIdx]}, first year`;
+  $("when").title = `${m.toFixed(1)} months after hatching`;
+  const rate = eelRate(eelT) * speedMult;
+  $("dist").textContent = `${(m / 12).toFixed(1)} yr`;
+  $("speed").textContent = rate > 11
+    ? `${(rate / 12).toFixed(1)} yr/s` : `${rate.toFixed(1)} mo/s`;
+  $("lat").textContent = eelPhase(eelT).title;
+  $("lon").textContent = eelDensity < 1 ? "today" : "1960s";
+  $("nother").textContent = stat ? `${stat.shown} of ${E.particles.length}` : "—";
+  $("day").textContent = `${E.phases.indexOf(eelPhase(eelT)) + 1} of ${E.phases.length}`;
+  $("follow").textContent = "schematic";
+  $("dist").title = `${eelT.toFixed(1)} months after hatching`;
+  $("speed").title = "how much of the eel's own time one second of watching "
+                   + "is worth in this chapter";
+  const s = $("scrub");
+  if (document.activeElement !== s)
+    s.value = String(Math.round(eelSecondsOf(eelT) / E.totalSeconds * 1000));
+}
+
+const SPAWN_PEAK = 2;         /* February  [Righton et al. 2016] */
+
 /* ------------------------------------------------------------------ frames */
 
 let last = performance.now();
@@ -682,9 +1280,17 @@ function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   if (playing){
-    simMin += dt * baseSpeed() * speedMult * 60;
-    const end = T.min[T.min.length - 1];
-    if (simMin >= end){ simMin = end; playing = false; syncPlay(); }
+    if (MODE === "swarm"){
+      /* The eel clock runs in life-months and its exchange rate changes with
+         the chapter, so it is advanced through the phase map rather than at a
+         single rate. */
+      eelT = eelMonthsOf(eelSecondsOf(eelT) + dt * speedMult);
+      if (eelT >= E.totalMonths){ eelT = E.totalMonths; playing = false; syncPlay(); }
+    } else {
+      simMin += dt * baseSpeed() * speedMult * 60;
+      const end = T.min[T.min.length - 1];
+      if (simMin >= end){ simMin = end; playing = false; syncPlay(); }
+    }
   }
   paint(false, dt);
   requestAnimationFrame(frame);
@@ -695,11 +1301,16 @@ function frame(now){
 /* The buttons are relative, so say what each one means in seconds for the
    journey currently loaded. */
 function syncSpeedTitles(){
-  const total = T ? T.min[T.min.length - 1] : 0;
   for (const b of document.querySelectorAll("#speeds button")){
-    const secs = Math.round(RUN_SECONDS / Number(b.dataset.v));
-    b.title = `the whole ${(total / 1440).toFixed(0)}-day journey in about `
-            + `${secs} seconds`;
+    const v = Number(b.dataset.v);
+    if (MODE === "swarm"){
+      b.title = `the whole ${(E.totalMonths / 12).toFixed(0)}-year life cycle in `
+              + `about ${Math.round(E.totalSeconds / v)} seconds`;
+    } else {
+      const total = T ? T.min[T.min.length - 1] : 0;
+      b.title = `the whole ${(total / 1440).toFixed(0)}-day journey in about `
+              + `${Math.round(RUN_SECONDS / v)} seconds`;
+    }
   }
 }
 
@@ -711,17 +1322,24 @@ function syncPlay(){
 
 function setSpecies(k, initial){
   key = k;
+  MODE = mode(k);
+  camReady = false;
+  playing = true;
+  for (const b of document.querySelectorAll("#birdRow button"))
+    b.setAttribute("aria-pressed", String(b.dataset.key === k));
+  document.body.dataset.mode = MODE;
+  syncLabels();
+
+  if (MODE === "swarm"){ setEelView(initial); return; }
+
   T = TRACKS[k];
   prepareOthers(T);
   simMin = 0;
-  camReady = false;
-  playing = true;
 
-  const col = focalColour();
   globe.pathColor(d => d.cols);
-
-  for (const b of document.querySelectorAll("#birdRow button"))
-    b.setAttribute("aria-pressed", String(b.dataset.key === k));
+  /* Leaving the eel view: clear its overlay and the bird layers it emptied. */
+  if (swarmCtx) swarmCtx.clearRect(0, 0, swarmCv.width, swarmCv.height);
+  lastPhaseKey = "";
 
   $("blurb").innerHTML =
     `<strong>${T.label} <span class="sci">${T.scientific}</span></strong>${T.note}`
@@ -750,7 +1368,59 @@ function setSpecies(k, initial){
     camLat = T.lat[0]; camLng = T.lon[0]; camAlt = targetAlt;
     camReady = false; lastSetAlt = -1;
   }
+  measureChrome();
   paint(true, 1e3);
+  requestAnimationFrame(measureChrome);
+}
+
+/* The eel view's own switch-in. It empties the globe.gl layers the bird views
+   fill -- a stale stork trail hanging over the Atlantic would be exactly the
+   kind of quiet lie this page exists not to tell. */
+function setEelView(initial){
+  eelT = 0;
+  lastPhaseKey = "";
+  globe.pathsData([]);
+  globe.pointsData([]);
+  sizeSwarm();
+
+  $("blurb").innerHTML =
+    `<strong>${E.label} <span class="sci">${E.scientific}</span></strong>`
+    + `A schematic of one life: the Sargasso Sea to a European river and back. `
+    + `<strong>Nothing here is a tracked animal.</strong> No eel has been `
+    + `followed through a life this long, and no egg or spawning adult has `
+    + `ever been recovered from the breeding area.`
+    + `<span class="src">${E.particles.length.toLocaleString("en-GB")} drawn `
+    + `particles &middot; ${E.regions.length} river systems &middot; `
+    + `${(E.totalMonths / 12).toFixed(1)} years in `
+    + `${Math.round(E.totalSeconds)} seconds`
+    + `<br>the corridor follows the real current system; the calendar, speeds `
+    + `and depths are measured and cited in the notes`
+    + `<br>${E.status} &middot; sources: Righton et al. 2016, Wright et al. `
+    + `2022, ICES 2025</span>`;
+
+  $("dnote").innerHTML =
+    `The swarm is thinned to <b>${E.recruitNow.elsewhere}%</b> &mdash; where `
+    + `ICES's glass eel index stood in 2024 against the 1960&ndash;79 mean for `
+    + `its "Elsewhere Europe" series. The North Sea series is at `
+    + `<b>${E.recruitNow.north_sea}%</b>. Everything else on this view is `
+    + `schematic; this number is not.`;
+
+  syncPlay();
+  syncSpeedTitles();
+  buildNotes();
+  buildStageKey();
+  buildCallouts();
+
+  const ph = E.phases[0];
+  targetAlt = ph.cam.alt;
+  setFollow(FOCAL);
+  if (initial || !camReady){
+    camLat = ph.cam.lat; camLng = ph.cam.lng; camAlt = targetAlt;
+    camReady = false; lastSetAlt = -1;
+  }
+  measureChrome();
+  paint(true, 1e3);
+  requestAnimationFrame(measureChrome);
 }
 
 /* How far back to stand. The godwit crosses 62 degrees of latitude and wants
@@ -773,6 +1443,7 @@ function altitudeFor(t){
 }
 
 function buildNotes(){
+  if (MODE === "swarm") return buildEelNotes();
   $("notes").innerHTML = `
     <h2>Data notes</h2>
     <p>Every position on this globe is a real GPS fix with a real timestamp,
@@ -918,17 +1589,108 @@ function buildNotes(){
     Repository, CC0.</p>`;
 }
 
+/* The eel view's notes carry a heavier load than the others'. On the bird
+   views the honest disclosure is "this is a GPS fix and here is the deposit";
+   here it is the far longer list of what is drawn without being known. */
+function buildEelNotes(){
+  const m = E.measured;
+  $("notes").innerHTML = `
+    <h2>Data notes &mdash; the eel</h2>
+    <p><strong>This view is a schematic. Nothing on it is a tracked
+    animal.</strong> The other three views on this page draw recorded GPS
+    fixes and interpolate between them. This one draws
+    ${E.particles.length.toLocaleString("en-GB")} particles moving along a
+    hand-drawn corridor, and it has to, because the recording does not
+    exist.</p>
+
+    <h3>Why there is no eel track</h3>
+    <p class="sub">A European eel's life runs about fifteen years and crosses
+    the Atlantic twice. A pop-up satellite tag lasts around a year and is far
+    too large for anything smaller than a full-grown silver eel, so no eel has
+    ever been followed from hatching to spawning, and nothing smaller than an
+    adult has been followed at all.</p>
+    <p class="sub">A hundred years after Johannes Schmidt named the Sargasso
+    Sea as the breeding place, <strong>no egg and no spawning adult has ever
+    been recovered from it</strong>. The spawning area is inferred from where
+    the smallest larvae are caught. The larval drift has never been observed;
+    it is reconstructed from larval surveys, growth rings in ear-stones, and
+    particle-tracking models, and those three disagree by more than a year.</p>
+
+    <h3>What is measured, and what is drawn</h3>
+    <p class="sub"><strong>Measured</strong> &mdash; and stated in the chapter
+    text, with sources below: the presumed breeding area
+    (${m.spawnMonths ? "" : ""}24&ndash;31&deg;N, 50&ndash;70&deg;W, the box
+    holding the smallest larvae); the spawning season, beginning in December
+    and peaking in February; the glass eel arrival calendar, October off
+    Iberia to spring in the Baltic; silver eel escapement, peaking between
+    10&nbsp;August and 20&nbsp;December across twenty catchments; oceanic
+    swimming speeds of ${m.speedKmd[0]} to ${m.speedKmd[1]} km a day; the
+    daily vertical migration between ${m.depthM[0]} and ${m.depthM[1]} m
+    through ${m.tempC[0]} to ${m.tempC[1]}&nbsp;&deg;C; the convergence of
+    tracked routes on the Azores; the growth phase of
+    ${(m.growthMonths[0]/12).toFixed(0)} to
+    ${(m.growthMonths[1]/12).toFixed(0)} years; the fishery quota, the
+    seizures, and the recruitment collapse.</p>
+    <p class="sub"><strong>Drawn</strong> &mdash; and not an estimate of
+    anything: the corridor's exact path, which follows the real current system
+    but comes from no current product; how the particles are shared out
+    between the ${E.regions.length} river systems, for which ICES publishes no
+    geographic split; and how many dots are removed by the fishery, by
+    barriers and by attrition. Those removals are placed where those things
+    actually happen. <strong>Their number is not a mortality rate and no such
+    rate should be read off this page.</strong></p>
+
+    <h3>The one number this view does claim</h3>
+    <p class="sub">The <em>Today</em> button thins the swarm to
+    <strong>${E.recruitNow.elsewhere}%</strong>, which is where ICES's glass
+    eel recruitment index stood in 2024 against the geometric mean of
+    1960&ndash;79 for its "Elsewhere Europe" series. The "North Sea" series
+    stands at <strong>${E.recruitNow.north_sea}%</strong>. Recruitment fell
+    until about 2011 and has not recovered since. The species is Critically
+    Endangered, has been on CITES Appendix II since March 2009, and the EU has
+    run a zero export quota since December 2010.</p>
+
+    <h3>The drift, and the argument about it</h3>
+    <p class="sub">The animation cannot avoid taking a side on how long the
+    larval drift lasts, because the drift length and the arrival calendar are
+    one number seen twice. Spawning peaks in February; glass eels reach
+    Portugal in October and the Baltic the following spring. Those only fit
+    together at roughly twenty months for the first arrivals and twenty-six
+    for the last &mdash; the long reading. Ear-stone growth rings suggest under
+    a year, but that requires eels to spawn all year round, which the larval
+    surveys do not show. The drift durations drawn here run
+    ${m.driftDrawn[0]} to ${m.driftDrawn[1]} months.</p>
+
+    <h3>The clock</h3>
+    <p class="sub">One rate cannot show a fifteen-year life. Each chapter
+    declares its own, and the read-out states it: the estuary chapters run at
+    a tenth of a month per second, the growth years at more than eight. The
+    read-out's <em>age</em> row is the eel's real age throughout.</p>
+
+    <h3>Sources</h3>
+    ${E.sources.map(s => `<p class="sub">${s.text}`
+        + (s.doi ? ` <code>doi:${s.doi}</code>` : "") + `</p>`).join("")}
+    <p class="sub">Generated by <code>scripts/build_eels.py</code> from a fixed
+    seed (${E.seed}), so the same commit always produces the same animation.
+    That script's header keeps the measured constants and the drawn geometry in
+    separate blocks, each annotated.</p>`;
+}
+
 function wire(){
   const row = $("birdRow");
   for (const k of ORDER){
-    const t = TRACKS[k];
+    const t = SCHEMATIC.has(k) ? E : TRACKS[k];
     const b = document.createElement("button");
     b.dataset.key = k;
     /* The scientific name moved to the blurb: with a silhouette beside it the
        button had no room, and "Thalassarche chrysostoma" was being cut off. */
-    b.title = `${t.label} (${t.scientific})`;
+    b.title = SCHEMATIC.has(k)
+      ? `${t.label} (${t.scientific}) — a schematic, not tracked animals`
+      : `${t.label} (${t.scientific})`;
     b.innerHTML = `<span class="sil">${SILHOUETTE[k] || ""}</span>`
-      + `<span class="nm">${t.label}</span>`;
+      + `<span class="nm">${t.label}`
+      + (SCHEMATIC.has(k) ? `<em class="sch">schematic</em>` : "")
+      + `</span>`;
     b.setAttribute("aria-pressed", String(k === key));
     b.addEventListener("click", () => setSpecies(k, false));
     row.appendChild(b);
@@ -951,9 +1713,30 @@ function wire(){
   syncSpeedTitles();
 
   $("play").addEventListener("click", () => {
-    const end = T.min[T.min.length - 1];
-    if (!playing && simMin >= end) simMin = 0;
+    if (MODE === "swarm"){
+      if (!playing && eelT >= E.totalMonths) eelT = 0;
+    } else {
+      const end = T.min[T.min.length - 1];
+      if (!playing && simMin >= end) simMin = 0;
+    }
     playing = !playing; syncPlay();
+  });
+  $("density").addEventListener("click", e => {
+    /* The one quantitative claim this view makes, and it is measured: ICES's
+       glass eel index stands at 7.2% of the 1960-79 mean for the "Elsewhere
+       Europe" series. Thinning the swarm to that fraction is the honest way
+       to draw a number that big. */
+    const now = eelDensity === 1;
+    eelDensity = now ? E.recruitNow.elsewhere / 100 : 1;
+    e.currentTarget.setAttribute("aria-pressed", String(now));
+    e.currentTarget.textContent = now ? "Today" : "1960s";
+    e.currentTarget.title = now
+      ? `today's glass eel recruitment: ${E.recruitNow.elsewhere}% of the `
+        + `1960-79 mean (ICES, "Elsewhere Europe" index)`
+      : "draw the swarm at today's glass eel recruitment instead";
+    document.body.dataset.density = now ? "now" : "then";
+    requestAnimationFrame(measureChrome);
+    paint(true, 1e3);
   });
   $("refollow").addEventListener("click", () => {
     setFollow(followId ? null : FOCAL);
@@ -965,11 +1748,14 @@ function wire(){
     paint(true, 1e3);
   });
   $("replay").addEventListener("click", () => {
-    simMin = 0; camReady = false; playing = true; syncPlay(); paint(true, 1e3);
+    simMin = 0; eelT = 0; camReady = false; playing = true; syncPlay();
+    paint(true, 1e3);
   });
   $("scrub").addEventListener("input", e => {
     playing = false; syncPlay();
-    simMin = Number(e.target.value) / 1000 * T.min[T.min.length - 1];
+    const f = Number(e.target.value) / 1000;
+    if (MODE === "swarm") eelT = eelMonthsOf(f * E.totalSeconds);
+    else simMin = f * T.min[T.min.length - 1];
     paint(true, 1e3);
   });
 
@@ -986,12 +1772,15 @@ function wire(){
     if (e.key === "f" || e.key === "F") $("others").click();
     if (e.key === "1") setSpecies("godwit", false);
     if (e.key === "2") setSpecies("albatross", false);
+    if (e.key === "3") setSpecies("eel", false);
   });
 
   addEventListener("resize", () => {
     globe.width(innerWidth).height(innerHeight);
+    measureChrome();
     /* Rotating a phone changes how far back the globe has to sit. */
-    targetAlt = altitudeFor(T);
+    if (MODE === "swarm"){ sizeSwarm(); targetAlt = eelPhase(eelT).cam.alt; }
+    else targetAlt = altitudeFor(T);
   });
 }
 
@@ -999,7 +1788,9 @@ function wire(){
 
 (async function boot(){
   try {
-    TRACKS = await loadTracks();
+    const [tracks, eels] = await Promise.all([loadTracks(), loadEels()]);
+    TRACKS = tracks;
+    E = eels;
 
     globe = Globe()
       .globeImageUrl("vendor/earth-blue-marble.jpg")
@@ -1057,6 +1848,9 @@ function wire(){
       if (!grabbed || !followId) { grabbed = null; return; }
       const v = globe.pointOfView();
       const dLng = Math.abs(((v.lng - grabbed.lng) + 540) % 360 - 180);
+      /* On the eel view there is no individual to hand the camera to, so a
+         drag simply stops the chapter camera from pulling it back; the next
+         chapter, or Restart, takes it again. */
       if (Math.abs(v.lat - grabbed.lat) > 0.25 || dLng > 0.25) setFollow(null);
       else camReady = false;    /* a zoom: re-land on the bird, do not drift */
       grabbed = null;

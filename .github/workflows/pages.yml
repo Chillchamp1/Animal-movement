@@ -59,6 +59,11 @@ jobs:
             --source "Rotics et al. 2016, doi:10.5441/001/1.hn1bd23k (CC0)"
           # One journey per species for globe.html.
           python3 scripts/build_globe.py
+          # The eel view. This one takes no deposit and downloads nothing: it
+          # is a schematic, generated from a fixed seed so the same commit
+          # always produces the same animation. See the script's header for
+          # why the eel cannot be drawn from tracks.
+          python3 scripts/build_eels.py
           # Reads 959 WorldCover tiles at their coarsest overview: about fifteen
           # minutes, and the reason a deploy is not instant.
           python3 scripts/build_landcover.py

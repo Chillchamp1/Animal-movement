@@ -134,7 +134,9 @@ birds at once on a fixed frame; the globe follows **one** bird, turning under it
 so the animal stays in the middle of the view — which is the only honest way to
 show a journey that crosses the date line or most of a hemisphere.
 
-Three journeys, all real, all CC0, chosen by `scripts/build_globe.py`:
+Three journeys, all real, all CC0, chosen by `scripts/build_globe.py` — and a
+fourth view that is not a journey at all, and says so on its face. See
+**The eel** below.
 
 | | Bird | Journey |
 |---|---|---|
@@ -212,6 +214,68 @@ Distance is only ever summed inside a continuous run: a four-day silence spans
 thousands of kilometres at a plausible average speed, and counting it inflated
 one bird's total to 458,000 km before that rule went in.
 
+### The eel
+
+The fourth entry in the picker is the **European eel** (*Anguilla anguilla*),
+and it is a **schematic**: a diagram that moves. It draws 900 particles, not
+tracked animals, and the page says so in the picker, in a badge that never
+leaves the screen, in the read-out and in the notes.
+
+It has to be. The other three views draw recorded GPS fixes because those
+recordings exist. For the eel they do not, and cannot with current tags:
+
+- A European eel's life runs about **fifteen years and crosses the Atlantic
+  twice**. A pop-up satellite tag lasts around a year and is far too large for
+  anything but a full-grown silver eel, so no eel has been followed from
+  hatching to spawning, and nothing smaller than an adult has been followed at
+  all.
+- A century after Johannes Schmidt named the Sargasso Sea as the breeding
+  place, **no egg and no spawning adult has ever been recovered from it**. The
+  spawning area is inferred from where the smallest larvae are caught.
+- The larval drift has never been observed. It is reconstructed from larval
+  surveys, ear-stone growth rings and particle-tracking models, and those three
+  disagree by more than a year.
+
+So `scripts/build_eels.py` keeps two kinds of number in separate, annotated
+blocks, and the page keeps them separate too.
+
+**Measured**, cited, and stated in the chapter text: the presumed breeding area
+(24–31°N, 50–70°W, the box holding the smallest larvae); spawning beginning in
+December and peaking in February; glass eels reaching Iberia in October and the
+Baltic the following spring; silver eel escapement peaking between 10 August
+and 20 December across twenty catchments; oceanic swimming at 3–47 km a day;
+the daily vertical migration between 200 and 1,000 m through 0–11 °C; the
+convergence of every tracked adult route on the Azores; a growth phase of 6–20
+years; France's 55-tonne glass eel quota; Europol's 22 tonnes seized in one
+season; and the recruitment collapse.
+
+**Drawn**, and an estimate of nothing: the corridor's exact path, which follows
+the real current system — Gulf Stream, North Atlantic Current, Azores Current —
+but comes from no current product; how the particles are shared between the 20
+river systems, for which ICES publishes no geographic split; and how many dots
+the fishery, the barriers and attrition remove. Those removals are placed where
+those things happen. **Their number is not a mortality rate.**
+
+One thing on this view *is* a quantitative claim, and it is measured. The
+**Today** button thins the swarm to 7.2%, where ICES's glass eel recruitment
+index stood in 2024 against the 1960–79 mean for its "Elsewhere Europe" series;
+the "North Sea" series is at 1.3%. The species is Critically Endangered, has
+been on CITES Appendix II since March 2009, and the EU has run a zero export
+quota since December 2010.
+
+The drift duration is the one place the animation cannot stay neutral, because
+the drift length and the arrival calendar are the same number seen twice.
+February spawning plus an October landfall in Portugal and a spring landfall in
+the Baltic only fit at roughly twenty to twenty-six months — the long reading.
+The short reading, from ear-stone growth rings, needs eels to spawn all year
+round, which the larval surveys do not show. The notes panel says this too.
+
+Because a fifteen-year life cannot run at one rate, each of the eight chapters
+declares its own — a tenth of a month per second in the estuaries, more than
+eight in the growth years — and the read-out states the rate and the eel's real
+age side by side. The build is seeded, so a given commit always produces the
+same animation.
+
 ### Rendering
 
 globe.gl (MIT, bundles three.js) over NASA's Blue Marble Next Generation, with a
@@ -222,6 +286,14 @@ refresh it — so the page works on a host that permits no outbound requests.
 The camera eases toward the bird on a time constant rather than a fixed
 fraction per frame, so the lag does not depend on the frame rate: measured 50 km
 steady-state, 117 km worst case, on a software renderer.
+
+The eel's swarm is drawn on a 2-D canvas over the globe rather than as globe.gl
+points: 900 cylinders would be 900 meshes rebuilt every frame, and this way the
+trails, the fading removals and the far-side culling are each a few lines of
+arithmetic. Each dot's trail is recomputed from the clock rather than
+remembered, so it stays correct when the scrubber jumps and when the globe is
+turned by hand. Measured at 6 ms per frame for 900 particles on a software
+renderer.
 
 ## The ground under them
 
@@ -321,6 +393,7 @@ python3 scripts/fetch_movebank.py --doi 10.5441/001/1.t81488n5 \
 python3 scripts/fetch_movebank.py --doi 10.5441/001/1.694p666h \
     --match Torres README --out data/raw/albatross
 python3 scripts/build_globe.py          # -> globe-tracks.json, one journey per species
+python3 scripts/build_eels.py           # -> eel-migration.json, the schematic; downloads nothing
 python3 scripts/build_landcover.py      # -> water and greenness, ~15 min, cached
 python3 scripts/build_basemap.py        # -> basemap.json, the whole backdrop baked in
 python3 scripts/build_standalone.py     # -> dist/, one self-contained file
@@ -359,6 +432,27 @@ prevails for a shorebird on a long-distance, transoceanic flight.* Data:
 Torres, L. G., Orben, R. A., Tolkova, I., Thompson, D. R. *Classification of
 animal movement behavior through residence in space and time.* Data:
 `doi:10.5441/001/1.694p666h`, Movebank Data Repository, CC0.
+
+For the eel schematic — no deposit, because none exists; these are the papers
+every measured figure on that view comes from:
+
+Righton, D., Westerberg, H., Feunteun, E., et al. (2016). *Empirical
+observations of the spawning migration of European eels: the long and dangerous
+road to the Sargasso Sea.* Science Advances 2:e1501694.
+`doi:10.1126/sciadv.1501694`
+
+Wright, R. M., Piper, A. T., Aarestrup, K., et al. (2022). *First direct
+evidence of adult European eels migrating to their breeding place in the
+Sargasso Sea.* Scientific Reports 12:15362. `doi:10.1038/s41598-022-19248-8`
+
+Schmidt, J. (1923). *The breeding places of the eel.* Philosophical
+Transactions of the Royal Society B 211:179–208. `doi:10.1098/rstb.1923.0004`
+
+ICES (2025). *European eel (Anguilla anguilla) throughout its natural range.*
+ICES Advice: Recurrent Advice — the glass eel recruitment indices.
+
+Europol (2025). *Operation LAKE* — 22 tonnes of glass eels seized in the
+2024–25 season across 21 countries.
 
 Backdrop, from two measured sources:
 
