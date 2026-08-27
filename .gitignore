@@ -8,3 +8,6 @@ data/processed/
 dist/
 *.zip
 __pycache__/
+
+# route_eels.py caches elevation tiles here; they are refetchable.
+.tilecache/

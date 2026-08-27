@@ -103,9 +103,18 @@ SOURCES = [
 # MEASURED constants
 # --------------------------------------------------------------------------
 
-# The presumed breeding area, taken as the box containing the smallest
-# (< 7 mm) leptocephali: 31 N 50 W to 24 N 70 W.  [wright2022, schmidt1923]
+# The presumed breeding area. The cited figure is a pair of corner
+# coordinates -- the smallest (< 7 mm) leptocephali lie between 31 N 50 W and
+# 24 N 70 W [wright2022, schmidt1923] -- but the area itself is not a
+# rectangle, and drawing one implies a shape and a set of hard edges nobody
+# has measured. What the surveys describe is a long narrow band lying along
+# the subtropical convergence front, so the corners are read as the ends of
+# that band's axis and the eggs are scattered in an ellipse around it.
 SPAWN_BOX = {"lat0": 24.0, "lat1": 31.0, "lon0": -70.0, "lon1": -50.0}
+# How wide the band is across the front, in degrees of latitude. The < 12 mm
+# larvae sit "over a restricted latitude near temperature fronts of 22 to
+# 24 C" [wright2022]; two degrees is that restriction drawn.
+SPAWN_BAND_DEG = 2.2
 
 # Spawning begins in December, peaks in February, extends into May, from
 # larval survey data.  [righton2016, wright2022]
@@ -168,6 +177,31 @@ RECRUIT_NOW = {"north_sea": 1.3, "elsewhere": 7.2}
 
 SPAWN_CENTRE = (27.5, -60.0)
 
+
+def spawn_ellipse() -> dict:
+    """The breeding area as an oriented ellipse rather than a lat/lon box.
+
+    The major axis runs corner to corner -- along the front -- and the minor
+    axis is the band's width across it. Both come back as (dLat, dLon) vectors
+    so the page can place an egg from two numbers in the unit disc and get an
+    ellipse, not a rectangle with its corners filled in.
+    """
+    lat = (SPAWN_BOX["lat0"] + SPAWN_BOX["lat1"]) / 2
+    lon = (SPAWN_BOX["lon0"] + SPAWN_BOX["lon1"]) / 2
+    k = math.cos(math.radians(lat))
+    # Half the diagonal, in a space where a degree of longitude is as long as
+    # a degree of latitude, so "perpendicular" means perpendicular.
+    ay = (SPAWN_BOX["lat1"] - SPAWN_BOX["lat0"]) / 2
+    ax = (SPAWN_BOX["lon1"] - SPAWN_BOX["lon0"]) / 2 * k
+    n = math.hypot(ay, ax)
+    uy, ux = ay / n, ax / n
+    by, bx = -ux * SPAWN_BAND_DEG, uy * SPAWN_BAND_DEG
+    return {
+        "lat": lat, "lon": lon,
+        "major": [round(ay, 4), round(ax / k, 4)],
+        "minor": [round(by, 4), round(bx / k, 4)],
+    }
+
 # Common leg out of the spawning area and into the Gulf Stream.
 TRUNK_COMMON = [
     (27.5, -60.0), (29.5, -65.0), (32.0, -71.0), (35.0, -74.5),
@@ -197,12 +231,22 @@ RETURN_TRUNK = [
     (28.5, -58.0), (27.5, -60.0),
 ]
 
-# Shelf exits on the way back, by region group. Baltic and North Sea eels
-# tracked in 2016 went north into the Norwegian Sea before turning west;
-# Mediterranean eels went to the Strait of Gibraltar.  [righton2016]
-EXIT_NORTH = [(58.0, 2.0), (62.0, 0.0), (62.0, -10.0), (56.0, -20.0)]
-EXIT_WEST = [(48.0, -10.0), (44.0, -18.0)]
-EXIT_GIBRALTAR = [(36.0, -5.6), (35.5, -9.0), (36.0, -14.0)]
+# The coastal legs -- ocean trunk to river mouth, and river mouth back out to
+# the Azores -- are NOT drawn here. They are shortest sea paths over a real
+# land mask, computed by scripts/route_eels.py and committed as
+# scripts/eel_sea_routes.json.
+#
+# The first version joined them with straight lines, and a straight line from
+# the Azores Current to the Rhone crosses Spain and the Pyrenees. Measured
+# against the mask, 32 of the 40 coastal legs ran over land, the worst of them
+# for 1,100 km. Glass eels arrive by sea: round Iberia into Biscay, through
+# Gibraltar for the Mediterranean, through the Channel or round Scotland for
+# the North Sea and the Baltic. The router also carries the measured detours
+# from Righton et al. 2016 -- Baltic and North Sea eels going north into the
+# Norwegian Sea before turning west, Mediterranean eels leaving through
+# Gibraltar -- as via points, because a shortest path would send the Baltic
+# ones down the Channel instead.
+SEA_ROUTES = Path(__file__).resolve().parent / "eel_sea_routes.json"
 
 # Recruitment destinations. Mouth coordinates are real; the river courses are
 # simplified real courses, four to six points each, enough to read as the
@@ -319,11 +363,6 @@ REGIONS = [
          note="A shallow North African lake, fed by a sea channel."),
 ]
 
-EXITS = {
-    "south": EXIT_WEST, "biscay": EXIT_WEST, "isles": EXIT_WEST,
-    "northsea": EXIT_NORTH, "baltic": EXIT_NORTH, "med": EXIT_GIBRALTAR,
-}
-
 # Where each region's larvae leave the trunk. Southern groups ride the Azores
 # Current; everything from the Channel north rides the North Atlantic Current.
 BRANCH = {
@@ -340,8 +379,7 @@ BRANCH = {
 
 PHASES = [
     dict(key="spawn", title="Nobody has ever seen it happen",
-         m0=0.0, m1=3.0, seconds=10.0, stage="egg",
-         cam=dict(lat=27.5, lng=-58.0, alt=1.55),
+         m0=0.0, m1=3.0, seconds=10.0, stage="egg", tag="Spawning",
          lead="The Sargasso Sea, February.",
          body=[
              "Every European eel alive was born somewhere in this box: 24&ndash;31&deg;N, "
@@ -353,8 +391,7 @@ PHASES = [
              "surveys: it begins in December, peaks in February, and runs into May.",
          ]),
     dict(key="drift", title="The drift",
-         m0=3.0, m1=20.0, seconds=21.0, stage="lepto",
-         cam=dict(lat=40.0, lng=-45.0, alt=1.75),
+         m0=3.0, m1=20.0, seconds=21.0, stage="lepto", tag="The drift",
          lead="Five thousand kilometres, on the current.",
          body=[
              "The larva is a leptocephalus: flat, transparent, shaped like a willow "
@@ -374,8 +411,7 @@ PHASES = [
              "to spawn all year round, and the larval surveys do not show that.",
          ]),
     dict(key="landfall", title="Glass eels",
-         m0=20.0, m1=27.0, seconds=14.0, stage="glass",
-         cam=dict(lat=45.0, lng=-11.0, alt=1.15),
+         m0=20.0, m1=27.0, seconds=14.0, stage="glass", tag="Glass eels",
          lead="October to June, south to north.",
          body=[
              "On the continental shelf the leaf shrinks and becomes an eel: 7 cm "
@@ -391,8 +427,7 @@ PHASES = [
              "the current took to deliver them.",
          ]),
     dict(key="fishery", title="The estuaries",
-         m0=27.0, m1=31.0, seconds=13.0, stage="glass",
-         cam=dict(lat=45.0, lng=-4.0, alt=0.92),
+         m0=27.0, m1=31.0, seconds=13.0, stage="glass", tag="The estuaries",
          lead="Where the journey meets a net.",
          body=[
              "The glass eel fishery is a winter fishery of the Bay of Biscay and "
@@ -410,8 +445,7 @@ PHASES = [
              "figure is drawn from this animation.</em>",
          ]),
     dict(key="rivers", title="Up the rivers",
-         m0=31.0, m1=37.0, seconds=12.0, stage="elver",
-         cam=dict(lat=48.0, lng=4.0, alt=0.86),
+         m0=31.0, m1=37.0, seconds=12.0, stage="elver", tag="Up the rivers",
          lead="Pigmented now, and climbing.",
          body=[
              "The glass eel darkens into an elver and starts inland. Eels are "
@@ -425,8 +459,7 @@ PHASES = [
              "The dots that stop short here are stopping at real barriers.",
          ]),
     dict(key="growth", title="The yellow years",
-         m0=37.0, m1=165.0, seconds=15.0, stage="yellow",
-         cam=dict(lat=49.0, lng=6.0, alt=1.05),
+         m0=37.0, m1=165.0, seconds=15.0, stage="yellow", tag="Yellow years",
          lead="Six to twenty years, in one stretch of water.",
          body=[
              "As a yellow eel it stays put, often in a few hundred metres of river "
@@ -439,8 +472,7 @@ PHASES = [
              "eventually send back to the Atlantic.",
          ]),
     dict(key="escape", title="Silver eels leave",
-         m0=165.0, m1=170.0, seconds=10.0, stage="silver",
-         cam=dict(lat=50.0, lng=0.0, alt=1.15),
+         m0=165.0, m1=170.0, seconds=10.0, stage="silver", tag="Escapement",
          lead="An autumn night, on a rising river.",
          body=[
              "The eel remakes itself for the ocean: the eyes roughly double in "
@@ -452,8 +484,7 @@ PHASES = [
              "same nights, the same rivers, and the turbines are still turning.",
          ]),
     dict(key="ret", title="The road back",
-         m0=170.0, m1=190.0, seconds=19.0, stage="silver",
-         cam=dict(lat=38.0, lng=-38.0, alt=1.8),
+         m0=170.0, m1=190.0, seconds=19.0, stage="silver", tag="The road back",
          lead="Five to ten thousand kilometres, without eating.",
          body=[
              "Of 707 eels tagged from four European regions, 87 got far enough out "
@@ -508,6 +539,14 @@ def resample(pts: list[tuple[float, float]], n: int) -> list[list[float]]:
     return out
 
 
+def disc_point(rng: random.Random) -> tuple[float, float]:
+    """Uniform in the unit disc. The square root on the radius matters: without
+    it everything piles into the middle."""
+    rad = math.sqrt(rng.random())
+    th = rng.random() * 2 * math.pi
+    return round(rad * math.cos(th), 3), round(rad * math.sin(th), 3)
+
+
 def truncated_normal(rng: random.Random, lo: float, hi: float,
                      mu: float, sigma: float) -> float:
     for _ in range(24):
@@ -529,14 +568,17 @@ def build_routes() -> dict:
 
 
 def build_regions() -> list[dict]:
+    if not SEA_ROUTES.exists():
+        raise SystemExit(f"missing {SEA_ROUTES} -- run scripts/route_eels.py")
+    sea = json.loads(SEA_ROUTES.read_text())["routes"]
     out = []
     total = sum(r["share"] for r in REGIONS)
     for r in REGIONS:
         trunk = BRANCH[r["group"]]
-        tail = TRUNK_NORTH[-1] if trunk == "north" else TRUNK_SOUTH[-1]
-        approach = resample([tail, r["mouth"]], 12)
+        legs = sea[r["key"]]
+        approach = resample([tuple(p) for p in legs["approach"]], 26)
         river = resample(r["river"], 28)
-        back = resample([tuple(r["mouth"])] + EXITS[r["group"]] + [AZORES], 30)
+        back = resample([tuple(p) for p in legs["home"]], 40)
         out.append({
             "key": r["key"], "label": r["label"], "country": r["country"],
             "group": r["group"], "trunk": trunk,
@@ -603,7 +645,10 @@ def build_particles(regions: list[dict], n: int, rng: random.Random) -> list[lis
             round(hatch, 2), round(drift, 2), round(linger, 2), round(ascent, 2),
             round(growth, 1), round(descent, 2), round(ret, 2),
             round(up, 3), fate,
-            round(rng.uniform(-1, 1), 3), round(rng.uniform(-1, 1), 3),
+            # A uniform point in the unit disc, not the unit square: it places
+            # the egg inside the breeding ellipse and doubles as the lateral
+            # jitter along every later leg.
+            *disc_point(rng),
             round(rng.random(), 3),
         ])
     return out
@@ -660,7 +705,10 @@ def time_phases(particles: list[list], phases: list[dict]) -> None:
 def build_callouts() -> list[dict]:
     """Labels pinned to real places, shown while their phase is running."""
     return [
-        dict(phase="spawn", lat=27.5, lng=-60.0, title="Presumed breeding area",
+        # Anchored at the ellipse's south-west end rather than its centre: at
+        # the centre the label sits in the thickest part of the swarm and
+        # neither can be read.
+        dict(phase="spawn", lat=24.4, lng=-69.5, title="Presumed breeding area",
              text="24&ndash;31&deg;N, 50&ndash;70&deg;W"),
         dict(phase="drift", lat=35.0, lng=-74.5, title="Cape Hatteras",
              text="the Gulf Stream leaves the coast"),
@@ -711,6 +759,7 @@ def main() -> None:
         "status": "Critically Endangered (IUCN)",
         "seed": args.seed,
         "spawnBox": SPAWN_BOX,
+        "spawnArea": spawn_ellipse(),
         "azores": [AZORES[0], AZORES[1]],
         "routes": build_routes(),
         "regions": regions,

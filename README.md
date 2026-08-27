@@ -249,12 +249,40 @@ convergence of every tracked adult route on the Azores; a growth phase of 6–20
 years; France's 55-tonne glass eel quota; Europol's 22 tonnes seized in one
 season; and the recruitment collapse.
 
-**Drawn**, and an estimate of nothing: the corridor's exact path, which follows
+**Drawn**, and an estimate of nothing: the ocean corridor's path, which follows
 the real current system — Gulf Stream, North Atlantic Current, Azores Current —
 but comes from no current product; how the particles are shared between the 20
 river systems, for which ICES publishes no geographic split; and how many dots
 the fishery, the barriers and attrition remove. Those removals are placed where
 those things happen. **Their number is not a mortality rate.**
+
+Two shapes had to be corrected, because both were claims:
+
+- **The breeding area is an ellipse, not a rectangle.** The cited figure is two
+  corner coordinates, 31°N 50°W and 24°N 70°W, and the first version scattered
+  eggs uniformly through the box between them. A rectangle asserts straight
+  edges and square corners running true north and true east, which no survey
+  has found; the larval surveys describe a long narrow band along the
+  subtropical convergence front. The corners are now read as the ends of that
+  band's axis, the eggs fill an ellipse around it, and the outline is drawn
+  dashed because the edge is a sampling boundary, not a fence.
+- **The coastal legs go by sea.** Joining the ocean corridor to each river
+  mouth with a straight line put the eels over land: a straight line from the
+  Azores Current to the Rhône crosses Spain and the Pyrenees. Measured against
+  a land mask, **32 of the 40 coastal legs ran overland, the worst for
+  1,100 km**. `scripts/route_eels.py` now computes them as shortest sea paths
+  over terrarium elevation at zoom 5 (~3 km), flood-filled from the open
+  Atlantic so that lakes at or below sea level cannot pass for ocean — one of
+  them swallowed the first attempt at the Oslofjord. Douglas–Peucker
+  simplification is land-aware: a chord is only taken if the sea allows it,
+  which is what brought the worst overland run from 100 km to a single 20 km
+  sample step where a line grazes a headland. Routes are committed as
+  `scripts/eel_sea_routes.json`, so `build_eels.py` still downloads nothing.
+
+  The measured detours survive the routing: Righton's Baltic and North Sea eels
+  went north into the Norwegian Sea before turning west and the Mediterranean
+  ones left through Gibraltar, so those are via points. A shortest path would
+  have sent the Baltic eels down the Channel.
 
 One thing on this view *is* a quantitative claim, and it is measured. The
 **Today** button thins the swarm to 7.2%, where ICES's glass eel recruitment
@@ -275,6 +303,22 @@ declares its own — a tenth of a month per second in the estuaries, more than
 eight in the growth years — and the read-out states the rate and the eel's real
 age side by side. The build is seeded, so a given commit always produces the
 same animation.
+
+**The camera on this view is locked and follows the migration by itself.** It
+points at the mean position of every drawn eel and stands back far enough to
+hold the spread, so it tracks the swarm out of the Sargasso, across the
+Atlantic, up the rivers and back without stage directions. The mean is taken
+over unit vectors rather than over degrees — averaging degrees puts the centre
+of a swarm straddling the antimeridian in the middle of Asia — and the standoff
+comes from the 90th percentile of the spread rather than the maximum, so one
+straggler mid-ocean does not pull the view back off Europe. The orbit controls
+are switched off rather than overridden: leaving them on and snapping the
+camera back each frame is a bug this page has already had once. The three bird
+views still hand you their camera on a drag.
+
+The descriptions sit in the bottom-left corner and fold. The chapter number,
+its title and a one-line lead are always visible; the body is one click (or
+<kbd>c</kbd>) away, and the choice sticks across chapters.
 
 ### Rendering
 
@@ -393,6 +437,7 @@ python3 scripts/fetch_movebank.py --doi 10.5441/001/1.t81488n5 \
 python3 scripts/fetch_movebank.py --doi 10.5441/001/1.694p666h \
     --match Torres README --out data/raw/albatross
 python3 scripts/build_globe.py          # -> globe-tracks.json, one journey per species
+python3 scripts/route_eels.py           # -> scripts/eel_sea_routes.json; fetches 96 elevation tiles
 python3 scripts/build_eels.py           # -> eel-migration.json, the schematic; downloads nothing
 python3 scripts/build_landcover.py      # -> water and greenness, ~15 min, cached
 python3 scripts/build_basemap.py        # -> basemap.json, the whole backdrop baked in

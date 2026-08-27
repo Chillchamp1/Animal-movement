@@ -146,44 +146,74 @@
   body[data-mode="swarm"] #density{display:block}
   #density[aria-pressed="true"]{color:#ff5470;border-color:rgba(255,84,112,.5)}
 
+  /* With the blurb gone from this view the badge carries the disclaimer on
+     its own, so it is a shade louder than a caption. */
   #schematic{
     display:none;align-self:flex-start;
-    font-family:"IBM Plex Mono",monospace;font-size:.58rem;letter-spacing:.09em;
+    font-family:"IBM Plex Mono",monospace;font-size:.6rem;letter-spacing:.09em;
     text-transform:uppercase;color:var(--eel);
-    background:rgba(50,34,4,.82);border:1px solid rgba(255,209,102,.45);
-    border-radius:999px;padding:4px 12px;white-space:nowrap;
+    background:rgba(50,34,4,.86);border:1px solid rgba(255,209,102,.5);
+    border-radius:999px;padding:5px 13px;white-space:nowrap;
     backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
   }
   body[data-mode="swarm"] #schematic{display:block}
 
-  /* In the column with the picker rather than floating beside it: the card
-     runs to four paragraphs on the last chapter, and a fixed-position box
-     that long will sooner or later land on top of the blurb. Here it simply
-     takes what room is left and scrolls inside itself. */
   /* Shown only while the swarm is thinned to today's recruitment, because a
      number that large should not live only in a button's tooltip. */
   #dnote{
-    display:none;flex:0 0 auto;padding:9px 12px;font-size:.68rem;line-height:1.5;
+    display:none;position:fixed;z-index:4;
+    left:16px;bottom:calc(var(--ctrl-h,44px) + var(--chap-h,54px) + 28px
+                          + env(safe-area-inset-bottom,0px));
+    width:min(330px,calc(100vw - 32px));
+    padding:9px 12px;font-size:.66rem;line-height:1.5;
     color:var(--ink-2);border-color:rgba(255,84,112,.4);
   }
   body[data-mode="swarm"][data-density="now"] #dnote{display:block}
   #dnote b{color:#ff8fa3;font-weight:600}
 
+  /* The descriptions live in the bottom-left corner and fold away.
+
+     They began in the column under the picker, which put a four-paragraph
+     card down the whole left third of the screen -- on top of the thing it
+     was describing. Down here they cover the emptiest corner of the frame,
+     and the header is a button: the chapter number, its title and its
+     one-line lead are always visible, the body is one click away, and the
+     choice sticks across chapters so nobody has to close it eight times. */
   #chapter{
-    display:none;flex:0 1 auto;min-height:0;overflow-y:auto;
-    padding:14px 16px;font-size:.735rem;line-height:1.6;color:var(--ink-2);
+    display:none;position:fixed;z-index:4;
+    left:16px;bottom:calc(var(--ctrl-h,44px) + 20px + env(safe-area-inset-bottom,0px));
+    width:min(330px,calc(100vw - 32px));
+    font-size:.71rem;line-height:1.58;color:var(--ink-2);overflow:hidden;
   }
   body[data-mode="swarm"] #chapter{display:block}
-  #chapter .ph{
-    font-family:"IBM Plex Mono",monospace;font-size:.6rem;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;
+  #chapter .hd{
+    display:block;width:100%;text-align:left;background:transparent;border:0;
+    font:inherit;color:inherit;padding:10px 12px;cursor:pointer;
   }
-  #chapter h3{font-size:.95rem;color:var(--ink);font-weight:600;margin-bottom:2px;line-height:1.25}
-  #chapter .lead{color:#ffd166;font-size:.72rem;margin-bottom:8px}
+  #chapter .hd:hover .ttl{color:#fff}
+  #chapter .ph{
+    font-family:"IBM Plex Mono",monospace;font-size:.56rem;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);
+    display:flex;align-items:center;gap:6px;
+  }
+  #chapter .ph .car{margin-left:auto;font-size:.72rem;line-height:1;
+                    transition:transform .2s;color:var(--ink-2)}
+  body[data-chapter="open"] #chapter .car{transform:rotate(180deg)}
+  #chapter .ttl{display:block;font-size:.84rem;color:var(--ink);font-weight:600;
+                line-height:1.25;margin-top:3px;transition:color .15s}
+  #chapter .lead{display:block;color:var(--eel);font-size:.68rem;margin-top:2px}
+  #chapter .body{
+    display:none;padding:0 12px 11px;max-height:32vh;overflow-y:auto;
+    border-top:1px solid var(--rule);margin-top:2px;padding-top:9px;
+  }
+  body[data-chapter="open"] #chapter .body{display:block}
   #chapter p{margin-bottom:7px}
   #chapter p:last-child{margin-bottom:0}
   #chapter strong{color:var(--ink)}
   #chapter em{color:var(--ink-3);font-style:italic}
+  /* The eel view's own furniture carries what the blurb used to say, so the
+     blurb is one panel too many here. */
+  body[data-mode="swarm"] #blurb{display:none}
 
   /* Place labels. They sit on the sphere and are hidden when the place turns
      away from the camera, which is the one thing that makes a label on a
@@ -278,13 +308,15 @@
        button; the first word is the load-bearing one. */
     @media (max-width:420px){ #schematic .long{display:none} }
     #stages{right:10px;top:auto;padding:7px 9px;font-size:.58rem;
-            bottom:calc(var(--ctrl-h,54px) + 26px + var(--ro-h,116px)
+            bottom:calc(var(--ctrl-h,54px) + var(--ro-h,116px)
+                        + var(--chap-h,54px) + 34px
                         + env(safe-area-inset-bottom,0px))}
     #stages b{display:none}
-    /* The badge, the back-link and the notes button share a strip under the
-       picker; the chapter card starts below it rather than through it. */
-    #chapter{max-height:30vh;font-size:.7rem;padding:11px 13px;margin-top:32px}
-    #chapter h3{font-size:.85rem}
+    #chapter{left:10px;right:10px;width:auto;font-size:.68rem;
+             bottom:calc(var(--ctrl-h,54px) + var(--ro-h,116px) + 26px
+                         + env(safe-area-inset-bottom,0px))}
+    #chapter .body{max-height:24vh}
+    #chapter .ttl{font-size:.78rem}
     #callouts .co{font-size:.58rem}
     #callouts .co span{display:none}
   }
@@ -313,10 +345,11 @@
 <div id="birds">
   <div id="birdRow" class="panel"></div>
   <div id="schematic" title="Nothing on this view is a tracked animal">schematic<span class="long"> &middot; not tracked animals</span></div>
-  <div id="dnote" class="panel"></div>
   <div id="blurb" class="panel"></div>
-  <div id="chapter" class="panel"></div>
 </div>
+
+<div id="dnote" class="panel"></div>
+<div id="chapter" class="panel"></div>
 
 <div id="readout" class="panel">
   <div class="when" id="when">&mdash;</div>
@@ -588,6 +621,22 @@ function speedAt(t, m){
 }
 
 const wrapLng = d => ((d + 180) % 360 + 360) % 360 - 180;
+
+/* Where an egg sits inside the breeding area.
+
+   The cited figure is two corner coordinates, 31 N 50 W and 24 N 70 W, and the
+   first version scattered eggs uniformly through the box they describe. That
+   drew a rectangle, and a rectangle is a claim: it says the area has straight
+   edges and square corners running true north and true east, which no survey
+   has ever found. What the surveys describe is a long narrow band lying along
+   the subtropical convergence front. So the corners are read as the ends of
+   that band's axis, and (jx, jy) -- a point in the unit disc -- places the egg
+   in an ellipse around it. */
+function spawnAt(jx, jy){
+  const s = E.spawnArea;
+  return [s.lat + jx * s.major[0] + jy * s.minor[0],
+          s.lon + jx * s.major[1] + jy * s.minor[1]];
+}
 
 /* Great-circle kilometres, for the bridging test below. */
 function kmBetween(la1, lo1, la2, lo2){
@@ -919,6 +968,15 @@ function eelRate(months){
   return (p.m1 - p.m0) / p.seconds;
 }
 
+/* Bring a longitude into the same turn as the one the camera is already on,
+   so easing across the antimeridian takes the short way round. */
+function wrapNear(lng, ref){
+  let d = lng - ref;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return ref + d;
+}
+
 function along(path, u){
   const n = path.length;
   const x = Math.min(n - 1, Math.max(0, u * (n - 1)));
@@ -960,9 +1018,8 @@ function eelAt(p, t){
   let lat, lng, stage;
 
   if (tt < hatch){
-    const b = E.spawnBox;
-    lat = (b.lat0 + b.lat1) / 2 + jx * (b.lat1 - b.lat0) / 2;
-    lng = (b.lon0 + b.lon1) / 2 + jy * (b.lon1 - b.lon0) / 2;
+    const s = spawnAt(jx, jy);
+    lat = s[0]; lng = s[1];
     stage = "egg";
   } else if (tt < tA){
     const u = (tt - hatch) / drift;
@@ -971,10 +1028,8 @@ function eelAt(p, t){
     lat = q[0] + jx * amp; lng = q[1] + jy * amp * 1.5;
     /* Ease off the spawning scatter onto the corridor rather than snapping. */
     if (u < 0.08){
-      const b = E.spawnBox, f = u / 0.08;
-      const sx = (b.lat0 + b.lat1) / 2 + jx * (b.lat1 - b.lat0) / 2;
-      const sy = (b.lon0 + b.lon1) / 2 + jy * (b.lon1 - b.lon0) / 2;
-      lat = sx + (lat - sx) * f; lng = sy + (lng - sy) * f;
+      const s = spawnAt(jx, jy), f = u / 0.08;
+      lat = s[0] + (lat - s[0]) * f; lng = s[1] + (lng - s[1]) * f;
     }
     stage = "lepto";
   } else if (tt < tL){
@@ -1033,12 +1088,13 @@ function measureChrome(){
     return e.getBoundingClientRect().height;
   };
   const ctrl = h("controls"), ro = h("readout");
-  const pick = h("birdRow"), stg = h("stages");
+  const pick = h("birdRow"), stg = h("stages"), chap = h("chapter");
   const s = document.documentElement.style;
   s.setProperty("--ctrl-h", Math.round(ctrl) + "px");
   s.setProperty("--ro-h", Math.round(ro) + "px");
   s.setProperty("--pick-h", Math.round(pick) + "px");
-  s.setProperty("--stack", Math.round(ctrl + ro + stg + 54) + "px");
+  s.setProperty("--chap-h", Math.round(chap) + "px");
+  s.setProperty("--stack", Math.round(ctrl + ro + stg + chap + 54) + "px");
 }
 
 function sizeSwarm(){
@@ -1083,6 +1139,8 @@ function drawSwarm(){
   const n = Math.max(1, Math.round(E.particles.length * eelDensity));
   let shown = 0, byStage = {};
   ctx.lineCap = "round";
+
+  drawBreedingArea(ctx, cam, cosLim);
 
   for (let i = 0; i < n; i++){
     const p = E.particles[i];
@@ -1135,6 +1193,42 @@ function drawSwarm(){
   return {shown, byStage};
 }
 
+/* The breeding area, drawn as the ellipse it is.
+
+   Worth drawing at all because the eggs alone read as a smudge, and worth
+   drawing as an ellipse because the shape is the honest part: the cited
+   figure is two corner coordinates, and a rectangle between them would assert
+   straight edges and square corners that no survey has found. Dashed, because
+   the edge is a sampling boundary rather than a fence -- what is known is
+   where the smallest larvae have been caught, not where the eels stop. */
+function drawBreedingArea(ctx, cam, cosLim){
+  const ph = lastPhaseKey;
+  if (ph !== "spawn" && ph !== "drift") return;
+  const s = E.spawnArea;
+  const pts = [];
+  for (let i = 0; i <= 72; i++){
+    const t = i / 72 * 6.2832;
+    const c = Math.cos(t), q = Math.sin(t);
+    const la = s.lat + c * s.major[0] + q * s.minor[0];
+    const lo = s.lon + c * s.major[1] + q * s.minor[1];
+    if (!frontFacing(la, lo, cam, cosLim)){ pts.push(null); continue; }
+    const p = globe.getScreenCoords(la, lo, EEL_ALT);
+    pts.push(p && isFinite(p.x) ? p : null);
+  }
+  ctx.save();
+  ctx.setLineDash([5, 6]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,209,102,0.5)";
+  ctx.beginPath();
+  let pen = false;
+  for (const p of pts){
+    if (!p){ pen = false; continue; }
+    if (pen) ctx.lineTo(p.x, p.y); else { ctx.moveTo(p.x, p.y); pen = true; }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* ---------------------------------------------------------- chapter + key */
 
 let lastPhaseKey = "";
@@ -1143,15 +1237,29 @@ function syncChapter(force){
   const ph = eelPhase(eelT);
   if (!force && ph.key === lastPhaseKey) return;
   lastPhaseKey = ph.key;
-  requestAnimationFrame(measureChrome);
   const i = E.phases.indexOf(ph) + 1;
   $("chapter").innerHTML =
-    `<div class="ph">${i} of ${E.phases.length}</div>`
-    + `<h3>${ph.title}</h3>`
-    + `<div class="lead">${ph.lead}</div>`
-    + ph.body.map(t => `<p>${t}</p>`).join("");
-  $("chapter").scrollTop = 0;
-  syncCallouts(true);
+    `<button class="hd" aria-expanded="${document.body.dataset.chapter === "open"}"`
+    + ` aria-controls="chbody">`
+    + `<span class="ph">chapter ${i} of ${E.phases.length}`
+    + `<span class="car" aria-hidden="true">&#9662;</span></span>`
+    + `<span class="ttl">${ph.title}</span>`
+    + `<span class="lead">${ph.lead}</span></button>`
+    + `<div class="body" id="chbody">`
+    + ph.body.map(t => `<p>${t}</p>`).join("") + `</div>`;
+  $("chapter").querySelector(".hd").addEventListener("click", toggleChapter);
+  const b = $("chapter").querySelector(".body");
+  if (b) b.scrollTop = 0;
+  requestAnimationFrame(measureChrome);
+  syncCallouts();
+}
+
+function toggleChapter(){
+  const open = document.body.dataset.chapter !== "open";
+  document.body.dataset.chapter = open ? "open" : "shut";
+  const hd = $("chapter").querySelector(".hd");
+  if (hd) hd.setAttribute("aria-expanded", String(open));
+  requestAnimationFrame(measureChrome);
 }
 
 function buildStageKey(){
@@ -1194,30 +1302,74 @@ function syncCallouts(){
 
 /* ------------------------------------------------------------- eel paint */
 
-function paintSwarm(force, dt){
-  const ph = eelPhase(eelT);
-  /* A chapter change moves the camera in and out as well as around: the
-     spawning box wants the whole basin, an estuary wants one coast. A viewer
-     who has zoomed themselves keeps their own altitude until they let the
-     camera go and take it back. */
-  if (ph.key !== lastPhaseKey && followId) targetAlt = ph.cam.alt;
-  /* No animal to follow here, so the camera holds the chapter's viewpoint and
-     eases between them -- and lets go entirely the moment a hand is on the
-     globe, exactly as it does on the bird views. */
-  const pov = globe.pointOfView();
-  if (lastSetAlt >= 0 && Math.abs(pov.altitude - lastSetAlt) > 1e-4){
-    targetAlt = pov.altitude; camAlt = pov.altitude;
+/* Where the swarm is, and how much of the globe it covers.
+
+   The first version parked the camera at a viewpoint written into each
+   chapter. That is a set of stage directions that have to be kept in step with
+   the particles by hand, and they drifted apart the moment the chapter
+   boundaries were rederived. The camera now reads the swarm instead: it points
+   at the mean of every drawn eel and stands back far enough to hold the whole
+   spread.
+
+   The mean is taken over unit vectors, not over latitude and longitude. An
+   average of degrees puts the centre of a swarm straddling the antimeridian in
+   the middle of Asia; an average of vectors does not, and it also weights the
+   poles correctly. */
+const CAM_FILL = 0.55;      /* of the visible cap the swarm should occupy */
+function swarmView(){
+  const n = Math.max(1, Math.round(E.particles.length * eelDensity));
+  let x = 0, y = 0, z = 0, m = 0;
+  const held = [];
+  for (let i = 0; i < n; i++){
+    const p = eelAt(E.particles[i], eelT);
+    if (!p || p.end > 0) continue;
+    const a = p.lat * DEG, b = p.lng * DEG, c = Math.cos(a);
+    x += c * Math.cos(b); y += c * Math.sin(b); z += Math.sin(a);
+    held.push(p); m++;
   }
-  if (!grabbing && followId){
+  if (!m) return null;
+  const r = Math.hypot(x, y, z) || 1e-9;
+  x /= r; y /= r; z /= r;
+  const lat = Math.asin(z) / DEG, lng = Math.atan2(y, x) / DEG;
+  /* How far the swarm reaches from that centre, as an angle. The 90th
+     percentile rather than the maximum: one straggler still crossing the
+     Atlantic should not pull the camera back off the whole of Europe. */
+  const ang = [];
+  for (const p of held){
+    const a = p.lat * DEG, b = p.lng * DEG;
+    ang.push(Math.acos(Math.max(-1, Math.min(1,
+      Math.sin(a) * z + Math.cos(a) * (Math.cos(b) * x + Math.sin(b) * y)))));
+  }
+  ang.sort((u, v) => u - v);
+  const spread = ang[Math.min(ang.length - 1, Math.floor(0.9 * ang.length))];
+  /* Altitude whose visible cap is the spread divided by how much of the frame
+     the swarm should fill. cos(theta) = R/(R+h), so h = 1/cos(theta) - 1. */
+  const want = Math.min(1.32, Math.max(0.06, spread / CAM_FILL));
+  let alt = 1 / Math.cos(want) - 1;
+  /* Never so close that the sphere stops reading as one -- which is the whole
+     argument for this page being a globe. */
+  /* A tall viewport shows less of the sphere across its width, so stand back
+     -- the same correction the bird views make. */
+  const aspect = innerHeight / Math.max(1, innerWidth);
+  if (aspect > 1) alt *= 1 + 0.45 * Math.min(aspect - 1, 1.4);
+  return {lat, lng, alt: Math.max(0.9, Math.min(2.4, alt))};
+}
+
+function paintSwarm(force, dt){
+  /* The camera is the animation's, not the viewer's: it holds the swarm and
+     the viewer cannot turn it away. On the bird views a drag hands the camera
+     over because there is a specific animal to hand it to; here there is no
+     individual, dragging away from the swarm shows an empty ocean, and half
+     the point of the view is watching the corridor sweep past. So the orbit
+     controls are switched off in this mode and switched back on when leaving. */
+  const v = swarmView();
+  if (v){
     const k = camReady ? 1 - Math.exp(-Math.max(0, dt || 0) / CAM_TAU) : 1;
-    camLat += (ph.cam.lat - camLat) * k;
-    camLng += (ph.cam.lng - camLng) * k;
-    camAlt += (targetAlt - camAlt) * k;
+    camLat += (v.lat - camLat) * k;
+    camLng += (wrapNear(v.lng, camLng) - camLng) * k;
+    camAlt += (v.alt - camAlt) * k;
     camReady = true; lastSetAlt = camAlt;
     globe.pointOfView({lat: camLat, lng: wrapLng(camLng), altitude: camAlt}, 0);
-  } else {
-    camLat = pov.lat; camLng = pov.lng; camAlt = pov.altitude;
-    lastSetAlt = camAlt;
   }
 
   syncChapter(force);
@@ -1258,7 +1410,9 @@ function updateEelReadout(stat){
   $("dist").textContent = `${(m / 12).toFixed(1)} yr`;
   $("speed").textContent = rate > 11
     ? `${(rate / 12).toFixed(1)} yr/s` : `${rate.toFixed(1)} mo/s`;
-  $("lat").textContent = eelPhase(eelT).title;
+  /* The chapter titles are sentences -- one of them is nine words -- so the
+     read-out carries a short tag instead. */
+  $("lat").textContent = eelPhase(eelT).tag;
   $("lon").textContent = eelDensity < 1 ? "today" : "1960s";
   $("nother").textContent = stat ? `${stat.shown} of ${E.particles.length}` : "—";
   $("day").textContent = `${E.phases.indexOf(eelPhase(eelT)) + 1} of ${E.phases.length}`;
@@ -1330,6 +1484,12 @@ function setSpecies(k, initial){
   document.body.dataset.mode = MODE;
   syncLabels();
 
+  /* The eel camera is the animation's and the viewer cannot turn it away, so
+     the orbit controls are switched off rather than merely overridden. Leaving
+     them on and snapping the camera back every frame is the shape of a bug
+     already fixed once on this page: OrbitControls keeps its own damped state,
+     so it spends every frame pulling one way while paint pulls the other. */
+  globe.controls().enabled = MODE !== "swarm";
   if (MODE === "swarm"){ setEelView(initial); return; }
 
   T = TRACKS[k];
@@ -1411,13 +1571,14 @@ function setEelView(initial){
   buildStageKey();
   buildCallouts();
 
-  const ph = E.phases[0];
-  targetAlt = ph.cam.alt;
+  /* Land on the swarm rather than flying to it from wherever the last bird
+     was: at minute zero that is the breeding area, and the first frame should
+     already be looking at it. */
   setFollow(FOCAL);
-  if (initial || !camReady){
-    camLat = ph.cam.lat; camLng = ph.cam.lng; camAlt = targetAlt;
-    camReady = false; lastSetAlt = -1;
-  }
+  const v = swarmView();
+  if (v){ camLat = v.lat; camLng = v.lng; camAlt = v.alt; }
+  targetAlt = camAlt;
+  camReady = false; lastSetAlt = -1;
   measureChrome();
   paint(true, 1e3);
   requestAnimationFrame(measureChrome);
@@ -1619,8 +1780,8 @@ function buildEelNotes(){
     <h3>What is measured, and what is drawn</h3>
     <p class="sub"><strong>Measured</strong> &mdash; and stated in the chapter
     text, with sources below: the presumed breeding area
-    (${m.spawnMonths ? "" : ""}24&ndash;31&deg;N, 50&ndash;70&deg;W, the box
-    holding the smallest larvae); the spawning season, beginning in December
+    (24&ndash;31&deg;N, 50&ndash;70&deg;W, the corners between which the
+    smallest larvae are caught); the spawning season, beginning in December
     and peaking in February; the glass eel arrival calendar, October off
     Iberia to spring in the Baltic; silver eel escapement, peaking between
     10&nbsp;August and 20&nbsp;December across twenty catchments; oceanic
@@ -1650,6 +1811,30 @@ function buildEelNotes(){
     Endangered, has been on CITES Appendix II since March 2009, and the EU has
     run a zero export quota since December 2010.</p>
 
+    <h3>Two shapes that would have been claims</h3>
+    <p class="sub">The breeding area is cited as two corner coordinates, and
+    the first version of this view scattered the eggs uniformly through the
+    rectangle they describe. A rectangle asserts straight edges and square
+    corners running true north and true east, and no survey has found any such
+    thing: what the larval surveys describe is a long narrow band along the
+    subtropical convergence front. The corners are now read as the ends of
+    that band's axis and the eggs fill an ellipse around it, drawn dashed
+    because the edge is a sampling boundary and not a fence.</p>
+    <p class="sub">The coastal legs are the other one. Joining the ocean
+    corridor to each river mouth with a straight line put the eels over land
+    &mdash; a straight line from the Azores Current to the Rh&ocirc;ne crosses
+    Spain and the Pyrenees, and measured against a land mask
+    <strong>32 of the 40 coastal legs ran overland, the worst of them for
+    1,100&nbsp;km</strong>. Glass eels arrive by sea. Those legs are now
+    shortest sea paths computed over a real elevation mask by
+    <code>scripts/route_eels.py</code>: round Iberia into Biscay, through
+    Gibraltar for the Mediterranean, through the Channel or round Scotland for
+    the North Sea and the Baltic. The worst overland run left anywhere is one
+    20&nbsp;km sample step where a line grazes a headland. The measured
+    detours stay: Baltic and North Sea eels are still sent north into the
+    Norwegian Sea on the way back, because that is what the tags recorded and
+    a shortest path would have used the Channel.</p>
+
     <h3>The drift, and the argument about it</h3>
     <p class="sub">The animation cannot avoid taking a side on how long the
     larval drift lasts, because the drift length and the arrival calendar are
@@ -1661,11 +1846,18 @@ function buildEelNotes(){
     surveys do not show. The drift durations drawn here run
     ${m.driftDrawn[0]} to ${m.driftDrawn[1]} months.</p>
 
-    <h3>The clock</h3>
+    <h3>The clock, and the camera</h3>
     <p class="sub">One rate cannot show a fifteen-year life. Each chapter
     declares its own, and the read-out states it: the estuary chapters run at
     a tenth of a month per second, the growth years at more than eight. The
     read-out's <em>age</em> row is the eel's real age throughout.</p>
+    <p class="sub">The camera here is the animation's, not yours: it points at
+    the mean position of every drawn eel and stands back far enough to hold
+    the spread, so it follows the migration on its own and cannot be turned
+    away. The mean is over unit vectors rather than over degrees, and the
+    standoff comes from the 90th percentile of the spread rather than the
+    maximum, so one straggler mid-Atlantic does not pull the view back off
+    Europe. The three bird views still hand you their camera on a drag.</p>
 
     <h3>Sources</h3>
     ${E.sources.map(s => `<p class="sub">${s.text}`
@@ -1773,13 +1965,16 @@ function wire(){
     if (e.key === "1") setSpecies("godwit", false);
     if (e.key === "2") setSpecies("albatross", false);
     if (e.key === "3") setSpecies("eel", false);
+    if ((e.key === "c" || e.key === "C") && MODE === "swarm") toggleChapter();
   });
 
   addEventListener("resize", () => {
     globe.width(innerWidth).height(innerHeight);
     measureChrome();
     /* Rotating a phone changes how far back the globe has to sit. */
-    if (MODE === "swarm"){ sizeSwarm(); targetAlt = eelPhase(eelT).cam.alt; }
+    /* The eel camera recomputes its own standoff every frame, including the
+       tall-viewport correction, so a resize needs nothing but the canvas. */
+    if (MODE === "swarm") sizeSwarm();
     else targetAlt = altitudeFor(T);
   });
 }

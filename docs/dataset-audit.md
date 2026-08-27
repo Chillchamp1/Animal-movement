@@ -395,6 +395,55 @@ the **Today** toggle thins the swarm to the ICES index. That is the whole
 argument for building the view this way — the medium is a swarm, and a swarm is
 the right way to draw a 93% loss.
 
+### Two shapes that had to be corrected
+
+Both were geometry that asserted something nobody has measured.
+
+**The breeding area was a rectangle.** The citable figure is a pair of corner
+coordinates — the smallest leptocephali lie between 31°N 50°W and 24°N 70°W —
+and the first version scattered eggs uniformly through the box between them.
+That draws straight edges and square corners running true north and true east.
+No survey has found any such thing: what the larval work describes is a long
+narrow band lying along the subtropical convergence front, where the < 12 mm
+larvae sit "over a restricted latitude near temperature fronts of 22 to 24 °C".
+The corners are now read as the ends of that band's axis and the eggs fill an
+ellipse around it, outlined dashed because the edge is where sampling stopped,
+not where the eels do.
+
+**The coastal legs went over land.** Straight lines from the ocean trunk to each
+river mouth, and back out to the Azores, crossed continents — the Rhône approach
+ran 1,100 km over Spain and the Pyrenees. Measured against a terrarium land mask
+at zoom 5:
+
+| | before | after |
+|---|---|---|
+| coastal legs crossing land | **32 of 40** | 0 of 40 beyond the estuary hop |
+| worst unbroken overland run | **1,100 km** | 20 km (one sample step) |
+| samples on land, all legs | — | 86 of 18,424 = **0.47%** |
+
+`scripts/route_eels.py` computes them as shortest sea paths with A* over that
+mask, with three details that each cost a round of debugging:
+
+1. **Flood-fill from the open Atlantic first.** `elevation ≤ 0` marks inland
+   water as sea, and the nearest "sea" cell to the Glomma mouth turned out to
+   be a Norwegian lake, so the Oslofjord had no route at any resolution.
+2. **A coast penalty, not an erosion.** Routes that hug the shoreline look
+   wrong, but eroding the mask to push them offshore can close a strait — the
+   Great Belt is 16 km wide. A cost multiplier within four cells of land does
+   the same job and cannot disconnect anything.
+3. **Land-aware simplification.** Plain Douglas–Peucker at a 24 km tolerance
+   put the routes back on land: a chord within tolerance of the path can still
+   cut a headland, and the Oslofjord approach came out with 100 km of Norway on
+   it. Testing each candidate chord against the mask removes the whole class.
+
+The measured detours are preserved as via points rather than left to the
+shortest path: Righton's Baltic and North Sea eels went north into the
+Norwegian Sea before turning west, and the western Mediterranean ones left
+through Gibraltar. A shortest path would have used the Channel.
+
+The output is committed as `scripts/eel_sea_routes.json` (19 kB, 489 points),
+so `build_eels.py` keeps its property of downloading nothing.
+
 ### The one place neutrality was impossible
 
 The drift duration and the arrival calendar are the same number seen twice. A
