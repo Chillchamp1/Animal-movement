@@ -7,7 +7,7 @@ predators as well as prey -- or only the analysis tables derived from them.
 
 Usage:
     python3 scripts/profile_tables.py data/raw/4xgxd257z/*.csv
-    python3 scripts/profile_tables.py Table_S2_-_Final_data.xlsx
+    python3 scripts/profile_tables.py data/raw/63xsj3v81/*.xlsx
 """
 
 from __future__ import annotations
