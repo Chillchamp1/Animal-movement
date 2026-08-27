@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>How long the sun stays up</title>
+<meta name="description" content="Day length by latitude through a year, drawn as a ring of spikes around a lit 3D relief globe. Computed from the sunrise equation — no tracked animals, no data fetch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#04070d; --ink:#eef3fb; --ink-2:#a9b6cc; --ink-3:#6b7a93;
+    --panel:rgba(9,14,24,.76); --rule:rgba(150,175,215,.22);
+    --sun:#e8d64a; --ref:#5b9fe0; --night:#4d78b8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #globe{position:fixed;inset:0;z-index:0}
+  #globe canvas{display:block;outline:none}
+  /* The ring, the graticule and every label are drawn on one 2-D canvas over
+     the globe. They are screen-space furniture around a sphere, not things on
+     it, and a canvas gives them dashes, text and a horizon cull for the price
+     of arithmetic. */
+  #ring{position:fixed;inset:0;z-index:1;pointer-events:none}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--rule);border-radius:11px;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+
+  /* ------------------------------------------------------------- left rail */
+  #rail{
+    position:fixed;z-index:3;left:16px;top:calc(16px + env(safe-area-inset-top,0px));
+    display:flex;flex-direction:column;gap:8px;width:min(288px,calc(100vw - 32px));
+    max-height:calc(100vh - 96px - env(safe-area-inset-top,0px)
+                          - env(safe-area-inset-bottom,0px));
+  }
+  #intro{padding:12px 14px}
+  #intro h1{font-size:.92rem;font-weight:600;line-height:1.3;margin-bottom:5px}
+  #intro p{font-size:.72rem;line-height:1.52;color:var(--ink-2)}
+  #intro .sub{display:block;margin-top:7px;color:var(--ink-3);font-size:.64rem;line-height:1.45}
+
+  #lats{padding:9px 10px 10px;overflow-y:auto;min-height:0}
+  #lats h2{
+    font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:500;margin:0 4px 6px;
+  }
+  #latList{display:flex;flex-direction:column;gap:2px}
+  #latList button{
+    font:inherit;font-size:.7rem;text-align:left;cursor:pointer;
+    background:transparent;border:1px solid transparent;border-radius:6px;
+    padding:5px 8px;color:var(--ink-3);display:flex;gap:8px;align-items:baseline;
+    transition:color .15s,border-color .15s;
+  }
+  #latList button .nm{flex:1 1 auto;min-width:0;line-height:1.3}
+  #latList button .dg{
+    flex:0 0 auto;font-family:"IBM Plex Mono",monospace;font-size:.66rem;
+    font-variant-numeric:tabular-nums;
+  }
+  #latList button:hover{color:var(--ink-2)}
+  #latList button[aria-pressed="true"]{color:var(--sun);border-color:rgba(232,214,74,.42)}
+
+  /* -------------------------------------------------------------- read-out */
+  #readout{
+    position:fixed;z-index:3;right:16px;top:calc(16px + env(safe-area-inset-top,0px));
+    padding:11px 13px;width:236px;
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  #readout .when{font-size:1.02rem;letter-spacing:.01em;color:var(--ink)}
+  #readout .doy{font-size:.64rem;color:var(--ink-3);margin:1px 0 9px}
+  #readout dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.68rem}
+  #readout dt{color:var(--ink-3);white-space:nowrap}
+  #readout dd{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+  #readout dd.sun{color:var(--sun)}
+  #readout hr{border:0;border-top:1px solid var(--rule);margin:9px 0}
+  #readout .pick{font-size:.68rem;color:var(--sun);margin-bottom:5px}
+  #year{display:block;width:100%;height:66px;margin:3px 0 4px}
+  #yearcap{font-size:.58rem;color:var(--ink-3);line-height:1.4;font-family:"IBM Plex Sans",sans-serif}
+
+  /* -------------------------------------------------------------- controls */
+  #controls{
+    position:fixed;z-index:3;left:50%;transform:translateX(-50%);
+    bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    width:min(700px,calc(100vw - 32px));padding:8px 11px 5px;
+  }
+  #row1{display:flex;align-items:center;gap:9px}
+  #row1 .gap{flex:1 1 auto;min-width:6px}
+  #row2{margin-top:2px}
+  #controls button{
+    font:inherit;font-size:.72rem;color:var(--ink-2);background:transparent;
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;cursor:pointer;
+    transition:color .15s,border-color .15s;flex:0 0 auto;white-space:nowrap;
+  }
+  #controls button:hover{color:var(--ink)}
+  #play{min-width:66px;font-weight:500}
+  #speeds,#seasons{display:flex;gap:4px;flex:0 0 auto}
+  #speeds button,#seasons button{padding:6px 8px;border-color:transparent;font-size:.68rem}
+  #speeds button[aria-pressed="true"]{color:var(--ink);border-color:var(--rule)}
+  #seasons button{color:var(--ink-3)}
+  #seasons button:hover{color:var(--sun)}
+  #lit[aria-pressed="false"]{color:var(--ink-3);border-color:transparent}
+  #scrub{
+    display:block;width:100%;height:24px;-webkit-appearance:none;appearance:none;
+    background:transparent;cursor:pointer;outline:none;
+  }
+  #scrub::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:var(--rule)}
+  #scrub::-moz-range-track{height:3px;border-radius:2px;background:var(--rule)}
+  #scrub::-webkit-slider-thumb{
+    -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--ink);margin-top:-4.5px;border:0;
+  }
+  #scrub::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:0}
+  #scrub:focus-visible{outline:1px solid var(--ink-3);outline-offset:3px}
+  /* The month scale sits under the scrubber and lines up with it, so the
+     equinoxes and the solstices are read off the track rather than looked up. */
+  #months{display:block;width:100%;height:15px;margin-top:1px}
+
+  /* ---------------------------------------------------------------- chrome */
+  #links{
+    position:fixed;z-index:3;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    display:flex;gap:6px;
+  }
+  #links a{
+    font-size:.68rem;color:var(--ink-3);text-decoration:none;background:var(--panel);
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+  #links a:hover{color:var(--ink-2)}
+  #notesbtn{
+    position:fixed;z-index:3;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    font:inherit;font-size:.68rem;color:var(--ink-3);background:var(--panel);
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;cursor:pointer;
+    backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+  }
+  #notesbtn:hover{color:var(--ink-2)}
+  #notes{
+    position:fixed;z-index:5;right:16px;bottom:calc(54px + env(safe-area-inset-bottom,0px));
+    width:min(430px,calc(100vw - 32px));max-height:min(66vh,560px);overflow-y:auto;
+    padding:16px 18px;font-size:.74rem;line-height:1.62;color:var(--ink-2);display:none;
+  }
+  #notes[data-open="true"]{display:block}
+  #notes h2{font-size:.86rem;color:var(--ink);margin-bottom:9px;font-weight:600}
+  #notes h3{font-size:.74rem;color:var(--ink);margin:14px 0 5px;font-weight:600}
+  #notes p{margin-bottom:8px}
+  #notes code{font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--ink)}
+  #notes a{color:var(--ink-2)}
+  #notes .sub{color:var(--ink-3);font-size:.7rem}
+
+  #loading{
+    position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--ink-3);
+    text-align:center;padding:24px;
+  }
+
+  /* The rail is the first thing to go: on a short window the read-out and the
+     controls are the working parts, and the prose is in the notes anyway. */
+  @media (max-height:660px){ #intro p, #intro .sub{display:none} }
+  /* A landscape phone is 390 tall. The read-out is the tallest thing on the
+     page and it is pinned to the top, so on a short window it sheds its
+     chart caption first and its chart second rather than growing down into
+     the controls. */
+  @media (max-height:560px){
+    #yearcap{display:none}
+    #year{height:44px}
+    #lats{display:none}
+  }
+  @media (max-height:430px){ #year{display:none} }
+  @media (max-width:1080px){
+    #rail{width:min(240px,calc(100vw - 32px))}
+    #readout{width:216px}
+  }
+  @media (max-width:860px){
+    #intro p, #intro .sub{display:none}
+    #seasons{display:none}
+    #readout{right:10px;top:calc(10px + env(safe-area-inset-top,0px));width:184px;padding:9px 10px}
+    #readout .when{font-size:.86rem}
+    #year{height:52px}
+    #rail{left:10px;top:calc(10px + env(safe-area-inset-top,0px));width:min(190px,44vw);
+          max-height:calc(100vh - var(--ctrl-h,66px) - 74px
+                                - env(safe-area-inset-top,0px)
+                                - env(safe-area-inset-bottom,0px))}
+    #controls{width:calc(100vw - 20px);bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+    #links{left:10px;bottom:auto;top:auto;
+           bottom:calc(var(--ctrl-h,66px) + 18px + env(safe-area-inset-bottom,0px))}
+    #notesbtn{right:10px;
+              bottom:calc(var(--ctrl-h,66px) + 18px + env(safe-area-inset-bottom,0px))}
+    #notes{left:10px;right:10px;width:auto;
+           bottom:calc(var(--ctrl-h,66px) + 52px + env(safe-area-inset-bottom,0px));
+           max-height:52vh}
+  }
+  @media (max-width:560px){
+    #speeds{display:none}
+    #lats{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="globe"></div>
+<canvas id="ring"></canvas>
+
+<div id="rail">
+  <div id="intro" class="panel">
+    <h1>How long the sun stays up</h1>
+    <p>Every spike is one latitude of the circle you are looking at edge-on, and
+       its length is that latitude&rsquo;s day length on the date shown. Turn the
+       globe and the ring re-reads itself.</p>
+    <span class="sub">Computed from the sunrise equation. No tracked animals on
+       this page &mdash; this is the calendar the other two run on.</span>
+  </div>
+  <div id="lats" class="panel">
+    <h2>Latitudes</h2>
+    <div id="latList"></div>
+  </div>
+</div>
+
+<div id="readout" class="panel">
+  <div class="when" id="when">&mdash;</div>
+  <div class="doy" id="doy">&mdash;</div>
+  <dl>
+    <dt>sun overhead</dt><dd class="sun" id="decl">&mdash;</dd>
+    <dt>24-hour day</dt><dd id="pday">&mdash;</dd>
+    <dt>polar night</dt><dd id="pnight">&mdash;</dd>
+  </dl>
+  <hr>
+  <div class="pick" id="pickname">&mdash;</div>
+  <dl>
+    <dt>daylight</dt><dd class="sun" id="dl">&mdash;</dd>
+    <dt>changing by</dt><dd id="rate">&mdash;</dd>
+    <dt>year&rsquo;s swing</dt><dd id="swing">&mdash;</dd>
+  </dl>
+  <canvas id="year"></canvas>
+  <div id="yearcap">the whole year at this latitude, 0 to 24 hours</div>
+</div>
+
+<div id="controls" class="panel">
+  <div id="row1">
+    <button id="play" aria-pressed="true">Pause</button>
+    <div id="speeds"></div>
+    <span class="gap"></span>
+    <div id="seasons"></div>
+    <button id="lit" aria-pressed="true" title="Light the globe from the sun's real direction for 12:00 UTC on this date">Sunlight</button>
+    <button id="fit" title="Frame the globe again and let it turn (0)">Fit</button>
+  </div>
+  <div id="row2">
+    <input id="scrub" type="range" min="0" max="3650" value="0" step="1"
+           aria-label="Seek through the year">
+    <canvas id="months"></canvas>
+  </div>
+</div>
+
+<div id="links">
+  <a href="index.html">&larr; Stork map</a>
+  <a href="globe.html">Journeys</a>
+</div>
+<button id="notesbtn" aria-expanded="false">Notes</button>
+<div id="notes" class="panel"></div>
+
+<div id="loading">loading the globe&hellip;</div>
+
+<script src="vendor/globe.gl.min.js"></script>
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ model
+
+   Nothing here is fetched and nothing here is tracked. Day length at a
+   latitude on a date is a computation, and the whole page is that computation
+   drawn twice: once as a ring of spikes around the globe's horizon, once as a
+   year-long curve for one latitude you pick.
+
+   The astronomy is the standard sunrise equation. Sunrise is defined the way
+   almanacs define it -- the centre of the sun at -0.833 degrees, which is the
+   upper limb on the horizon plus the usual allowance for refraction -- so the
+   equator gets a few minutes over twelve hours even at the equinox, and the
+   24-hour lobe reaches about a degree beyond the Arctic Circle. Both of those
+   are real and both are visible on the ring.                                */
+
+const DEG = Math.PI / 180, RAD = 180 / Math.PI;
+const OBLIQ = 23.4397;          /* mean obliquity of the ecliptic, degrees */
+const H0 = -0.833;              /* solar centre altitude at sunrise/sunset  */
+const SIN_H0 = Math.sin(H0 * DEG);
+const ARCTIC = 90 - OBLIQ;      /* 66.5603 -- the definitional circle       */
+const RADIUS = 100;             /* three-globe's world radius               */
+const DAY_MS = 86400000;
+
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* Days from J2000.0 (2000-01-01 12:00 UTC), the argument every term below
+   is written in. */
+function fromJ2000(ms){ return (ms - Date.UTC(2000, 0, 1, 12)) / DAY_MS; }
+
+/* Declination, apparent ecliptic longitude and the equation of time. The
+   equation of time is here only to place the light: it moves the subsolar
+   point by up to four degrees of longitude and moves day length by nothing
+   at all. */
+function sunAt(n){
+  const M = (357.5291 + 0.98560028 * n) % 360;
+  const C = 1.9148 * Math.sin(M * DEG)
+          + 0.0200 * Math.sin(2 * M * DEG)
+          + 0.0003 * Math.sin(3 * M * DEG);
+  const L = (M + 102.9372 + 180) % 360;            /* mean longitude       */
+  const lam = (L + C + 360) % 360;                 /* apparent longitude   */
+  const sd = Math.sin(lam * DEG) * Math.sin(OBLIQ * DEG);
+  const decl = Math.asin(clamp(sd, -1, 1)) * RAD;
+  const ra = Math.atan2(Math.cos(OBLIQ * DEG) * Math.sin(lam * DEG),
+                        Math.cos(lam * DEG)) * RAD;
+  const eot = ((L - ra + 540) % 360) - 180;        /* degrees; x4 = minutes */
+  return {decl, eot};
+}
+
+/* Hours between sunrise and sunset. At a pole the denominator vanishes and
+   the sun is simply up or down all day, which is what the guard returns. */
+function daylight(lat, decl){
+  const p = lat * DEG, d = decl * DEG;
+  const num = SIN_H0 - Math.sin(p) * Math.sin(d);
+  const den = Math.cos(p) * Math.cos(d);
+  if (Math.abs(den) < 1e-9) return num < 0 ? 24 : 0;
+  const c = num / den;
+  if (c <= -1) return 24;
+  if (c >= 1) return 0;
+  return 2 * Math.acos(c) * RAD / 15;
+}
+
+/* The two lobes of the ring have edges, and the edges have closed forms.
+   Twenty-four hours needs cos(lat + decl) = -sin(h0); polar night needs
+   cos(lat - decl) = sin(h0). Around the equinoxes the first has two roots
+   and both are real -- refraction gives each pole about a week either side
+   when the sun does not set at either. */
+const A_DAY = Math.acos(-SIN_H0) * RAD;    /* 89.1667 */
+const A_NIGHT = Math.acos(SIN_H0) * RAD;   /* 90.8333 */
+const inRange = v => Math.abs(v) <= 90 ? v : null;
+function polarDayEdges(decl){
+  return [inRange(A_DAY - decl), inRange(-A_DAY - decl)].filter(v => v !== null);
+}
+function polarNightEdges(decl){
+  return [inRange(decl + A_NIGHT), inRange(decl - A_NIGHT)].filter(v => v !== null);
+}
+
+/* ------------------------------------------------------------- the clock */
+
+const YEAR = new Date().getUTCFullYear();
+const YEAR_START = Date.UTC(YEAR, 0, 1, 12);
+const YEAR_DAYS = (Date.UTC(YEAR + 1, 0, 1, 12) - YEAR_START) / DAY_MS;
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
+                "Jul","Aug","Sep","Oct","Nov","Dec"];
+
+let t = 0;                      /* days into the year, fractional          */
+let playing = true;
+let speed = 12;                 /* days per second                          */
+let lit = true;
+let pickLat = 55;               /* the latitude the read-out is about       */
+let pickName = "the Baltic";
+let globe = null, ctx = null, cv = null, dpr = 1;
+let userZoomed = false;
+
+const dateOf = days => new Date(YEAR_START + days * DAY_MS);
+const sunNow = () => sunAt(fromJ2000(YEAR_START + t * DAY_MS));
+
+/* The equinoxes and the solstices of the year on screen, found rather than
+   looked up: an hourly sweep for the sign changes of the declination and for
+   its turning points, then a bisection. They move by up to a day and a bit
+   from year to year, and a page that hard-coded them would be wrong most
+   years. */
+function seasonMarks(){
+  const N = Math.round(YEAR_DAYS * 24);
+  const d = new Float64Array(N + 1);
+  for (let i = 0; i <= N; i++) d[i] = sunAt(fromJ2000(YEAR_START + i / 24 * DAY_MS)).decl;
+  const out = [];
+  const declAt = h => sunAt(fromJ2000(YEAR_START + h / 24 * DAY_MS)).decl;
+  for (let i = 1; i <= N; i++){
+    if (d[i - 1] < 0 && d[i] >= 0) out.push({k: "equinox", h: bisect(i - 1, i, declAt)});
+    if (d[i - 1] > 0 && d[i] <= 0) out.push({k: "equinox", h: bisect(i - 1, i, declAt)});
+  }
+  for (let i = 1; i < N; i++){
+    if ((d[i] - d[i - 1]) * (d[i + 1] - d[i]) <= 0 && Math.abs(d[i]) > 20)
+      out.push({k: "solstice", h: i});
+  }
+  return out.map(o => ({k: o.k, day: o.h / 24}))
+            .sort((a, b) => a.day - b.day)
+            .filter((o, i, a) => i === 0 || o.day - a[i - 1].day > 5);
+}
+function bisect(lo, hi, f){
+  let a = lo, b = hi, fa = f(a);
+  for (let i = 0; i < 40; i++){
+    const m = (a + b) / 2, fm = f(m);
+    if ((fa < 0) === (fm < 0)){ a = m; fa = fm; } else b = m;
+  }
+  return (a + b) / 2;
+}
+const MARKS = seasonMarks();
+
+/* ----------------------------------------------------------- the horizon
+
+   The globe's outline on screen is the circle where the line of sight grazes
+   the sphere. Every point of it has a latitude, and the ring is that
+   latitude's day length drawn outwards. Two consequences worth stating:
+
+   - with the camera over the equator the outline is a meridian and the ring
+     runs pole to pole, which is the picture this page is a version of;
+   - looking straight down at a pole, the outline is the equator, every
+     latitude on it is zero, and the ring is a flat twelve-hour circle. That
+     is not a failure of the drawing, it is the answer.
+
+   The camera is deliberately long-lensed -- a ten-degree field, a long way
+   back -- so the projection is nearly orthographic and the outline reaches
+   within a degree or so of the poles. A default fifty-degree field would put
+   it at 80 degrees and hide ten degrees of latitude at each end.            */
+
+const FOV = 10;
+
+function limbGeometry(){
+  const cam = globe.pointOfView();
+  const k = 1 / (1 + cam.altitude);           /* R / distance = sin(theta)  */
+  const tanT = k / Math.sqrt(1 - k * k);
+  const r = (innerHeight / 2) * tanT / Math.tan(FOV / 2 * DEG);
+  return {cam, k, r, cx: innerWidth / 2, cy: innerHeight / 2,
+          co: Math.sqrt(1 - k * k) * Math.cos(cam.lat * DEG),
+          off: k * Math.sin(cam.lat * DEG)};
+}
+/* sin(lat) = (R/d) sin(camLat) + sqrt(1-(R/d)^2) cos(camLat) sin(alpha),
+   with alpha measured from screen right, anticlockwise. */
+const limbLat = (a, g) => Math.asin(clamp(g.off + g.co * Math.sin(a), -1, 1)) * RAD;
+/* and back: the angles on the outline that carry a given latitude, if any. */
+function limbAlphas(lat, g){
+  if (Math.abs(g.co) < 1e-6) return [];
+  const s = (Math.sin(lat * DEG) - g.off) / g.co;
+  if (s < -1 || s > 1) return [];
+  const a = Math.asin(s);
+  return [a, Math.PI - a];
+}
+
+const SPAN_MULT = 1.40;         /* 24 hours, as a multiple of the outline    */
+const RING_MULT = 1 + SPAN_MULT;
+
+function fitAltitude(){
+  const m = Math.min(innerWidth, innerHeight);
+  const r = Math.max(38, Math.min(0.185 * m, (m / 2 - 16) / RING_MULT,
+                                  (innerHeight / 2 - 76) / RING_MULT));
+  const tanT = (2 * r / innerHeight) * Math.tan(FOV / 2 * DEG);
+  const k = tanT / Math.sqrt(1 + tanT * tanT);
+  return 1 / k - 1;
+}
+
+/* -------------------------------------------------------------- drawing */
+
+function sizeRing(){
+  cv = $("ring");
+  dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(innerWidth * dpr);
+  cv.height = Math.round(innerHeight * dpr);
+  cv.style.width = innerWidth + "px";
+  cv.style.height = innerHeight + "px";
+  ctx = cv.getContext("2d");
+}
+
+/* A point is on the near side when it lies inside the cap the camera can
+   see, whose half-angle is acos(R/d). Without this the graticule shows
+   through the planet and the sphere stops reading as one. */
+function front(lat, lng, g){
+  const a = lat * DEG, b = lng * DEG, c = g.cam.lat * DEG, d = g.cam.lng * DEG;
+  return Math.sin(a) * Math.sin(c) + Math.cos(a) * Math.cos(c) * Math.cos(b - d) > g.k;
+}
+
+function strokeParallel(lat, g, style){
+  if (Math.abs(lat) > 89.6) return;
+  const step = 4;
+  ctx.beginPath();
+  let pen = false;
+  for (let i = 0; i <= 360 / step; i++){
+    const lng = ((g.cam.lng - 180 + i * step + 540) % 360) - 180;
+    if (!front(lat, lng, g)){ pen = false; continue; }
+    const s = globe.getScreenCoords(lat, lng, 0.004);
+    if (!s || !isFinite(s.x)){ pen = false; continue; }
+    if (pen) ctx.lineTo(s.x, s.y); else { ctx.moveTo(s.x, s.y); pen = true; }
+  }
+  Object.assign(ctx, style.set);
+  ctx.setLineDash(style.dash || []);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function strokeMeridian(lng, g){
+  const step = 4;
+  ctx.beginPath();
+  let pen = false;
+  for (let i = 0; i <= 170 / step; i++){
+    const lat = -85 + i * step;
+    if (!front(lat, lng, g)){ pen = false; continue; }
+    const s = globe.getScreenCoords(lat, lng, 0.004);
+    if (!s || !isFinite(s.x)){ pen = false; continue; }
+    if (pen) ctx.lineTo(s.x, s.y); else { ctx.moveTo(s.x, s.y); pen = true; }
+  }
+  ctx.stroke();
+}
+
+const GRID   = {set: {strokeStyle: "rgba(196,216,246,.16)", lineWidth: .7}};
+const DEFN   = {set: {strokeStyle: "rgba(214,230,252,.30)", lineWidth: .9}, dash: [3, 4]};
+const EQUAT  = {set: {strokeStyle: "rgba(214,230,252,.40)", lineWidth: 1.0}, dash: [5, 4]};
+const SUNPAR = {set: {strokeStyle: "rgba(232,214,74,.85)",  lineWidth: 1.3}, dash: [6, 4]};
+const DAYEDG = {set: {strokeStyle: "rgba(232,214,74,.72)",  lineWidth: 1.4}};
+const NGTEDG = {set: {strokeStyle: "rgba(77,120,184,.85)",  lineWidth: 1.4}};
+const PICKED = {set: {strokeStyle: "rgba(255,241,150,.95)", lineWidth: 1.6}};
+
+function draw(){
+  if (!ctx || !globe) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.scale(dpr, dpr);
+
+  const g = limbGeometry();
+  const {decl} = sunNow();
+
+  /* -- on the globe ------------------------------------------------------ */
+  for (let lat = -75; lat <= 75; lat += 15) if (lat) strokeParallel(lat, g, GRID);
+  Object.assign(ctx, GRID.set);
+  ctx.setLineDash([]);
+  for (let lng = -180; lng < 180; lng += 15) strokeMeridian(lng, g);
+
+  strokeParallel(0, g, EQUAT);
+  strokeParallel(OBLIQ, g, DEFN);
+  strokeParallel(-OBLIQ, g, DEFN);
+  strokeParallel(ARCTIC, g, DEFN);
+  strokeParallel(-ARCTIC, g, DEFN);
+
+  strokeParallel(decl, g, SUNPAR);
+  for (const e of polarDayEdges(decl)) strokeParallel(e, g, DAYEDG);
+  for (const e of polarNightEdges(decl)) strokeParallel(e, g, NGTEDG);
+  strokeParallel(pickLat, g, PICKED);
+
+  /* -- the ring ---------------------------------------------------------- */
+  const span = SPAN_MULT * g.r, r24 = g.r + span;
+  const m = Math.min(innerWidth, innerHeight);
+  /* Zoom in far enough and the ring is off the screen on every side; it
+     fades out rather than becoming a set of stubs at the corners. */
+  const fade = clamp((1.15 * m - r24) / (0.35 * m), 0, 1);
+  if (fade <= 0.002) return;
+  ctx.globalAlpha = fade;
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(91,159,224,.55)";
+  const refs = [[g.r + span / 2, "12 hours of daylight"],
+                [r24, "24 hours of daylight"]];
+  for (const [rad] of refs){
+    ctx.beginPath();
+    ctx.arc(g.cx, g.cy, rad, 0, 6.2832);
+    ctx.stroke();
+  }
+
+  /* One spike per degree or so of the outline. Latitudes crowd towards the
+     top and the bottom, which is why the polar lobes look solid: that is the
+     projection, and it is the same crowding a globe has. */
+  const n = clamp(Math.round(6.2832 * g.r / 3.1), 180, 900);
+  ctx.lineWidth = Math.max(1, Math.min(1.45, 6.2832 * g.r / n * 0.46));
+  ctx.strokeStyle = "#e8d64a";
+  ctx.beginPath();
+  for (let i = 0; i < n; i++){
+    const a = i / n * 6.2832;
+    const h = daylight(limbLat(a, g), decl);
+    if (h <= 0.001) continue;
+    const ca = Math.cos(a), sa = Math.sin(a), r2 = g.r + span * h / 24;
+    ctx.moveTo(g.cx + g.r * ca, g.cy - g.r * sa);
+    ctx.lineTo(g.cx + r2 * ca, g.cy - r2 * sa);
+  }
+  ctx.stroke();
+
+  /* The picked latitude, on both sides of the outline where it appears. */
+  const hp = daylight(pickLat, decl);
+  for (const a of limbAlphas(pickLat, g)){
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const r2 = g.r + span * hp / 24;
+    ctx.strokeStyle = "rgba(255,244,168,.98)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(g.cx + g.r * ca, g.cy - g.r * sa);
+    ctx.lineTo(g.cx + r2 * ca, g.cy - r2 * sa);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(g.cx + r2 * ca, g.cy - r2 * sa, 2.6, 0, 6.2832);
+    ctx.fillStyle = "#fff4a8";
+    ctx.fill();
+  }
+
+  /* The labels last, and over a knocked-out strip: in June the northern lobe
+     reaches the twelve-hour circle and runs straight through its caption.
+     Above the circle on a desktop, below it on a phone where the read-out
+     owns the top of the screen, and dropped entirely when neither is free --
+     a caption sitting under a panel is worse than no caption. */
+  ctx.font = "500 10.5px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (const [rad, lab] of refs){
+    const wd = ctx.measureText(lab).width;
+    const spot = freeSpot(g.cx, wd + 12, 15, g.cy - rad - 9, g.cy + rad + 9);
+    if (spot === null) continue;
+    ctx.fillStyle = "rgba(4,7,13,.82)";
+    ctx.fillRect(g.cx - wd / 2 - 6, spot - 7.5, wd + 12, 15);
+    ctx.fillStyle = "rgba(155,190,232,.9)";
+    ctx.fillText(lab, g.cx, spot);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* Where the panels are, remeasured whenever the layout can have moved. It
+   saves the ring from having to guess, which at some viewport it would get
+   wrong. */
+let blockers = [];
+function measureBlockers(){
+  blockers = ["rail", "readout", "controls", "links", "notesbtn", "notes"]
+    .map(id => $(id))
+    .filter(Boolean)
+    .map(el => el.getBoundingClientRect())
+    /* Everything here is position:fixed, so offsetParent is null for all of
+       it and cannot be used to tell hidden from shown. A zero-sized rect
+       can. */
+    .filter(r => r.width > 0 && r.height > 0);
+}
+function freeSpot(cx, w, h, ...ys){
+  for (const y of ys){
+    if (y - h / 2 < 2 || y + h / 2 > innerHeight - 2) continue;
+    const box = {left: cx - w / 2, right: cx + w / 2, top: y - h / 2, bottom: y + h / 2};
+    if (blockers.every(b => b.right < box.left || b.left > box.right
+                         || b.bottom < box.top || b.top > box.bottom)) return y;
+  }
+  return null;
+}
+
+/* ------------------------------------------------------- the year, small */
+
+function drawYear(){
+  const c = $("year"), w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  const x = c.getContext("2d");
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, w, h);
+  const pad = 1, top = 11, bot = h - 9;
+  const yOf = v => bot - (bot - top) * v / 24;
+
+  x.lineWidth = 1;
+  x.font = "8px 'IBM Plex Mono', monospace";
+  x.textAlign = "left"; x.textBaseline = "bottom";
+  for (const v of [24, 12]){
+    x.strokeStyle = "rgba(91,159,224,.30)";
+    x.beginPath(); x.moveTo(pad, yOf(v)); x.lineTo(w - pad, yOf(v)); x.stroke();
+    x.fillStyle = "rgba(91,159,224,.72)";
+    x.fillText(v + " h", pad + 1, yOf(v) - 1.5);
+  }
+  x.strokeStyle = "rgba(150,175,215,.22)";
+  x.beginPath(); x.moveTo(pad, bot); x.lineTo(w - pad, bot); x.stroke();
+  /* The solstices and the equinoxes, so the curve has a calendar under it. */
+  for (const mk of MARKS){
+    const mx = pad + (w - 2 * pad) * mk.day / YEAR_DAYS;
+    x.strokeStyle = mk.k === "solstice" ? "rgba(232,214,74,.32)"
+                                        : "rgba(91,159,224,.32)";
+    x.beginPath(); x.moveTo(mx, bot); x.lineTo(mx, bot - 4); x.stroke();
+  }
+
+  x.beginPath();
+  for (let i = 0; i <= 240; i++){
+    const d = i / 240 * YEAR_DAYS;
+    const v = daylight(pickLat, sunAt(fromJ2000(YEAR_START + d * DAY_MS)).decl);
+    const px = pad + (w - 2 * pad) * i / 240;
+    i ? x.lineTo(px, yOf(v)) : x.moveTo(px, yOf(v));
+  }
+  x.strokeStyle = "#e8d64a"; x.lineWidth = 1.4; x.stroke();
+
+  const px = pad + (w - 2 * pad) * (t / YEAR_DAYS);
+  const v = daylight(pickLat, sunNow().decl);
+  x.strokeStyle = "rgba(238,243,251,.5)"; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(px, top); x.lineTo(px, bot); x.stroke();
+  x.beginPath(); x.arc(px, yOf(v), 2.6, 0, 6.2832);
+  x.fillStyle = "#fff4a8"; x.fill();
+}
+
+function drawMonths(){
+  const c = $("months"), w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+  const x = c.getContext("2d");
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, w, h);
+  /* The scrubber's thumb is 12px, so its travel is inset by 6px each end and
+     the scale has to be inset to match or the months lie about the date. */
+  const p = 6, iw = w - 2 * p;
+  const at = d => p + iw * d / YEAR_DAYS;
+
+  x.font = "9px 'IBM Plex Mono', monospace";
+  x.textBaseline = "top";
+  x.textAlign = "center";
+  for (let mo = 0; mo < 12; mo++){
+    const d0 = (Date.UTC(YEAR, mo, 1, 12) - YEAR_START) / DAY_MS;
+    const d1 = (Date.UTC(YEAR, mo + 1, 1, 12) - YEAR_START) / DAY_MS;
+    x.strokeStyle = "rgba(150,175,215,.18)";
+    x.beginPath(); x.moveTo(at(d0), 0); x.lineTo(at(d0), 3); x.stroke();
+    x.fillStyle = "rgba(107,122,147,.9)";
+    x.fillText(MONTHS[mo][0], at((d0 + d1) / 2), 5);
+  }
+  for (const mk of MARKS){
+    x.strokeStyle = mk.k === "solstice" ? "rgba(232,214,74,.75)"
+                                        : "rgba(91,159,224,.75)";
+    x.lineWidth = 1.2;
+    x.beginPath(); x.moveTo(at(mk.day), 0); x.lineTo(at(mk.day), 4); x.stroke();
+  }
+}
+
+/* ------------------------------------------------------------- read-outs */
+
+const fmtLat = v => Math.abs(v) < 0.05 ? "0.0°"
+  : Math.abs(v).toFixed(1) + "°" + (v > 0 ? "N" : "S");
+
+function fmtHM(h){
+  if (h >= 23.9995) return "24 h";
+  if (h <= 0.0005) return "0 h";
+  const m = Math.round(h * 60);
+  return (m / 60 | 0) + " h " + String(m % 60).padStart(2, "0") + " m";
+}
+function fmtMS(min){
+  const s = Math.round(Math.abs(min) * 60), sign = min < 0 ? "−" : "+";
+  if (s < 1) return "—";
+  return sign + (s / 60 | 0) + " m " + String(s % 60).padStart(2, "0") + " s";
+}
+function edgeText(edges){
+  if (!edges.length) return "—";
+  if (edges.length > 1) return "both poles";
+  return "from " + fmtLat(edges[0]);
+}
+
+/* The swing is the year's range at one latitude -- five minutes on the
+   equator, ten hours in the Baltic, twenty-four at the Arctic Circle. It is
+   the number the ring is really about. */
+function yearSwing(lat){
+  let lo = 24, hi = 0;
+  for (let i = 0; i <= 365; i++){
+    const v = daylight(lat, sunAt(fromJ2000(YEAR_START + i * DAY_MS)).decl);
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  return {lo, hi, range: hi - lo};
+}
+
+let lastSwing = null;
+function refresh(){
+  const d = dateOf(t), s = sunNow();
+  $("when").textContent = d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]
+                        + " " + d.getUTCFullYear();
+  $("doy").textContent = "day " + (Math.floor(t) + 1) + "/" + YEAR_DAYS
+                       + (lit ? " · lit 12:00 UTC" : "");
+  $("decl").textContent = fmtLat(s.decl);
+  $("pday").textContent = edgeText(polarDayEdges(s.decl));
+  $("pnight").textContent = edgeText(polarNightEdges(s.decl));
+
+  $("pickname").textContent = fmtLat(pickLat)
+    + (pickName ? " · " + pickName : "");
+  const h = daylight(pickLat, s.decl);
+  $("dl").textContent = fmtHM(h);
+  const n0 = fromJ2000(YEAR_START + t * DAY_MS);
+  const rate = (daylight(pickLat, sunAt(n0 + 0.5).decl)
+              - daylight(pickLat, sunAt(n0 - 0.5).decl)) * 60;
+  const rs = fmtMS(rate);
+  $("rate").textContent = (h >= 23.9995 || h <= 0.0005 || rs === "—")
+                        ? "—" : rs + " / day";
+  if (!lastSwing || lastSwing.lat !== pickLat)
+    lastSwing = Object.assign({lat: pickLat}, yearSwing(pickLat));
+  $("swing").textContent = fmtHM(lastSwing.range);
+
+  for (const b of $("latList").children)
+    b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.lat - pickLat) < 1e-6));
+}
+
+/* ---------------------------------------------------------------- wiring */
+
+const LATS = [
+  {lat: ARCTIC,  name: "Arctic Circle"},
+  {lat: 55,      name: "the Baltic"},
+  {lat: 27.5,    name: "Sargasso spawning"},
+  {lat: OBLIQ,   name: "Tropic of Cancer"},
+  {lat: 0,       name: "Equator"},
+  {lat: -27,     name: "southern Africa"},
+  {lat: -52.5,   name: "Campbell Island"},
+  {lat: -ARCTIC, name: "Antarctic Circle"},
+];
+
+function setPick(lat, name){
+  pickLat = clamp(lat, -90, 90);
+  pickName = name || "";
+  refresh();
+  drawYear();
+}
+
+function setT(v){
+  t = ((v % YEAR_DAYS) + YEAR_DAYS) % YEAR_DAYS;
+  $("scrub").value = Math.round(t / YEAR_DAYS * 3650);
+  refresh();
+  drawYear();
+}
+
+function fit(){
+  userZoomed = false;
+  const v = globe.pointOfView();
+  globe.pointOfView({lat: 0, lng: v.lng, altitude: fitAltitude()}, 550);
+  globe.controls().autoRotate = true;
+}
+
+function wire(){
+  const list = $("latList");
+  for (const L of LATS){
+    const b = document.createElement("button");
+    b.dataset.lat = L.lat;
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = '<span class="nm"></span><span class="dg"></span>';
+    b.querySelector(".nm").textContent = L.name;
+    b.querySelector(".dg").textContent = fmtLat(L.lat);
+    b.onclick = () => setPick(L.lat, L.name);
+    list.appendChild(b);
+  }
+
+  const sp = $("speeds");
+  for (const v of [4, 12, 30]){
+    const b = document.createElement("button");
+    b.textContent = v;
+    b.title = v + " days per second";
+    b.setAttribute("aria-pressed", String(v === speed));
+    b.onclick = () => {
+      speed = v;
+      for (const o of sp.children) o.setAttribute("aria-pressed", String(+o.textContent === v));
+    };
+    sp.appendChild(b);
+  }
+
+  const se = $("seasons");
+  for (const mk of MARKS){
+    const d = dateOf(mk.day);
+    const b = document.createElement("button");
+    b.textContent = MONTHS[d.getUTCMonth()];
+    b.title = (mk.k === "solstice" ? "Solstice" : "Equinox") + ", "
+            + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + YEAR;
+    b.onclick = () => { setT(mk.day); playing = false; syncPlay(); };
+    se.appendChild(b);
+  }
+
+  $("play").onclick = () => { playing = !playing; syncPlay(); };
+  $("scrub").oninput = e => setT(+e.target.value / 3650 * YEAR_DAYS);
+  $("fit").onclick = fit;
+  $("lit").onclick = () => {
+    lit = !lit;
+    $("lit").setAttribute("aria-pressed", String(lit));
+    $("lit").textContent = lit ? "Sunlight" : "Flat light";
+    applyLight(true);
+    refresh();
+  };
+  $("notesbtn").onclick = () => {
+    const n = $("notes"), open = n.dataset.open !== "true";
+    n.dataset.open = String(open);
+    $("notesbtn").setAttribute("aria-expanded", String(open));
+    measureBlockers();
+  };
+
+  addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey) return;
+    if (e.code === "Space"){ e.preventDefault(); playing = !playing; syncPlay(); }
+    else if (e.key === "ArrowRight"){ e.preventDefault(); setT(t + (e.shiftKey ? 10 : 1)); }
+    else if (e.key === "ArrowLeft"){ e.preventDefault(); setT(t - (e.shiftKey ? 10 : 1)); }
+    else if (e.key === "0"){ fit(); }
+  });
+
+  /* Clicking the globe picks the latitude you clicked; clicking outside it
+     picks the latitude that part of the ring is drawn for, which is the only
+     way to reach the latitudes the far side of the outline hides. A drag is
+     not a click, so the two do not fight. */
+  let down = null;
+  addEventListener("pointerdown", e => { down = {x: e.clientX, y: e.clientY}; });
+  addEventListener("pointerup", e => {
+    const d0 = down; down = null;
+    if (!d0 || !globe) return;
+    if (Math.hypot(e.clientX - d0.x, e.clientY - d0.y) > 5) return;
+    if (e.target.closest && e.target.closest("#rail,#readout,#controls,#links,#notes,#notesbtn")) return;
+    const g = limbGeometry();
+    const dx = e.clientX - g.cx, dy = g.cy - e.clientY;
+    const rr = Math.hypot(dx, dy);
+    if (rr <= g.r * 1.005) return;              /* the globe handles its own */
+    setPick(limbLat(Math.atan2(dy, dx), g), "");
+  });
+
+  addEventListener("resize", () => {
+    sizeRing();
+    drawMonths();
+    drawYear();
+    if (!userZoomed){
+      const v = globe.pointOfView();
+      globe.pointOfView({lat: v.lat, lng: v.lng, altitude: fitAltitude()}, 0);
+    }
+    measureControls();
+    measureBlockers();
+  });
+}
+
+function syncPlay(){
+  $("play").textContent = playing ? "Pause" : "Play";
+  $("play").setAttribute("aria-pressed", String(playing));
+}
+
+/* The back-link and the notes button sit above the controls on a phone, so
+   they need the controls' real height rather than a guessed one. */
+function measureControls(){
+  document.documentElement.style.setProperty(
+    "--ctrl-h", Math.round($("controls").getBoundingClientRect().height) + "px");
+}
+
+/* ------------------------------------------------------------------ light */
+
+let sunLight = null, ambLight = null;
+function applyLight(force){
+  if (!sunLight) return;
+  const s = sunNow();
+  /* At 12:00 UTC the sun stands over the Greenwich meridian give or take the
+     equation of time, which is worth including here because it is four
+     degrees at its worst and free to compute. It moves day length by nothing:
+     day length is a whole-day quantity and does not know what time it is. */
+  const p = globe.getCoords(s.decl, -s.eot, 1.6);
+  sunLight.position.set(p.x, p.y, p.z);
+  if (force){
+    /* Blue Marble is a cloud-free daylight composite, so the unlit side is
+       this same summer surface with the light taken off it -- no city lights,
+       no clouds, because there are none in the source. Flat light puts the
+       ambient back for reading the map rather than the terminator. */
+    sunLight.intensity = lit ? 3.1 : 0.55;
+    ambLight.intensity = lit ? 0.40 : 3.0;
+  }
+}
+
+/* ------------------------------------------------------------------ notes */
+
+$("notes").innerHTML = [
+  "<h2>Notes</h2>",
+
+  "<p>This page draws one thing: how many hours the sun is above the horizon,",
+  "at every latitude, on every day of " + YEAR + ". It is a computation, not a",
+  "recording. There is no deposit behind it, no data is fetched at load, and no",
+  "animal appears on it &mdash; the only things it loads are globe.gl and the two",
+  "images the globe is made of, and both of those are vendored rather than",
+  "fetched from a CDN.</p>",
+
+  "<h3>Reading the ring</h3>",
+  "<p>The circle you see is not the equator and not a meridian: it is the",
+  "globe&rsquo;s outline, the circle where your line of sight grazes the sphere.",
+  "Every point of it has a latitude, and the spike drawn outwards there is",
+  "that latitude&rsquo;s day length &mdash; nothing at the rim, the inner circle at",
+  "twelve hours, the outer circle at twenty-four.</p>",
+  "<p>With the camera over the equator the outline is a meridian, so the ring",
+  "runs pole to pole and both halves of it say the same thing twice. Turn the",
+  "globe over a pole and the outline becomes the equator, every latitude on it",
+  "is zero, and the ring flattens to a twelve-hour circle. That is not the",
+  "drawing failing; it is the answer to the question you just asked it.</p>",
+  "<p>The gold parallel on the globe is where the sun is overhead. The solid",
+  "gold and blue parallels are the edges of the two lobes: the first latitude",
+  "that gets a whole day of sun, and the first that gets none. The dashed",
+  "white parallels are the fixed ones &mdash; the equator, the tropics, the polar",
+  "circles &mdash; and the bright one is whichever latitude the read-out is about.",
+  "Click anywhere on the globe, or anywhere on the ring, to move it.</p>",
+
+  "<h3>What counts as sunrise</h3>",
+  "<p>Almanacs put sunrise at the moment the sun&rsquo;s <em>upper limb</em> touches",
+  "the horizon, and the atmosphere lifts the image of the sun by about half a",
+  "degree before it is geometrically there. Together those put the centre of",
+  "the sun <code>0.833&deg;</code> below the horizon at sunrise, which is the",
+  "figure used here. Two visible consequences, both real:</p>",
+  "<p class='sub'>&mdash; the equator never gets exactly twelve hours. It gets",
+  "12 h 07 m, all year.<br>",
+  "&mdash; the twenty-four-hour lobe reaches about a degree beyond the Arctic",
+  "Circle: at the June solstice it starts at 65.7&deg;N, not 66.6&deg;N. And for",
+  "roughly a week either side of each equinox the sun fails to set at",
+  "<em>both</em> poles at once, which the read-out will tell you.</p>",
+
+  "<h3>How close it is</h3>",
+  "<p>The sunrise equation ignores the observer&rsquo;s longitude and elevation and",
+  "treats the declination as fixed across the day. Those shift sunrise and",
+  "sunset, but they shift both nearly equally, so the <em>length</em> survives",
+  "them. Checked against published tables for the 2024 June solstice: London",
+  "16 h 38 m, New York 15 h 06 m, Sydney 9 h 54 m &mdash; the same to the minute in",
+  "all three. Refraction is the loose end, since it varies with the weather,",
+  "and a minute is about what it is worth.</p>",
+
+  "<h3>The camera, and what it hides</h3>",
+  "<p>A wide lens close in would make the outline a small circle of latitude",
+  "rather than a great one: at globe.gl&rsquo;s default fifty-degree field the",
+  "outline sits at 80&deg;, and ten degrees at each end would be behind it. So",
+  "this page uses a ten-degree field a long way back, which is nearly an",
+  "orthographic projection and puts the outline within about a degree of the",
+  "poles. Zoom in for the relief and the ring fades out rather than breaking",
+  "into stubs at the corners of the screen; <kbd>0</kbd> or <b>Fit</b> brings",
+  "it back.</p>",
+
+  "<h3>The light</h3>",
+  "<p>With <b>Sunlight</b> on, the globe is lit from the sun&rsquo;s real direction",
+  "for 12:00 UTC on the date shown, equation of time included &mdash; so the",
+  "terminator on the sphere is the same line the ring is measuring, and at the",
+  "solstice you can watch it miss the pole entirely. Nothing else on the page",
+  "depends on the hour: day length is a whole-day quantity and does not know",
+  "what time it is.</p>",
+  "<p>The imagery is NASA&rsquo;s Blue Marble Next Generation, a cloud-free",
+  "<em>daylight</em> composite, with a global elevation map as a bump layer. The",
+  "unlit side is therefore the same summer surface with the light taken off",
+  "it: no city lights and no clouds, because there are none in the source.",
+  "<b>Flat light</b> puts the ambient back when you want to read the map",
+  "rather than the terminator.</p>",
+
+  "<h3>Why this is here</h3>",
+  "<p>The other two pages are about where animals went. This one is the clock",
+  "they went by. What finally launches a migration is argued over &mdash; weather,",
+  "wind, fat load, the birds around you &mdash; but that photoperiod sets the",
+  "window is not: day length is the one signal that says the same thing on the",
+  "same date every year, and it is the same signal at every longitude.</p>",
+  "<p>The latitudes in the left-hand list are the ones the other two pages",
+  "work in. The Baltic at 55&deg;N is the north edge of the ",
+  "<a href='index.html'>stork map</a> and southern Africa at 27&deg;S its south",
+  "edge, and the difference between them is the reason for the whole journey:",
+  "a bird that spends December at 27&deg;S has a 13 h 50 m day instead of the",
+  "7 h 10 m one it left behind. Campbell Island is where the albatross of the",
+  "<a href='globe.html'>journeys page</a> starts and ends its loop, and the",
+  "Sargasso latitudes are the eel&rsquo;s spawning area. Pick each in turn and",
+  "watch the small chart change shape.</p>",
+
+  "<p class='sub'>Astronomy: the standard sunrise equation, with the solar",
+  "position from the mean anomaly and the equation of centre &mdash; good to about",
+  "0.01&deg; of declination over this century. Rendering: globe.gl (MIT,",
+  "bundles three.js), vendored rather than fetched, over NASA imagery. The",
+  "ring, the graticule and the labels are one 2-D canvas over the globe. The",
+  "solstices and equinoxes are found by sweeping the declination for this",
+  "year rather than hard-coded, because they move.</p>",
+].join(" ");
+
+/* ------------------------------------------------------------------- boot */
+
+let last = 0;
+
+function updateClip(){
+  const c = globe.camera();
+  const d = c.position.length();
+  const near = Math.max(0.1, d - 132), far = d + 132;
+  if (Math.abs(c.near - near) > 0.5 || Math.abs(c.far - far) > 0.5){
+    c.near = near; c.far = far; c.updateProjectionMatrix();
+  }
+}
+
+function frame(now){
+  const dt = Math.min(0.12, (now - last) / 1000);
+  last = now;
+  if (playing) setT(t + speed * dt);
+  applyLight(false);
+  updateClip();
+  draw();
+  requestAnimationFrame(frame);
+}
+
+(function boot(){
+  try {
+    globe = Globe()
+      .globeImageUrl("vendor/earth-blue-marble.jpg")
+      .bumpImageUrl("vendor/earth-topology.png")
+      .backgroundColor("#04070d")
+      .showAtmosphere(true)
+      .atmosphereColor("#5b9fe0")
+      .atmosphereAltitude(0.13)
+      .width(innerWidth)
+      .height(innerHeight)
+      (document.getElementById("globe"));
+
+    const cam = globe.camera();
+    cam.fov = FOV;
+    cam.updateProjectionMatrix();
+
+    /* Relief is the point of using a bump map rather than a flat texture, and
+       the default scale is set for a globe seen small. Raised until the
+       Andes, the Himalaya and the mid-Atlantic ridge read at the framed
+       distance, and no further: past that the terminator grows a fringe. */
+    const mat = globe.globeMaterial();
+    mat.bumpScale = 16;
+    mat.shininess = 3;
+
+    for (const l of globe.lights()){
+      if (l.type === "AmbientLight") ambLight = l;
+      if (l.type === "DirectionalLight") sunLight = l;
+    }
+
+    const c = globe.controls();
+    c.enableDamping = true;
+    c.dampingFactor = 0.12;
+    /* Blue Marble is 4096 pixels around, which is about 650 pixels of image
+       per radian. Past a screen radius of that the page is magnifying rather
+       than showing anything, so the zoom stops where the imagery does -- a
+       little over four times in from the framed view. */
+    c.minDistance = RADIUS * 8;
+    c.maxDistance = RADIUS * (1 + fitAltitude()) * 1.9;
+
+    /* The ring depends on the camera's latitude and on nothing else -- turn
+       the globe in longitude and every spike stays exactly where it was. So
+       the globe can be left turning under a fixed sun without the chart
+       moving at all, which is the one thing a flat version of this cannot
+       do: the terminator crosses the disc, the relief lights from the side
+       as it goes, and the day lengths hold still.
+
+       Turning it by hand stops the spin, because you turned it somewhere on
+       purpose. A zoom does not: wanting a closer look at the Andes is not
+       wanting the globe to stop. Fit gives it back. */
+    c.autoRotate = true;
+    c.autoRotateSpeed = 0.4;                /* about three minutes a turn */
+    let grabbed = null;
+    c.addEventListener("start", () => { grabbed = globe.pointOfView(); c.autoRotate = false; });
+    c.addEventListener("end", () => {
+      if (!grabbed) return;
+      const v = globe.pointOfView();
+      const turned = Math.abs(v.lat - grabbed.lat) > 0.25
+                  || Math.abs(((v.lng - grabbed.lng) + 540) % 360 - 180) > 0.25;
+      const zoomed = Math.abs(v.altitude - grabbed.altitude) > 0.01 * grabbed.altitude;
+      if (zoomed) userZoomed = true;
+      if (!turned && !zoomed) c.autoRotate = true;
+      grabbed = null;
+    });
+
+    globe.onGlobeClick(({lat}) => setPick(lat, ""));
+    globe.pointOfView({lat: 0, lng: 45, altitude: fitAltitude()}, 0);
+
+    sizeRing();
+    wire();
+    syncPlay();
+    applyLight(true);
+    setT(t);
+    drawMonths();
+    drawYear();
+    measureControls();
+    measureBlockers();
+
+    const hide = () => { $("loading").style.display = "none"; };
+    globe.onGlobeReady(hide);
+    setTimeout(hide, 4000);
+
+    last = performance.now();
+    requestAnimationFrame(frame);
+  } catch (err){
+    $("loading").innerHTML =
+      "this page needs WebGL, and this browser did not give it &mdash; "
+      + "the numbers behind the ring are all in the notes";
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>

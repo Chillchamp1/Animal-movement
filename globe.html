@@ -252,13 +252,20 @@
   #stages b{font-weight:400;margin-left:auto;padding-left:12px;opacity:.75;
             font-variant-numeric:tabular-nums}
 
-  #maplink{
+  #pagelinks{
     position:fixed;z-index:3;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+    display:flex;gap:6px;
+  }
+  #pagelinks a{
     font-size:.68rem;color:var(--ink-3);text-decoration:none;background:var(--panel);
-    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;
+    border:1px solid var(--rule);border-radius:7px;padding:6px 11px;white-space:nowrap;
     backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
   }
-  #maplink:hover{color:var(--ink-2)}
+  #pagelinks a:hover{color:var(--ink-2)}
+  /* On a phone this row shares its line with the schematic badge, which is
+     centred and cannot be allowed to collide with anything, so the back-link
+     gives up two words rather than the second link giving up its place. */
+  #pagelinks .sm{display:none}
 
   #loading{
     position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
@@ -288,8 +295,11 @@
               bottom:calc(10px + env(safe-area-inset-bottom,0px))}
     #notesbtn{right:10px;bottom:auto;
               top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px))}
-    #maplink{left:10px;bottom:auto;
-             top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px))}
+    #pagelinks{left:10px;bottom:auto;
+               top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px))}
+    #pagelinks a{font-size:.6rem;padding:5px 8px}
+    #pagelinks .lg{display:none}
+    #pagelinks .sm{display:inline}
     #notes{right:10px;left:10px;width:auto;top:auto;
            bottom:calc(var(--ctrl-h,54px) + 18px + env(safe-area-inset-bottom,0px));
            max-height:56vh}
@@ -304,9 +314,11 @@
       top:calc(var(--pick-h,67px) + 18px + env(safe-area-inset-top,0px));
       font-size:.5rem;padding:4px 9px;letter-spacing:.05em;
     }
-    /* At 320px the full badge reaches both the back-link and the notes
-       button; the first word is the load-bearing one. */
-    @media (max-width:420px){ #schematic .long{display:none} }
+    /* Below this the full badge reaches the links on its left; the first
+       word is the load-bearing one, so the rest goes. The threshold is where
+       the two actually meet -- it moved out from 420px when the links became
+       a row of two rather than a single back-link. */
+    @media (max-width:470px){ #schematic .long{display:none} }
     #stages{right:10px;top:auto;padding:7px 9px;font-size:.58rem;
             bottom:calc(var(--ctrl-h,54px) + var(--ro-h,116px)
                         + var(--chap-h,54px) + 34px
@@ -376,7 +388,10 @@
 
 <div id="stages" class="panel"></div>
 
-<a id="maplink" href="index.html">&larr; Stork map</a>
+<div id="pagelinks">
+  <a href="index.html"><span class="lg">&larr; Stork map</span><span class="sm">&larr; Map</span></a>
+  <a href="daylight.html">Daylight</a>
+</div>
 <button id="notesbtn" aria-expanded="false">Data notes</button>
 <div id="notes" class="panel"></div>
 
