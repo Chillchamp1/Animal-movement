@@ -339,6 +339,124 @@ remembered, so it stays correct when the scrubber jumps and when the globe is
 turned by hand. Measured at 6 ms per frame for 900 particles on a software
 renderer.
 
+## The clock they go by
+
+`daylight.html` is a third page and the only one with no animals on it. It
+draws how many hours the sun is above the horizon, at every latitude, on every
+day of the year — a ring of spikes standing off a lit relief globe, running
+through a year.
+
+It is here because photoperiod is the cue. What finally launches a migration is
+argued over — weather, wind, fat load, the birds around you — but that day
+length sets the window is not: it is the one signal that says the same thing on
+the same date every year, and says it identically at every longitude. The other
+two pages are about where animals went. This one is what they were reading.
+
+### Reading the ring
+
+The circle the spikes stand on is not the equator and not a meridian: it is the
+globe's **outline**, the circle where the line of sight grazes the sphere. Every
+point of it has a latitude, and the spike drawn outwards from it is that
+latitude's day length — nothing at the rim, the inner circle at twelve hours,
+the outer at twenty-four.
+
+That definition is what makes the page worth turning. With the camera over the
+equator the outline is a meridian and the ring runs pole to pole, which is the
+familiar picture. Turn the globe over a pole and the outline becomes the
+equator, every latitude on it is zero, and the ring flattens into a twelve-hour
+circle. That is not the drawing failing; it is the answer to the question the
+camera just asked. The ring depends on the camera's *latitude* and on nothing
+else, which is also why the globe can be left slowly turning under a fixed sun
+without a single spike moving.
+
+On the sphere itself: a gold parallel where the sun is overhead, solid gold and
+blue ones at the two edges the lobes begin at — the first latitude with a whole
+day of sun and the first with none — dashed white ones at the fixed circles, and
+a bright one at whichever latitude the read-out is about. Clicking the globe
+moves it; so does clicking the ring, which is the only way to reach the
+latitudes hidden behind the outline.
+
+### What counts as sunrise
+
+Almanacs put sunrise at the moment the sun's *upper limb* touches the horizon,
+and the atmosphere lifts the image of the sun about half a degree before it is
+geometrically there. Together those put the centre of the sun `0.833°` below the
+horizon, which is the figure used here. Two consequences are visible on the
+ring, and both are real:
+
+- **The equator never gets twelve hours.** It gets 12 h 07 m, every day of the
+  year, and its whole annual swing is one minute.
+- **The 24-hour lobe overshoots the Arctic Circle.** At the June solstice it
+  starts at 65.7°N, not 66.6°N. And for about a week either side of each
+  equinox the sun fails to set at *both* poles at once — the read-out says
+  "both poles" when that happens.
+
+The equation ignores the observer's longitude and elevation and holds the
+declination fixed across the day. Those shift sunrise and sunset, but they shift
+both nearly equally, so the *length* survives them. Checked against published
+tables for the 2024 June solstice: London 16 h 38 m, New York 15 h 06 m, Sydney
+9 h 54 m — the same to the minute in all three. Refraction is the loose end,
+since it varies with the weather, and a minute is about what it is worth.
+
+### The latitudes in the list
+
+The eight in the left-hand panel are the ones the other pages work in, and the
+right-hand column is the whole reason any of them migrate.
+
+| | Latitude | Longest day | Shortest day | Swing |
+|---|---:|---:|---:|---:|
+| **Arctic Circle** | 66.56°N | 24 h 00 m | 2 h 10 m | 21 h 50 m |
+| **The Baltic** | 55°N | 17 h 22 m | 7 h 10 m | 10 h 13 m |
+| **Sargasso spawning** | 27.5°N | 13 h 53 m | 10 h 24 m | 3 h 29 m |
+| **Tropic of Cancer** | 23.44°N | 13 h 35 m | 10 h 41 m | 2 h 53 m |
+| **Equator** | 0° | 12 h 07 m | 12 h 07 m | 0 h 01 m |
+| **Southern Africa** | 27°S | 13 h 50 m | 10 h 26 m | 3 h 24 m |
+| **Campbell Island** | 52.5°S | 16 h 50 m | 7 h 39 m | 9 h 11 m |
+
+55°N is the north edge of the stork map and 27°S its south edge. A bird that
+spends December at the second gets a 13 h 50 m day instead of the 7 h 10 m one
+it left behind. Campbell Island is where the albatross of the globe page starts
+and ends its loop; the Sargasso row is the eel's spawning area, the same
+24–31°N band the eel view draws its ellipse in.
+
+### The camera, the light, and what each hides
+
+A wide lens close in would make the outline a small circle of latitude rather
+than a great one: at globe.gl's default fifty-degree field it sits at 80°, and
+ten degrees at each end would be behind it. So the page uses a **ten-degree
+field a long way back** — nearly an orthographic projection — which puts the
+outline within about a degree of the poles. Those last degrees are flat 24 h or
+flat 0 h whenever they matter.
+
+With **Sunlight** on, the globe is lit from the sun's real direction for 12:00
+UTC on the date shown, equation of time included, so the terminator on the
+sphere is the same line the ring is measuring. Nothing else on the page depends
+on the hour: day length is a whole-day quantity and does not know what time it
+is. Blue Marble is a cloud-free *daylight* composite, so the unlit side is the
+same summer surface with the light taken off it — no city lights and no clouds,
+because there are none in the source. **Flat light** puts the ambient back for
+reading the map rather than the terminator.
+
+Zoom stops a little over four times in from the framed view. The imagery is 4096
+pixels around, about 650 pixels per radian, and past that the page would be
+magnifying rather than showing anything. The ring fades out on the way in rather
+than breaking into stubs at the corners of the screen; `0` or **Fit** brings it
+back, and starts the globe turning again.
+
+### What it needs
+
+No data. There is no deposit behind this page, no build step, and nothing to
+load but the vendored globe.gl and its two images. It still wants a web server,
+but only because a browser will not hand a `file://` page its own textures —
+opened straight off the disk the ring and the read-out are right and the globe
+is a bare sphere. The solar position comes from the mean
+anomaly and the equation of centre, good to about 0.01° of declination over this
+century, and the solstices and equinoxes are found by sweeping the declination
+for whichever year the page is opened in rather than hard-coded, because they
+move by a day and a bit from year to year. The ring, the graticule and every
+label are one 2-D canvas over the globe: 1.6 ms a frame at the framed view on a
+software renderer.
+
 ## The ground under them
 
 **Satellite** — Esri World Imagery, fetched as tiles at view time — is the
@@ -513,3 +631,12 @@ Backdrop, from two measured sources:
   green is a faint wash keyed to tree, shrub, grass and crop cover. Its job is
   one edge: the Sahara is bare and the Sahel below it is not, and that line is
   where the desert crossing ends.
+
+For the daylight page — no deposit and no measurements, because it is a
+computation. The solar position is the low-precision series everyone uses for
+this (mean anomaly, equation of centre, obliquity 23.4397°), which is good to
+about 0.01° of declination over this century; the day length is the sunrise
+equation on top of it, with the almanac convention that sunrise and sunset are
+the centre of the sun at −0.833°, the upper limb on the horizon plus standard
+refraction. The imagery is the same NASA Blue Marble and elevation map the
+globe page uses, from `vendor/`.
