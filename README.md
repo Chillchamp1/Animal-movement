@@ -457,6 +457,114 @@ move by a day and a bit from year to year. The ring, the graticule and every
 label are one 2-D canvas over the globe: 1.6 ms a frame at the framed view on a
 software renderer.
 
+## Two clocks, kept apart
+
+`rings.html` is a fourth page and a second look at the same quantity. The
+daylight ring answers *how long is the day here*; this one answers it for the
+whole planet at once, and spends its effort on a different problem: two things
+move in that picture and they move on different clocks, and a viewer has every
+reason to read them as the same kind of thing.
+
+The **date** decides where the sun never rises and where it never sets. Those
+two circles are fixed for a whole day. The **hour** decides where the lit ground
+ends. That edge sweeps once a day and says nothing at all about how long
+anyone's day is. Conflating them is the mistake the page is built to prevent, so
+it separates them everywhere it can:
+
+- **In colour.** Gold is the date and nothing else — both boundary circles, the
+  year track, the date read-out and its slider. Cyan is the hour and nothing
+  else — the terminator, the day track, the clock and its slider. The two rings
+  share the gold, so the line itself tells them apart: solid where the sun never
+  sets, dashed where it never rises.
+- **In motion.** The terminator glides; it is continuous. The rings never glide,
+  because the date they answer to is `Math.floor(day)` and nothing on any plate
+  ever reads the fraction. They hold one position for a whole day and jump.
+- **In the two tracks** along the top and bottom of the polar plate, drawn to
+  the same geometry on opposite edges so only their contents differ. The top one
+  is the year, and its curve is real day length at 60°N. The bottom is the day,
+  and its curve is the share of the world's land in sunlight, hour by hour.
+
+### The plates
+
+A **polar pair** in azimuthal equidistant — latitude is the radius, so the
+boundary circles are true circles and the whole planet fits a portrait frame —
+and **two globes at the same tilt either side of the equator**, 50°N and 50°S.
+The pair is a picture of the season rather than of the hour: on one face a cap
+where the sun never rises, on the other, at the same instant, a cap where it
+never sets. December has them one way round, June the other, the equinoxes
+matched. South America rather than Africa for the southern face because Africa
+stops at Cape Agulhas, 34.8°S, while South America runs to Cape Horn at 56°S.
+
+### Which half stands still
+
+The toggle above the globes decides what a globe camera is fixed to, and the
+choice decides which half of the picture moves:
+
+- **Earth turns** — the camera rides the sub-solar longitude at a constant hour
+  angle, 55° west of it. The lit and unlit halves never move on screen and the
+  planet turns through them, which is the real arrangement: a terminator is not
+  something that travels, it is a place the ground goes through. Under this mode
+  a globe camera holds one local time for ever (08:20), and the only thing left
+  to move the line is the season.
+- **Shadow moves** — the camera is bolted to a longitude instead, 28°W and 62°W,
+  and the light crosses a fixed view the way it does on the map.
+
+Neither is more correct. Both read the same real longitudes; a crossing takes
+one solar day either way. The mode is one line in `render()`, because the whole
+pipeline is built on ground longitudes and only projects at the end.
+
+### Rates, and what they cost
+
+One turn of a sun-locked globe *is* the solar day, so its period is not a free
+parameter: 360° divided by the longitude the sun covers each real second. At the
+page's default that is a **23-second day** and a **91-second year**; the speed
+control moves both together, because a year is 365 turns and they cannot be
+dialled apart. Quarter speed gives a 91-second turn and a six-minute year.
+
+The cost is stated on the page rather than hidden: one turn carries about **91
+days** of date with it, where a real Earth carries one. Each clock stays exactly
+truthful about itself; only their ratio to each other is squeezed, and it is
+squeezed because a season has to arrive inside a single sitting. Every figure
+the page quotes about either clock is derived from the two rate constants at
+load, so the prose cannot drift from the code — which it did once, when a
+paragraph claiming the rings hold still for a whole rotation survived a rate
+change that made it false.
+
+### Where the ground comes from
+
+Coastlines are a **quarter-degree land mask** built from the vendored Blue
+Marble imagery combined with its terrain model, terrain alone below 60°S so the
+Antarctic edge is the continent rather than the sea ice in the photograph. Its
+area-weighted land share comes out at 30.1% against a true 29.2%, the difference
+being coastal cells rounded in.
+
+Relief on all three plates uses the same terrain model, lit from the sun's
+actual direction at each point rather than from a fixed studio light — so ranges
+stand up as they reach dawn and dusk and flatten at noon, and the night side has
+none. It is a relative bump map, not elevation in metres: the mountains are in
+the right places and the right order, but the shading is not a measurement. The
+slope response saturates rather than scaling, because the mean non-zero slope in
+this model is under 7 units against 173 for the Himalaya, and a straight
+multiple either loses every hill or blows out every range.
+
+The **land-in-sunlight** curve is computed from that mask by prefix sums over
+longitude, one lookup per latitude row rather than a scan. It is checked two
+ways: swept over 24 hours on 21 December it gives 0.45787, and computed instead
+as the land-weighted mean of day length over 24 it gives 0.45788. On the June
+solstice it runs from 74% of all land lit at 12:00 UTC to 38% at 20:00; in
+December, 65% against 27%. Nearly a three-to-one swing, and purely a fact about
+the hour — it peaks when Africa and Eurasia face the sun together and bottoms
+out over the Pacific.
+
+### What it needs
+
+Nothing beyond the two files it is already built from. No library, no network at
+run time except the Google Fonts stylesheet, and no data files: the mask and the
+terrain travel inside the page as base64. Day lengths agree with published
+almanac tables — Berlin 7h39 and 16h50 at the solstices, London 7h49,
+Reykjavík 4h07, Sydney 14h25 — and are geometric, taking no account of terrain
+or local horizon.
+
 ## The ground under them
 
 **Satellite** — Esri World Imagery, fetched as tiles at view time — is the
