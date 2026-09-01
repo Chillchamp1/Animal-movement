@@ -111,13 +111,13 @@
     padding:10px;box-shadow:var(--shadow)}
   .panel canvas{display:block;width:100%;height:100%;border-radius:12px}
   .tall{width:320px;max-width:100%;aspect-ratio:9/19.5}
-  .camrow{display:flex;align-items:center;gap:11px;margin:0 0 14px;
+  .camrow{display:flex;flex-wrap:wrap;align-items:center;gap:9px 11px;margin:0 0 14px;
     font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.62rem;
     letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
   .camrow .toggle{margin-top:0}
   .globes{display:grid;gap:18px}
   @media (min-width:560px){ .globes{grid-template-columns:1fr 1fr} }
-  .globe{aspect-ratio:1/1.16}
+  .globe{aspect-ratio:1/1.06}
   .cap{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.61rem;
     letter-spacing:.07em;color:var(--ink-3);margin:8px 2px 0}
   .cap b{color:var(--ink-2);font-weight:500}
@@ -219,9 +219,6 @@
 <div class="stage">
   <div>
     <div class="panel tall"><canvas id="polar"></canvas></div>
-    <p class="cap"><b>Both poles, equal-distance.</b> Latitude is the radius, so the
-      rings are true circles and the whole planet fits one portrait frame. Relief is
-      lit from the real sun direction here too.</p>
   </div>
   <div>
     <div class="camrow">
@@ -229,19 +226,13 @@
       <div class="toggle small" id="cam" role="group" aria-label="What holds still">
         <button data-c="sun" aria-pressed="true">Earth turns</button>
         <button data-c="ground" aria-pressed="false">Shadow moves</button>
+        <button data-c="wobble" aria-pressed="false">Earth wobbles</button>
+        <button data-c="point" aria-pressed="false">Sun is a point</button>
       </div>
     </div>
     <div class="globes">
-      <div><div class="panel globe"><canvas id="gN"></canvas></div>
-        <p class="cap"><b>The north face.</b> 50&deg;N. Under <b>Earth turns</b> the
-          camera is bolted to the sun and holds 08:20 local for ever; under <b>Shadow
-          moves</b> it is bolted to the ground at 28&deg;W instead, out in the
-          Atlantic.</p></div>
-      <div><div class="panel globe"><canvas id="gS"></canvas></div>
-        <p class="cap"><b>The south face.</b> The same tilt the other way and the same
-          hour angle, so the only thing that differs between the two pictures is the
-          season &mdash; and it differs completely. Ground-locked it sits at
-          62&deg;W, over South America.</p></div>
+      <div><div class="panel globe"><canvas id="gN"></canvas></div></div>
+      <div><div class="panel globe"><canvas id="gS"></canvas></div></div>
     </div>
     <div class="cols" style="margin-top:26px">
       <div class="card g">
@@ -265,6 +256,11 @@
   <h3>What the plates are telling you</h3>
   <div class="cols">
     <div>
+      <p>Three plates, and each says what it is in its own corners rather than in a
+         caption underneath. The tall one is <strong>both poles at once</strong>, drawn
+         azimuthal equidistant so that latitude is the radius and the boundary circles
+         come out as true circles. The two round ones are the same planet at
+         <strong>50&deg; north and 50&deg; south</strong>, one each side of the equator.</p>
       <p>Day length depends on two numbers and nothing else: your latitude, and the
          sun&rsquo;s declination &mdash; how far north or south of the equator it stands
          that day. Longitude never enters. That is why the colour of the ground here is
@@ -347,6 +343,34 @@
          view, the way it does on the map. Neither is more correct than the other; both
          read the same real longitudes, and the only difference is which motion you are
          being asked to watch. A crossing takes one solar day either way.</p>
+      <p><strong>Earth wobbles</strong> nails the light down completely. Where the
+         terminator meets the edge of the globe is decided by one thing &mdash; which way
+         the sun lies on the screen &mdash; because a point on the edge is at a right
+         angle to the camera, a point on the terminator is at a right angle to the sun,
+         and the two conditions leave only the direction perpendicular to both. So
+         holding the sun at a single screen position holds those contact points still,
+         and in fact holds the whole line still, ends and middle alike.</p>
+      <p><strong>Sun is a point</strong> answers the obvious next question: if the
+         sun is not allowed its figure-of-eight, where does the eight go? Onto the
+         ground. Pinning the sun means something has to absorb the wobble, and the only
+         thing left to absorb it is the planet. So this mode marks one fixed spot on
+         Earth and draws its path through the year, in the frame where the sun does not
+         move &mdash; and it is the same curve, the same width against the same height,
+         moved from the sky to the surface. Which of the two is &ldquo;really&rdquo;
+         wobbling is not a fact about the solar system; it is a choice of what to hold
+         still.</p>
+      <p>Seeing it costs one honest departure, and the plate admits to it: the globes
+         are <em>strobed</em>. They are drawn at the same mean time every day rather
+         than on the running clock, because the daily spin is a full turn and the wobble
+         is a few degrees, and the first would drown the second entirely. That is
+         exactly how an analemma photograph is taken &mdash; one frame a day, always at
+         the same hour &mdash; and it is the only way the residual motion is visible at
+         all. The map keeps the real clock throughout.</p>
+      <p>The price of pinning is the camera&rsquo;s fixed latitude: to keep the sun there as the
+         declination swings, the camera has to nod with it, from 25&deg; to 77&deg; and
+         back over the year. That is the wobble. Underneath it the planet still turns
+         once a solar day, so the ground both spins and rolls while the light does
+         nothing at all. The corner read-out counts the latitude off as it goes.</p>
       <p>One thing does still move the line under <strong>Earth turns</strong>, and it is
          worth waiting for: the date. As
          the declination swings through the year the terminator tilts and slides while
@@ -626,6 +650,7 @@ function tables(decl){
 
 /* ------------------------------------------------------------- the plates */
 const TOPH=54, BOTH=52, KEYH=0, VOID=[11,16,23];
+let DPR_CAP=2;
 const OPTS=[];
 function polarPlate(id){
   return {id, kind:"polar", disc:0.99};
@@ -643,11 +668,66 @@ function globePlate(id,lat0,sunOffset,groundLng,name){
      longitudes -- so the toggle costs one line here and nothing anywhere else.
      lng0Base is what the pixel cache was built at; lng0 is where the camera is
      now, and only the overlays -- rings, terminator, cities -- read it. */
-  return {id, kind:"globe", lat0, sunOffset, groundLng,
-          lng0Base:0, lng0:0, name, disc:0.955};
+  /* homeLat is where the camera sits when it is not wobbling; lat0 is where
+     the pixel cache was last aimed, and the two differ only in wobble mode. */
+  return {id, kind:"globe", lat0, homeLat:lat0, sunOffset, groundLng,
+          lng0Base:0, lng0:0, name, disc:0.99};
 }
 
 const wrap=(v,m)=>{ const r=v%m; return r<0?r+m:r; };
+/* The camera's geometry for a band of rows. Re-aiming in longitude is free --
+   it is a constant offset the paint loop absorbs -- but re-aiming in LATITUDE
+   is a rotation, and every pixel has to be projected again. A full pass costs
+   more than a frame, so the wobble does it in slices; consecutive aims differ
+   by less than a pixel, which is why the half-updated plate does not show a
+   seam and no second buffer is needed. */
+function globeRows(o,y0,y1,lat0){
+  const W=o.pw, H=o.ph, R=o.R;
+  const s0=Math.sin(lat0*DEG), c0=Math.cos(lat0*DEG);
+  for(let py=y0;py<y1;py++) for(let px=0;px<W;px++){
+    const i=py*W+px;
+    const x=(px+0.5-W/2)/R, y=(H/2-(py+0.5))/R, r2=x*x+y*y;
+    if(r2>1){ o.on[i]=0; continue; }
+    o.on[i]=1;
+    const z=Math.sqrt(1-r2);
+    const lat=Math.asin(clamp(y*c0+z*s0,-1,1))*RAD;
+    /* built at the plate's base longitude; the spin is applied per frame */
+    const lng=o.lng0Base+Math.atan2(x, z*c0-y*s0)*RAD;
+    o.lat[i]=clamp(Math.round((lat+90)*10),0,1800);
+    o.lng[i]=((Math.round(lng*10)%3600)+3600)%3600;
+    cell(o,i,lat,lng);
+    /* limb darkening only: enough curvature cue to read as a ball */
+    o.lim[i]=0.80+0.20*Math.pow(z,0.40);
+  }
+}
+/* Walk the camera to a new latitude without dropping a frame. Under a couple
+   of degrees it is sliced; a bigger jump (someone dragging the date) is done
+   at once, because a torn plate would be worse than one long frame. */
+const WOB_SLICES=10, WOB_STEP=0.25, WOB_JUMP=2;
+function aimAt(o,lat){
+  if(o.builtLat===undefined){ o.builtLat=o.lat0; o.wobRow=o.ph; }
+  /* A big move pre-empts a slice run in flight. Without this the camera is deaf
+     for the ten frames a run takes, which is invisible at animation speed but
+     leaves it stuck several degrees behind while someone drags the date. */
+  const ref = o.wobRow<o.ph ? o.wobTarget : o.builtLat;
+  if(Math.abs(lat-ref)>WOB_JUMP){
+    globeRows(o,0,o.ph,lat);
+    o.builtLat=lat; o.wobRow=o.ph; o.lat0=lat;
+    return;
+  }
+  if(o.wobRow>=o.ph && Math.abs(lat-o.builtLat)>WOB_STEP){
+    o.wobTarget=lat; o.wobRow=0;
+  }
+  if(o.wobRow<o.ph){
+    const end=Math.min(o.ph,o.wobRow+Math.ceil(o.ph/WOB_SLICES));
+    globeRows(o,o.wobRow,end,o.wobTarget);
+    o.wobRow=end;
+    if(o.wobRow>=o.ph) o.builtLat=o.wobTarget;
+    o.lat0=o.wobTarget;
+  } else o.lat0=o.builtLat;
+}
+/* a pixel's row and column in the land mask; the relief grid is exactly half
+   of it on both axes, so one pair of indices serves both */
 function cell(o,i,lat,lng){
   o.mrow[i]=clamp(((90-lat)/180*LH)|0,0,LH-1);
   o.mcol[i]=wrap(((lng+180)/360*LW)|0,LW);
@@ -655,19 +735,27 @@ function cell(o,i,lat,lng){
 function build(o){
   const cv=$(o.id);
   const cw=Math.max(60,Math.round(cv.clientWidth)), ch=Math.max(60,Math.round(cv.clientHeight));
-  const dpr=Math.min(2,window.devicePixelRatio||1);
+  /* two device pixels per CSS pixel is plenty for a screen; recording lifts the
+     cap so the plate can be captured at a full 1080 wide */
+  const dpr=Math.min(DPR_CAP,window.devicePixelRatio||1);
   cv.width=Math.round(cw*dpr); cv.height=Math.round(ch*dpr);
   o.cv=cv; o.x=cv.getContext("2d"); o.x.setTransform(dpr,0,0,dpr,0,0);
   o.cw=cw; o.ch=ch; o.dpr=dpr;
-  o.top = o.kind==="polar" ? TOPH : 26;
-  o.bot = o.kind==="polar" ? BOTH : 22;
-  o.my  = o.ch-o.bot;                       /* map region is [top, my) */
+  /* The map keeps its two tracks; the globes gave theirs up, because a circle
+     leaves four corners empty and a band does not. Everything those bands
+     carried now sits in the corners, and the sphere gets the space back. */
+  o.top = o.kind==="polar" ? TOPH : 0;
+  o.bot = o.kind==="polar" ? BOTH : 0;
+  /* map region is [top, my). A hidden or very short container reports a zero
+     box, and without this floor the height goes negative and the typed arrays
+     below throw rather than simply drawing nothing. */
+  o.my  = Math.max(o.top+20, o.ch-o.bot);
   const mh=o.my-o.top;
   o.R = o.kind==="polar" ? Math.min(cw,mh/2)/2*o.disc : Math.min(cw,mh)/2*o.disc;
   const W=Math.round(cw), H=Math.round(mh), n=W*H;
   o.pw=W; o.ph=H; o.mh=mh;
   if(!o.buf){ o.buf=document.createElement("canvas"); o.bx=o.buf.getContext("2d"); }
-  o.buf.width=W; o.buf.height=H;
+  o.buf.width=W; o.buf.height=H; o.builtLat=undefined;
   o.on=new Uint8Array(n); o.lat=new Int16Array(n); o.lng=new Int16Array(n);
   /* Both projections carry relief; only the globe carries a limb, so the map's
      limb factor is a flat one and the two share one inner loop.
@@ -700,24 +788,7 @@ function build(o){
         cell(o,i,lat,lng); o.lim[i]=1;
       }
     }
-  } else {
-    const s0=Math.sin(o.lat0*DEG), c0=Math.cos(o.lat0*DEG);
-    for(let py=0;py<H;py++) for(let px=0;px<W;px++){
-      const i=py*W+px;
-      const x=(px+0.5-W/2)/R, y=(H/2-(py+0.5))/R, r2=x*x+y*y;
-      if(r2>1){ o.on[i]=0; continue; }
-      o.on[i]=1;
-      const z=Math.sqrt(1-r2);
-      const lat=Math.asin(clamp(y*c0+z*s0,-1,1))*RAD;
-      /* built at the plate's base longitude; the spin is applied per frame */
-      const lng=o.lng0Base+Math.atan2(x, z*c0-y*s0)*RAD;
-      o.lat[i]=clamp(Math.round((lat+90)*10),0,1800);
-      o.lng[i]=((Math.round(lng*10)%3600)+3600)%3600;
-      cell(o,i,lat,lng);
-      /* limb darkening only: enough curvature cue to read as a ball */
-      o.lim[i]=0.80+0.20*Math.pow(z,0.40);
-    }
-  }
+  } else globeRows(o,0,H,o.lat0);
   o.img=o.bx.createImageData(W,H);
   o.u32=new Uint32Array(o.img.data.buffer);
 }
@@ -783,17 +854,20 @@ function paint(o, subLng, decl, spin=0){
 
 /* --------------------------------------------------------- projection */
 const gCY=o=>o.top+(o.my-o.top)/2;
+function projectAt(o,lat0,lng0,lat,lng){
+  const s0=Math.sin(lat0*DEG), c0=Math.cos(lat0*DEG);
+  const p=lat*DEG, A=Math.cos(p)*Math.cos((lng-lng0)*DEG), zc=Math.sin(p);
+  const x=Math.cos(p)*Math.sin((lng-lng0)*DEG);
+  const y=zc*c0-A*s0, z=zc*s0+A*c0;
+  return [o.cw/2+x*o.R, gCY(o)-y*o.R, z];
+}
 function project(o,lat,lng){
   if(o.kind==="polar"){
     const north=lat>=0, cy=o.top+(o.my-o.top)*(north?0.25:0.75);
     const rho=(90-Math.abs(lat))/90, a=lng*DEG;
     return [o.cw/2+rho*o.R*Math.sin(a), cy+rho*o.R*(north?-Math.cos(a):Math.cos(a)), 1];
   }
-  const s0=Math.sin(o.lat0*DEG), c0=Math.cos(o.lat0*DEG);
-  const p=lat*DEG, A=Math.cos(p)*Math.cos((lng-o.lng0)*DEG), zc=Math.sin(p);
-  const x=Math.cos(p)*Math.sin((lng-o.lng0)*DEG);
-  const y=zc*c0-A*s0, z=zc*s0+A*c0;
-  return [o.cw/2+x*o.R, gCY(o)-y*o.R, z];
+  return projectAt(o,o.lat0,o.lng0,lat,lng);
 }
 /* Every label on a plate competes for the same space, so they all book it in
    one list: rings first, because they are the structure, then cities. */
@@ -853,6 +927,132 @@ function terminator(o,decl,subLng,width,alpha){
   x.stroke();
 }
 
+/* ------------------------------------------------------------- the wobble
+   The sun does not return to the same place at the same clock time each day.
+   It runs ahead and falls behind -- the equation of time, from the orbit being
+   an ellipse and the axis being tilted -- while its declination swings with the
+   season. Plot one against the other over a year and you get the analemma.
+
+   Drawn here as the ground track it really is: for each day, where the sun
+   stands overhead at that meridian's local mean noon. Anchoring the loop so
+   today's point lands on the live sub-solar point puts it round the sun rather
+   than off over Africa, and costs nothing in truth -- every meridian has one,
+   and they are all the same shape. */
+function analemma(o,c){
+  const x=o.x, n=ANA.length-1;
+  /* This lands on the brightest ground there is -- the sun is overhead at one
+     end of it -- so every stroke goes down twice: a dark casing first, then the
+     gold. Without that it is cream on cream and simply cannot be seen. */
+  /* ANA holds the year already sampled; recomputing the sun eighty-eight times
+     a globe a frame bought nothing */
+  const path=()=>{
+    x.beginPath();
+    let prev=null;
+    for(let k=0;k<=n;k++){
+      const s2=ANA[k];
+      const p=project(o, s2[1], c.subLng + c.eot - s2[0]);
+      if(p[2]<=0){ prev=null; continue; }
+      if(prev && Math.hypot(p[0]-prev[0],p[1]-prev[1])<o.R*0.5) x.lineTo(p[0],p[1]);
+      else x.moveTo(p[0],p[1]);
+      prev=p;
+    }
+  };
+  x.setLineDash([]); x.lineJoin="round";
+  path(); x.strokeStyle="rgba(11,16,23,.62)"; x.lineWidth=3.2; x.stroke();
+  path(); x.strokeStyle="rgba(255,214,110,.95)"; x.lineWidth=1.3; x.stroke();
+  const p=project(o,c.decl,c.subLng);          /* today's point is the sun */
+  if(p[2]>0){
+    x.beginPath(); x.arc(p[0],p[1],4.4,0,6.2832);
+    x.strokeStyle="rgba(11,16,23,.7)"; x.lineWidth=3; x.stroke();
+    x.strokeStyle="rgba(255,236,170,.98)"; x.lineWidth=1.4; x.stroke();
+    x.beginPath(); x.arc(p[0],p[1],1.5,0,6.2832);
+    x.fillStyle="rgba(255,244,214,.98)"; x.fill();
+  }
+}
+/* The figure-of-eight, but drawn where it goes once the sun is not allowed to
+   have it. Pin the sun to a screen point and something has to absorb the wobble;
+   what absorbs it is the ground. This is one fixed spot on Earth, photographed
+   at the same mean time every day of the year, in the frame where the sun does
+   not move -- the analemma of the planet instead of the analemma of the sun,
+   and the same curve either way. */
+function groundTrail(o,c,sl){
+  const x=o.x;
+  if(!o.spot){
+    const s0=sun(0), g0=pinSun(o,s0.decl);
+    o.spot={lat:g0.lat, lng:((subLngAt(STROBE_H,s0.eot)-g0.H+540)%360)-180};
+  }
+  const path=()=>{
+    x.beginPath();
+    let prev=null;
+    for(let k=0;k<ANA.length;k++){
+      const g=pinSun(o,ANA[k][1]);
+      const l0=((subLngAt(STROBE_H,ANA[k][0])-g.H+540)%360)-180;
+      const p=projectAt(o,g.lat,l0,o.spot.lat,o.spot.lng);
+      if(p[2]<=0){ prev=null; continue; }
+      if(prev && Math.hypot(p[0]-prev[0],p[1]-prev[1])<o.R*0.5) x.lineTo(p[0],p[1]);
+      else x.moveTo(p[0],p[1]);
+      prev=p;
+    }
+  };
+  x.setLineDash([]); x.lineJoin="round";
+  path(); x.strokeStyle="rgba(11,16,23,.62)"; x.lineWidth=3.4; x.stroke();
+  path(); x.strokeStyle="rgba(214,226,240,.9)"; x.lineWidth=1.3; x.stroke();
+  const p=project(o,o.spot.lat,o.spot.lng);
+  if(p[2]>0){
+    x.beginPath(); x.arc(p[0],p[1],3.6,0,6.2832);
+    x.strokeStyle="rgba(11,16,23,.75)"; x.lineWidth=3; x.stroke();
+    x.fillStyle="rgba(236,243,252,.98)"; x.fill();
+    x.font='500 6.4px "IBM Plex Mono", monospace';
+    x.textAlign="left"; x.textBaseline="middle";
+    x.lineWidth=2.4; x.strokeStyle="rgba(11,16,23,.85)";
+    x.strokeText("one spot on the ground",p[0]+7,p[1]);
+    x.fillStyle="rgba(214,226,240,.92)";
+    x.fillText("one spot on the ground",p[0]+7,p[1]);
+  }
+}
+/* the sun, when it is the thing being held still */
+function sunPoint(o,decl,sl){
+  const x=o.x, p=project(o,decl,sl);
+  if(p[2]<=0) return;
+  x.beginPath(); x.arc(p[0],p[1],4.6,0,6.2832);
+  x.strokeStyle="rgba(11,16,23,.7)"; x.lineWidth=3.4; x.stroke();
+  x.strokeStyle="rgba(255,236,170,.98)"; x.lineWidth=1.5; x.stroke();
+  x.beginPath(); x.arc(p[0],p[1],1.8,0,6.2832);
+  x.fillStyle="rgba(255,244,214,.99)"; x.fill();
+  x.font='500 6.4px "IBM Plex Mono", monospace';
+  x.textAlign="right"; x.textBaseline="middle";
+  x.lineWidth=2.4; x.strokeStyle="rgba(11,16,23,.85)";
+  x.strokeText("the sun, held still",p[0]-8,p[1]);
+  x.fillStyle="rgba(255,224,150,.95)"; x.fillText("the sun, held still",p[0]-8,p[1]);
+}
+
+/* the same figure, as a plate-corner inset, for when the sun is round the back */
+const ANA=(()=>{ const a=[];
+  for(let k=0;k<=88;k++){ const s2=sun(k/88*YDAYS); a.push([s2.eot,s2.decl]); }
+  return a; })();
+const ANA_E=[Math.min(...ANA.map(v=>v[0])), Math.max(...ANA.map(v=>v[0]))];
+function anaInset(o,c,ax,ay,aw,ah){
+  const x=o.x;
+  plaque(x,ax-5,ay-11,aw+10,ah+22);
+  const X=e=>ax+(e-ANA_E[0])/(ANA_E[1]-ANA_E[0])*aw, Y=d=>ay+ah/2-d/23.4397*(ah/2);
+  x.strokeStyle="rgba(231,236,243,.10)"; x.lineWidth=1;
+  x.beginPath(); x.moveTo(ax,Y(0)); x.lineTo(ax+aw,Y(0)); x.stroke();
+  x.beginPath();
+  for(let k=0;k<ANA.length;k++){
+    const px=X(ANA[k][0]), py=Y(ANA[k][1]);
+    k?x.lineTo(px,py):x.moveTo(px,py);
+  }
+  x.closePath(); x.strokeStyle="rgba(232,183,74,.75)"; x.lineWidth=1; x.stroke();
+  x.beginPath(); x.arc(X(c.eot),Y(c.decl),2.1,0,6.2832);
+  x.fillStyle="rgba(255,244,214,.98)"; x.fill();
+  x.font='500 6.2px "IBM Plex Mono", monospace';
+  x.fillStyle="rgba(126,138,156,.95)";
+  x.textAlign="left"; x.textBaseline="bottom";
+  x.fillText("sun at noon",ax-2,ay-3);
+  x.textBaseline="top"; x.textAlign="center";
+  x.fillText("±16 min · ±23°",ax+aw/2,ay+ah+3);
+}
+
 /* -------------------------------------------------------------- cities */
 function cities(o,decl,subLng,maxLabels,gap){
   const x=o.x;
@@ -897,8 +1097,11 @@ function cities(o,decl,subLng,maxLabels,gap){
       x.textBaseline="middle"; x.textAlign="left";
       x.lineWidth=2.2; x.strokeStyle="rgba(11,16,23,.85)";
       x.strokeText(nm,cx0-w/2,ly); x.strokeText(" "+fig,cx0-w/2+wn,ly);
-      x.fillStyle="rgba(206,216,228,.82)"; x.fillText(nm,cx0-w/2,ly);
-      x.fillStyle="rgba(232,183,74,.86)"; x.fillText(" "+fig,cx0-w/2+wn,ly);
+      /* Deliberately NOT gold: gold on this page means the date and nothing
+         else, and a city's day length is a reading off the map, not a mark on
+         the year track. Name dim, figure bright, both neutral. */
+      x.fillStyle="rgba(184,196,212,.72)"; x.fillText(nm,cx0-w/2,ly);
+      x.fillStyle="rgba(240,246,252,.95)"; x.fillText(" "+fig,cx0-w/2+wn,ly);
       break;
     }
   }
@@ -954,20 +1157,23 @@ function strip(o,band,curve,lo,hi,frac,col,soft,label,value,ticks,top,mid){
   x.fillStyle="rgb(11,16,23)"; x.fillRect(0,band[0],o.cw,band[1]-band[0]);
   const cy0=top?band[0]+13:band[0]+9, cy1=top?band[1]-11:band[1]-15;
   const Y=v=>cy1-(v-lo)/(hi-lo)*(cy1-cy0);
-  /* the curve */
-  x.beginPath();
-  for(let i=0;i<curve.length;i++){
-    const px=PADX+i/(curve.length-1)*w, py=Y(curve[i]);
-    i?x.lineTo(px,py):x.moveTo(px,py);
+  /* the curve, when there is one: a null strip is a bare axis, which is what
+     the recordings use */
+  if(curve){
+    x.beginPath();
+    for(let i=0;i<curve.length;i++){
+      const px=PADX+i/(curve.length-1)*w, py=Y(curve[i]);
+      i?x.lineTo(px,py):x.moveTo(px,py);
+    }
+    x.lineTo(PADX+w,cy1+1); x.lineTo(PADX,cy1+1); x.closePath();
+    x.fillStyle=soft; x.fill();
+    x.beginPath();
+    for(let i=0;i<curve.length;i++){
+      const px=PADX+i/(curve.length-1)*w, py=Y(curve[i]);
+      i?x.lineTo(px,py):x.moveTo(px,py);
+    }
+    x.strokeStyle=col; x.lineWidth=1.1; x.stroke();
   }
-  x.lineTo(PADX+w,cy1+1); x.lineTo(PADX,cy1+1); x.closePath();
-  x.fillStyle=soft; x.fill();
-  x.beginPath();
-  for(let i=0;i<curve.length;i++){
-    const px=PADX+i/(curve.length-1)*w, py=Y(curve[i]);
-    i?x.lineTo(px,py):x.moveTo(px,py);
-  }
-  x.strokeStyle=col; x.lineWidth=1.1; x.stroke();
   /* the scale */
   x.font='500 6px "IBM Plex Mono", monospace'; x.textBaseline=top?"top":"bottom";
   x.textAlign="center"; x.fillStyle="rgba(110,122,140,.9)";
@@ -981,8 +1187,10 @@ function strip(o,band,curve,lo,hi,frac,col,soft,label,value,ticks,top,mid){
   const mx=PADX+frac*w;
   x.strokeStyle=col; x.lineWidth=1.4;
   x.beginPath(); x.moveTo(mx,band[0]+ (top?11:4)); x.lineTo(mx,band[1]-(top?4:11)); x.stroke();
-  const cv=curve[clamp(Math.round(frac*(curve.length-1)),0,curve.length-1)];
-  x.beginPath(); x.arc(mx,Y(cv),2.4,0,6.2832); x.fillStyle=col; x.fill();
+  if(curve){
+    const cv=curve[clamp(Math.round(frac*(curve.length-1)),0,curve.length-1)];
+    x.beginPath(); x.arc(mx,Y(cv),2.4,0,6.2832); x.fillStyle=col; x.fill();
+  }
   /* the two names */
   const ly=top?band[0]+4:band[1]-4;
   x.textBaseline=top?"top":"bottom";
@@ -1028,51 +1236,79 @@ const MTICK=(()=>{const a=[];const L="JFMAMJJASOND";
   return a;})();
 const HTICK=[[0,"00"],[.25,"06"],[.5,"12"],[.75,"18"],[1,"24"]];
 
+/* The two tracks can run as bare axes -- marker, ticks, read-out -- with their
+   curves left off. The page keeps them, because the prose explains them; the
+   recordings do not, because at arm's length on a phone they are noise. */
+let CURVES=true;
 function tracks(o,c){
-  strip(o,[0,o.top],YCURVE,ylo,yhi,c.dd/YDAYS,GOLDC,GOLDS,
-        "DATE  ·  THE RINGS",c.dateTxt,MTICK,true,"day length at 60°N");
-  buildDayCurve(c.dd,c.eot,c.decl);
-  const v=dayCurve[clamp(Math.round(c.hour/24*96),0,96)];
-  strip(o,[o.my,o.ch],dayCurve,dlo,dhi,c.hour/24,TIMEC,TIMES,
+  strip(o,[0,o.top],CURVES?YCURVE:null,ylo,yhi,c.dd/YDAYS,GOLDC,GOLDS,
+        "DATE  ·  THE RINGS",c.dateTxt,MTICK,true,
+        CURVES?"day length at 60°N":null);
+  if(CURVES) buildDayCurve(c.dd,c.eot,c.decl);
+  const v=CURVES?dayCurve[clamp(Math.round(c.hour/24*96),0,96)]:0;
+  strip(o,[o.my,o.ch],CURVES?dayCurve:null,dlo,dhi,c.hour/24,TIMEC,TIMES,
         "TIME  ·  THE SHADOW",c.timeTxt,HTICK,false,
-        "land in sunlight "+Math.round(v*100)+"%");
+        CURVES?"land in sunlight "+Math.round(v*100)+"%":null);
 }
-function globeChrome(o,c){
-  const x=o.x;
-  x.fillStyle="rgb(11,16,23)";
-  x.fillRect(0,0,o.cw,o.top); x.fillRect(0,o.my,o.cw,o.ch-o.my);
-  x.font='500 6.8px "IBM Plex Mono", monospace';
+function globeChrome(o,c,sl){
+  /* Four corners round a circle: who and where, top left; the date, top right;
+     the clock, bottom left; where this face stands in its own day, bottom
+     right. No bands, so none of it costs the sphere any radius. */
+  const x=o.x, P=9;
+  x.font='500 6.6px "IBM Plex Mono", monospace';
   x.textBaseline="top"; x.textAlign="left";
-  x.fillStyle="rgba(120,132,150,.95)";
-  x.fillText(o.name+"  ·  "+degLat(o.lat0)+" "+degLng(o.lng0),PADX,7);
+  x.fillStyle="rgba(126,138,156,.95)";
+  x.fillText(o.name,P,4);
+  x.fillText(degLat(o.lat0)+" "+degLng(o.lng0),P,13);
   x.textAlign="right"; x.font='500 9.5px "IBM Plex Mono", monospace';
-  x.fillStyle=GOLDC; x.fillText(c.dateTxt,o.cw-PADX,6);
+  x.fillStyle=GOLDC; x.fillText(c.dateTxt,o.cw-P,4);
   /* the sun at the camera's own meridian: how far into its day this face is */
-  const H=((o.lng0-c.subLng+540)%360)-180;
+  const H=((o.lng0-sl+540)%360)-180;
   const li=clamp(Math.round((o.lat0+90)*10),0,1800);
   const alt=Math.asin(clamp(SA[li]+SB[li]*Math.cos(H*DEG),-1,1))*RAD;
   const lst=((12+H/15)%24+24)%24;
   x.textBaseline="bottom"; x.textAlign="left";
   x.font='500 9.5px "IBM Plex Mono", monospace'; x.fillStyle=TIMEC;
-  x.fillText(c.timeTxt,PADX,o.ch-6);
-  x.textAlign="right"; x.font='500 6.8px "IBM Plex Mono", monospace';
+  x.fillText(camMode==="point" ? timeLabel(STROBE_H)+" UTC" : c.timeTxt,P,o.ch-4);
+  if(camMode==="point"){
+    x.font='500 6.6px "IBM Plex Mono", monospace';
+    x.fillStyle="rgba(90,205,235,.62)";
+    x.fillText("same hour every day",P,o.ch-14);
+  }
+  x.textAlign="right"; x.font='500 6.6px "IBM Plex Mono", monospace';
   x.fillStyle="rgba(90,205,235,.62)";
-  x.fillText("solar "+String(lst|0).padStart(2,"0")+":"
-    +String(Math.round((lst%1)*60)%60).padStart(2,"0")
-    +"   sun "+(alt>=0?"+":"")+alt.toFixed(0)+"°",o.cw-PADX,o.ch-7);
+  x.fillText("solar "+timeLabel(lst),o.cw-P,o.ch-13);
+  x.fillText("sun "+(alt>=0?"+":"")+alt.toFixed(0)+"°",o.cw-P,o.ch-4);
 }
+
 function render(o,c){
   LBL=[]; LDOT=[];
   tables(c.decl);
   /* Only the globes turn; the map is a projection, not a viewpoint. Each globe
      camera rides the sub-solar longitude, so its hour angle -- and with it the
-     whole lit/unlit pattern -- never changes, and the ground rotates beneath. */
+     whole lit/unlit pattern -- never changes, and the ground rotates beneath.
+
+     In "point" mode the globes are strobed: they are shown at the same mean
+     time every day, the way an analemma photograph is taken, because the daily
+     spin is the one motion that would drown the thing being looked at. That is
+     a deliberate departure from the page's single clock, and the plate says so.  */
+  const pin = o.kind==="globe" && (camMode==="wobble"||camMode==="point");
+  const sl = (o.kind==="globe" && camMode==="point")
+    ? subLngAt(STROBE_H,c.eot) : c.subLng;
   let sp=0;
   if(o.kind==="globe"){
-    o.lng0 = camMode==="sun" ? ((c.subLng+o.sunOffset+540)%360)-180 : o.groundLng;
+    if(pin){
+      const g=pinSun(o,c.decl);
+      aimAt(o, g.lat);
+      o.lng0 = ((sl-g.H+540)%360)-180;
+    } else {
+      if(o.lat0!==o.homeLat){ globeRows(o,0,o.ph,o.homeLat);
+        o.lat0=o.homeLat; o.builtLat=o.homeLat; o.wobRow=o.ph; }
+      o.lng0 = camMode==="sun" ? ((sl+o.sunOffset+540)%360)-180 : o.groundLng;
+    }
     sp=o.lng0-o.lng0Base;
   } else o.lng0=0;
-  paint(o,c.subLng,c.decl,sp);
+  paint(o,sl,c.decl,sp);
   const x=o.x;
   for(const lat of [66.5603,-66.5603,23.4397,-23.4397]) ring(o,lat,FIXED);
   ring(o,0,RIM); if(o.kind==="polar") ring(o,-0.0001,RIM);
@@ -1080,13 +1316,29 @@ function render(o,c){
     ring(o,lat,GOLD,o.kind==="polar"?"midnight sun":null);
   for(const lat of rootsMax(c.decl,H0))
     ring(o,lat,NIGHT,o.kind==="polar"?"polar night":null);
-  terminator(o,c.decl,c.subLng,o.kind==="polar"?1.8:1.6,.96);
-  cities(o,c.decl,c.subLng,o.kind==="polar"?26:16,o.kind==="polar"?21:26);
-  if(o.kind==="polar"){ keys(o); tracks(o,c); }
+  terminator(o,c.decl,sl,o.kind==="polar"?1.8:1.6,.96);
+  if(o.kind==="globe"){
+    /* with the sun pinned to a point the loop has moved onto the ground */
+    if(camMode==="point"){ groundTrail(o,c,sl); sunPoint(o,c.decl,sl); }
+    else analemma(o,c);
+  }
+  cities(o,c.decl,sl,o.kind==="polar"?26:16,o.kind==="polar"?21:26);
+  if(o.kind==="polar"){
+    /* the sphere's analemma is round the back half the time; the map always
+       has room for the same figure, so it carries it as an inset */
+    keys(o);
+    anaInset(o,c,o.cw-46,o.top+18,30,46);
+    const x2=o.x;
+    x2.font='500 6.2px "IBM Plex Mono", monospace';
+    x2.textAlign="left"; x2.textBaseline="bottom";
+    x2.fillStyle="rgba(126,138,156,.9)";
+    x2.fillText("north above",8,o.my-14); x2.fillText("south below",8,o.my-6);
+    tracks(o,c);
+  }
   else{
     x.strokeStyle="rgba(231,236,243,.22)"; x.lineWidth=1;
     x.beginPath(); x.arc(o.cw/2,gCY(o),o.R,0,6.2832); x.stroke();
-    globeChrome(o,c);
+    globeChrome(o,c,sl);
   }
 }
 
@@ -1095,6 +1347,31 @@ function render(o,c){
 let day=(Date.UTC(YEAR,11,10,12)-Y0)/DAY, hour=16,
     playing=!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches),
     last=0, speed=1, camMode="sun";
+/* Where the terminator meets the limb is decided by the sun's screen direction
+   and nothing else: a limb point p has p.c = 0, and on the terminator p.s = 0
+   too, so p lies along c x s -- which on screen is simply perpendicular to the
+   sun. Hold the sun at one screen position and those two contact points are
+   nailed down; hold it there and the whole line is, ends included.
+
+   Doing that costs the camera its fixed latitude. Writing the sun's screen
+   position as (a east, b north, z toward the viewer) and its ground position as
+   (decl, subLng), the camera that puts it there is
+
+     u   = sqrt(b^2 + z^2 - sin^2 decl)
+     lat = atan2(z, b) - atan2(u, sin decl)
+     H   = atan2(a, u)          and the camera's longitude is subLng - H,
+
+   which is exact for every declination inside +/-35 degrees, so for every
+   declination there is. The bearing is picked per hemisphere so the camera
+   never crosses the equator: north nods 25 to 77, south 77 to 25 the other way. */
+const PIN_RHO=55, PIN_BEARING=150, STROBE_H=12;
+function pinSun(o,decl){
+  const rho=PIN_RHO*DEG, beta=(o.homeLat>0?PIN_BEARING:180-PIN_BEARING)*DEG;
+  const a=Math.sin(rho)*Math.sin(beta), b=Math.sin(rho)*Math.cos(beta), z=Math.cos(rho);
+  const sd=Math.sin(decl*DEG);
+  const u=Math.sqrt(Math.max(1e-9, b*b+z*z-sd*sd));
+  return {lat:(Math.atan2(z,b)-Math.atan2(u,sd))*RAD, H:Math.atan2(a,u)*RAD};
+}
 /* Both clocks run, always. A turn takes four seconds and the year about
    forty-six, so a rotation covers a month -- the seasons arrive fast enough to
    watch. The rings still only ever move in whole-day steps: they hold for

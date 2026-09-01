@@ -498,20 +498,101 @@ stops at Cape Agulhas, 34.8°S, while South America runs to Cape Horn at 56°S.
 ### Which half stands still
 
 The toggle above the globes decides what a globe camera is fixed to, and the
-choice decides which half of the picture moves:
+choice decides which half of the picture moves. All four read the same real
+longitudes; none is more correct than another.
 
 - **Earth turns** — the camera rides the sub-solar longitude at a constant hour
   angle, 55° west of it. The lit and unlit halves never move on screen and the
   planet turns through them, which is the real arrangement: a terminator is not
-  something that travels, it is a place the ground goes through. Under this mode
-  a globe camera holds one local time for ever (08:20), and the only thing left
-  to move the line is the season.
+  something that travels, it is a place the ground goes through. A globe camera
+  holds one local time for ever (08:20), and the only thing left to move the
+  line is the season.
 - **Shadow moves** — the camera is bolted to a longitude instead, 28°W and 62°W,
   and the light crosses a fixed view the way it does on the map.
+- **Earth wobbles** — the light is nailed down completely. Where the terminator
+  meets the edge of the globe is decided by one thing, which way the sun lies on
+  the screen: a point on the edge is at a right angle to the camera, a point on
+  the terminator is at a right angle to the sun, and the two conditions leave
+  only the direction perpendicular to both. So holding the sun at a single screen
+  position holds those contacts still — and holds the whole line still with them.
+  The price is the camera's fixed latitude: to keep the sun there as the
+  declination swings it has to nod, 25.7°N to 76.5°N and back over the year.
+  That nod is the wobble. Checked over a whole year *and* a whole day: the sun
+  drifts 0.0000 on both screen axes and the limb contacts sit at −31° and 151°
+  every time, exactly perpendicular to the sun's 60° bearing.
+- **Sun is a point** — if the sun is not allowed its figure-of-eight, the eight
+  has to go somewhere, and where it goes is the ground. This marks one fixed spot
+  on Earth and draws its path through the year in the frame where the sun does
+  not move: the same curve, the same width against the same height, moved from
+  the sky to the surface. Which of the two is "really" wobbling is not a fact
+  about the solar system; it is a choice of what to hold still.
 
-Neither is more correct. Both read the same real longitudes; a crossing takes
-one solar day either way. The mode is one line in `render()`, because the whole
-pipeline is built on ground longitudes and only projects at the end.
+Seeing the last one costs one honest departure, which the plate states: the
+globes are **strobed**, drawn at the same mean time every day rather than on the
+running clock, because the daily spin is a full turn and the wobble is a few
+degrees and the first would drown the second. That is how an analemma photograph
+is taken. The map keeps the real clock throughout.
+
+The camera that pins the sun is solved each frame. Writing the sun's wanted
+screen position as (a east, b north, z toward the viewer) and its ground position
+as (decl, subLng):
+
+    u   = sqrt(b² + z² − sin² decl)
+    lat = atan2(z, b) − atan2(u, sin decl)
+    H   = atan2(a, u)        and the camera's longitude is subLng − H
+
+exact for every declination inside ±35°, so for every declination there is. The
+bearing is mirrored per hemisphere so neither camera crosses the equator.
+
+Re-aiming in longitude is free — it is a constant offset the paint loop absorbs,
+which is also how the pixel cache survives a spinning camera. Re-aiming in
+*latitude* is a rotation, and every pixel has to be projected again: a full pass
+measures 13.7 ms, too much for one frame. So it goes in ten row-slices of about
+0.6 ms. No second buffer is needed, because consecutive aims differ by a quarter
+of a degree — under a pixel at this radius — so a half-updated plate shows no
+seam. A larger jump, someone dragging the date, pre-empts the run and takes the
+full pass at once.
+
+### The sun's own wobble
+
+The gold figure-of-eight is the **analemma**: where the sun stands overhead at
+each day's local mean noon. Every meridian has one and they are all the same
+shape, so the loop drawn on a globe is anchored so that today's point lands on
+the live sub-solar point — that puts it round the sun rather than off over
+Africa, at no cost in truth. The map carries the same figure as a corner inset,
+because on a sphere it is round the back half the time.
+
+It is not symmetric, and that is real rather than a drawing error. The equation
+of time is the sum of two effects with different periods:
+
+| | amplitude | period |
+|---|---|---|
+| tilt (axis obliquity) | ±9.87 min | half a year |
+| ellipse (orbital eccentricity) | ±7.66 min | a full year |
+
+The tilt term alone gives a perfectly symmetric figure — deleting the ellipse
+term and recomputing puts both loops at 19.7 minutes, a ratio of 1.00. With the
+real orbit the ratio is 2.07: 30.7 minutes of spread across southern
+declinations against 14.8 across northern, because the two terms reinforce over
+one half of the year and partly cancel over the other. A second, smaller
+asymmetry tilts the whole figure rather than swelling one loop: perihelion falls
+on 4 January and the solstice on 22 December, thirteen days apart. The
+underlying model turns at −14.2 min on 12 February and +16.4 min on 3 November,
+which are the published values.
+
+### Colour has one meaning each
+
+Gold is the date and nothing else: both boundary rings, the year track, the date
+read-out and its slider. Cyan is the hour and nothing else: the terminator, the
+day track, the clock and its slider. Everything else on the plate is neutral —
+including the day lengths beside the city names, which are a reading off the map
+rather than a mark on the year track and were briefly, wrongly, gold.
+
+Each plate says what it is in its own corners rather than in a caption
+underneath. The globes gave up their top and bottom bands for it: a circle
+leaves four corners empty and a band does not, so the sphere got that space back
+and the name, position, date, clock and local-solar reading moved into the
+corners.
 
 ### Rates, and what they cost
 
