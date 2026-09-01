@@ -651,6 +651,10 @@ function tables(decl){
 /* ------------------------------------------------------------- the plates */
 const TOPH=54, BOTH=52, KEYH=0, VOID=[11,16,23];
 let DPR_CAP=2;
+/* Recording layout: the map drops its two tracks and puts the date and clock in
+   the corners instead, and the globes carry one of each between them rather
+   than one per sphere. Only the chrome changes; the astronomy does not. */
+let VID=false;
 const OPTS=[];
 function polarPlate(id){
   return {id, kind:"polar", disc:0.99};
@@ -744,8 +748,8 @@ function build(o){
   /* The map keeps its two tracks; the globes gave theirs up, because a circle
      leaves four corners empty and a band does not. Everything those bands
      carried now sits in the corners, and the sphere gets the space back. */
-  o.top = o.kind==="polar" ? TOPH : 0;
-  o.bot = o.kind==="polar" ? BOTH : 0;
+  o.top = (o.kind==="polar" && !VID) ? TOPH : 0;
+  o.bot = (o.kind==="polar" && !VID) ? BOTH : 0;
   /* map region is [top, my). A hidden or very short container reports a zero
      box, and without this floor the height goes negative and the typed arrays
      below throw rather than simply drawing nothing. */
@@ -1253,32 +1257,46 @@ function tracks(o,c){
 function globeChrome(o,c,sl){
   /* Four corners round a circle: who and where, top left; the date, top right;
      the clock, bottom left; where this face stands in its own day, bottom
-     right. No bands, so none of it costs the sphere any radius. */
-  const x=o.x, P=9;
+     right. No bands, so none of it costs the sphere any radius.
+
+     Recording overrides that: a stacked pair would say the date and the time
+     twice over, so each globe is told which of the four it may draw and the
+     survivors all land in the band between the two spheres. */
+  const x=o.x, P=9, v=VID?(o.vid||{}):null;
+  const show=k=>!v||v[k];
   x.font='500 6.6px "IBM Plex Mono", monospace';
   x.textBaseline="top"; x.textAlign="left";
   x.fillStyle="rgba(126,138,156,.95)";
-  x.fillText(o.name,P,4);
-  x.fillText(degLat(o.lat0)+" "+degLng(o.lng0),P,13);
-  x.textAlign="right"; x.font='500 9.5px "IBM Plex Mono", monospace';
-  x.fillStyle=GOLDC; x.fillText(c.dateTxt,o.cw-P,4);
-  /* the sun at the camera's own meridian: how far into its day this face is */
-  const H=((o.lng0-sl+540)%360)-180;
-  const li=clamp(Math.round((o.lat0+90)*10),0,1800);
-  const alt=Math.asin(clamp(SA[li]+SB[li]*Math.cos(H*DEG),-1,1))*RAD;
-  const lst=((12+H/15)%24+24)%24;
-  x.textBaseline="bottom"; x.textAlign="left";
-  x.font='500 9.5px "IBM Plex Mono", monospace'; x.fillStyle=TIMEC;
-  x.fillText(camMode==="point" ? timeLabel(STROBE_H)+" UTC" : c.timeTxt,P,o.ch-4);
-  if(camMode==="point"){
+  if(show("name")){
+    x.fillText(o.name,P,4);
+    x.fillText(degLat(o.lat0)+" "+degLng(o.lng0),P,13);
+  }
+  if(show("date")){
+    x.textAlign="right"; x.font='500 9.5px "IBM Plex Mono", monospace';
+    x.fillStyle=GOLDC; x.fillText(c.dateTxt,o.cw-P,4);
+  }
+  if(show("time")){
+    x.textBaseline="bottom"; x.textAlign="left";
+    x.font='500 9.5px "IBM Plex Mono", monospace'; x.fillStyle=TIMEC;
+    x.fillText(camMode==="point" ? timeLabel(STROBE_H)+" UTC" : c.timeTxt,P,o.ch-4);
+    if(camMode==="point"){
+      x.font='500 6.6px "IBM Plex Mono", monospace';
+      x.fillStyle="rgba(90,205,235,.62)";
+      x.fillText("same hour every day",P,o.ch-14);
+    }
+  }
+  if(show("solar")){
+    /* the sun at the camera's own meridian: how far into its day this face is */
+    const H=((o.lng0-sl+540)%360)-180;
+    const li=clamp(Math.round((o.lat0+90)*10),0,1800);
+    const alt=Math.asin(clamp(SA[li]+SB[li]*Math.cos(H*DEG),-1,1))*RAD;
+    const lst=((12+H/15)%24+24)%24;
+    x.textBaseline="bottom"; x.textAlign="right";
     x.font='500 6.6px "IBM Plex Mono", monospace';
     x.fillStyle="rgba(90,205,235,.62)";
-    x.fillText("same hour every day",P,o.ch-14);
+    x.fillText("solar "+timeLabel(lst),o.cw-P,o.ch-13);
+    x.fillText("sun "+(alt>=0?"+":"")+alt.toFixed(0)+"°",o.cw-P,o.ch-4);
   }
-  x.textAlign="right"; x.font='500 6.6px "IBM Plex Mono", monospace';
-  x.fillStyle="rgba(90,205,235,.62)";
-  x.fillText("solar "+timeLabel(lst),o.cw-P,o.ch-13);
-  x.fillText("sun "+(alt>=0?"+":"")+alt.toFixed(0)+"°",o.cw-P,o.ch-4);
 }
 
 function render(o,c){
@@ -1324,16 +1342,27 @@ function render(o,c){
   }
   cities(o,c.decl,sl,o.kind==="polar"?26:16,o.kind==="polar"?21:26);
   if(o.kind==="polar"){
-    /* the sphere's analemma is round the back half the time; the map always
-       has room for the same figure, so it carries it as an inset */
     keys(o);
-    anaInset(o,c,o.cw-46,o.top+18,30,46);
     const x2=o.x;
-    x2.font='500 6.2px "IBM Plex Mono", monospace';
-    x2.textAlign="left"; x2.textBaseline="bottom";
-    x2.fillStyle="rgba(126,138,156,.9)";
-    x2.fillText("north above",8,o.my-14); x2.fillText("south below",8,o.my-6);
-    tracks(o,c);
+    if(VID){
+      /* with the two tracks gone the discs fill the frame, so the analemma
+         moves to the waist between them -- the only gap left wide enough */
+      anaInset(o,c,o.cw-52,o.ch/2-31,40,62);
+      x2.font='500 11px "IBM Plex Mono", monospace';
+      x2.textBaseline="top"; x2.textAlign="right";
+      x2.fillStyle=GOLDC; x2.fillText(c.dateTxt,o.cw-10,10);
+      x2.textBaseline="bottom"; x2.textAlign="left";
+      x2.fillStyle=TIMEC; x2.fillText(c.timeTxt,10,o.ch-10);
+    } else {
+      /* the sphere's analemma is round the back half the time; the map always
+         has room for the same figure, so it carries it as an inset */
+      anaInset(o,c,o.cw-46,o.top+18,30,46);
+      x2.font='500 6.2px "IBM Plex Mono", monospace';
+      x2.textAlign="left"; x2.textBaseline="bottom";
+      x2.fillStyle="rgba(126,138,156,.9)";
+      x2.fillText("north above",8,o.my-14); x2.fillText("south below",8,o.my-6);
+      tracks(o,c);
+    }
   }
   else{
     x.strokeStyle="rgba(231,236,243,.22)"; x.lineWidth=1;
