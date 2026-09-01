@@ -9,5 +9,13 @@ dist/
 *.zip
 __pycache__/
 
+# Raw deposit downloads, wherever they land. 18.6 MB of these were committed
+# early on -- cougar and wolf RData, the Utah covariates and grid masks, a
+# spreadsheet -- and read by nothing here. The DOIs in docs/dataset-audit.md
+# are how to fetch them again.
+*.RData
+*.tif
+*.xlsx
+
 # route_eels.py caches elevation tiles here; they are refetchable.
 .tilecache/

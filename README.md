@@ -812,6 +812,12 @@ The two earlier pipelines are still here and still run: `build_utah.py` and
 `fetch_dryad.py` with `build_tracks.py`, `build_risk.py` and `build_seasonal.py`
 against `doi:10.5061/dryad.w0vt4b8zr`, the Okavango reconstruction.
 
+Their raw downloads are not committed either, and for a while some were: 18.6 MB
+of cougar and wolf RData, the two Utah grid masks and covariate rasters, and a
+spreadsheet — residue of those two directions, read by no page and no script in
+this repository. They are gone. Every one of them is refetchable, and the DOIs
+are in **[docs/dataset-audit.md](docs/dataset-audit.md)**.
+
 ## Source
 
 Flack, A., Fiedler, W., Blas, J., et al. (2016). *Costs of migratory decisions:

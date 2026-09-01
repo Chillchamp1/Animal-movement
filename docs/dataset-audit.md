@@ -38,7 +38,10 @@ The paper describes a ten-year GPS dataset of 59 wolves and 431 caribou at 1–5
 fix intervals. **None of it is in the deposit.** The deposit is two files
 totalling 142 KB: a README and `Table_S2_-_Final_data.xlsx`.
 
-Byte-verified against `Table_S2_-_Final_data.xlsx`, a copy of which sits in this repository:
+Byte-verified against `Table_S2_-_Final_data.xlsx` from the deposit. The copy
+downloaded for this audit is no longer committed here, since nothing in the
+repository reads it; `python3 scripts/fetch_dryad.py --doi 10.5061/dryad.63xsj3v81`
+fetches it again.
 
 - Sheet `Final_data`: **765 rows × 26 columns**, one row per **wolf-month**.
   59 wolves (34 M / 25 F), 2011–2020, median 11 wolf-months per animal.
@@ -103,8 +106,9 @@ says so three times, and the files bear it out:
 > information.
 
 Byte-verified against `wolf_dat_all_for_pub.RData` and
-`coug_dat_all_for_pub.RData` (`docs/kh1893292-dryad-readme.md` holds the
-deposit's README):
+`coug_dat_all_for_pub.RData` from the deposit -- downloaded for this audit and
+no longer committed here, since nothing in the repository reads them
+(`docs/kh1893292-dryad-readme.md` holds the deposit's README):
 
 | | wolves | cougars |
 |---|---|---|
