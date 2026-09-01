@@ -594,6 +594,54 @@ leaves four corners empty and a band does not, so the sphere got that space back
 and the name, position, date, clock and local-solar reading moved into the
 corners.
 
+### The portrait cut
+
+The same plates render to a 1080x1920 clip for phone-shaped feeds, and the page
+carries the layout rather than a second copy of the drawing code. `VID` is false
+in the browser and true only in the capture harness; it changes chrome and
+nothing else, so a frame grabbed for video is the same astronomy as a frame on
+screen.
+
+What it moves. The map gives up its two track panels, which is what the top and
+bottom bands existed to hold, so the two discs fill the frame instead of sitting
+in a letterbox. The analemma inset moves to the waist between them, the only gap
+left wide enough. On the globe pair each sphere is told which of its four corner
+captions it may draw, because a stacked pair would otherwise say the date twice
+and the hour twice; the survivors are one date and one clock, both in the band
+between the spheres. The local-solar readings come off entirely -- an angle that
+changes every frame reads as noise at arm's length. Cities, rings, terminator,
+relief and labels all stay exactly as they are on screen.
+
+Speed is read out of the page at capture time rather than set in the harness, so
+a clip runs at the rate the page runs at: one year is 91.3 seconds and about
+four turns at the default. Three clips exist -- the polar pair, and the globe
+pair in both its ground-locked and sun-locked modes. They are not committed. Two
+minutes of 1080x1920 is tens of megabytes, Pages has no use for them, and
+putting them in would hand back a third of what the data cleanup removed.
+
+The loop is not seamless and cannot be made so by encoding: 2738 frames divides
+neither the year nor the four turns exactly, so the last frame lands about two
+frames' worth of motion away from the first. Measured as mean absolute pixel
+difference, the seam is 1.90 against 0.59 between neighbours on the polar clip,
+2.53 against 1.12 on the ground-locked pair, and 8.79 against 4.53 on the
+sun-locked one. Closing it would mean choosing a frame count that divides both,
+which means moving one of the two rates.
+
+```sh
+python3 scripts/render_rings_video.py                 # all three, into dist/
+python3 scripts/render_rings_video.py --job sun --crf 24
+python3 scripts/render_rings_video.py --seconds 3     # a quick look
+```
+
+Frames are advanced by index rather than by wall clock, so the cadence does not
+depend on how fast the machine rendered, and they come off the canvas with
+`toDataURL` rather than through a page screenshot -- which skips the compositor,
+much the slowest thing in the loop, and lets the two globes be captured at full
+height each and stacked rather than sharing one. A whole year takes roughly two
+and a half hours per clip on one core. `--crf 24` reproduces the `--crf 20`
+encode at 40.8 dB luma PSNR for 40 percent less file, which is the setting the
+sun-locked clip needs to fit a 30 MB upload limit.
+
 ### Rates, and what they cost
 
 One turn of a sun-locked globe *is* the solar day, so its period is not a free
